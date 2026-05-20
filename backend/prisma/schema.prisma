@@ -23,6 +23,7 @@ model Tenant {
   suppliers         SupplierMaster[]
   machines          MachineMaster[]
   dies              DieMaster[]
+  bom_headers       BomHeader[]
 
   @@map("tenants")
 }
@@ -61,6 +62,8 @@ model ItemMaster {
   tenant          Tenant          @relation(fields: [tenant_id], references: [id])
   pfep_detail     ItemPfepDetail?
   item_suppliers  ItemSupplierMap[]
+  bom_headers     BomHeader[]
+  bom_lines       BomLine[]
 
   @@unique([tenant_id, item_code])
   @@map("item_master")
@@ -150,6 +153,7 @@ model MachineMaster {
 
   tenant                Tenant   @relation(fields: [tenant_id], references: [id])
   dies                  DieMaster[]
+  routing_operations    RoutingOperation[]
 
   @@unique([tenant_id, machine_code])
   @@map("machine_master")
@@ -178,9 +182,84 @@ model DieMaster {
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
 
-  tenant                Tenant        @relation(fields: [tenant_id], references: [id])
+  tenant                Tenant         @relation(fields: [tenant_id], references: [id])
   machine               MachineMaster? @relation(fields: [machine_id], references: [id])
 
   @@unique([tenant_id, die_number])
   @@map("die_master")
+}
+
+model BomHeader {
+  id              String    @id @default(uuid())
+  tenant_id       String
+  item_id         String
+  bom_revision    String    @default("A")
+  effective_date  DateTime?
+  status          String    @default("draft")
+  created_by      String?
+  approved_by     String?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  tenant          Tenant     @relation(fields: [tenant_id], references: [id])
+  item            ItemMaster @relation(fields: [item_id], references: [id])
+  bom_lines       BomLine[]
+
+  @@unique([tenant_id, item_id, bom_revision])
+  @@map("bom_header")
+}
+
+model BomLine {
+  id                   String     @id @default(uuid())
+  tenant_id            String
+  bom_id               String
+  component_item_id    String
+  quantity_per         Float
+  unit_of_measure      String?
+  yield_factor         Float?
+  scrap_percent        Float?
+  line_type            String     @default("material")
+  created_at           DateTime   @default(now())
+  updated_at           DateTime   @updatedAt
+
+  bom                  BomHeader  @relation(fields: [bom_id], references: [id])
+  component_item       ItemMaster @relation(fields: [component_item_id], references: [id])
+
+  @@map("bom_line")
+}
+
+model RoutingHeader {
+  id               String    @id @default(uuid())
+  tenant_id        String
+  item_id          String
+  routing_revision String    @default("A")
+  effective_date   DateTime?
+  status           String    @default("draft")
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  operations       RoutingOperation[]
+
+  @@unique([tenant_id, item_id, routing_revision])
+  @@map("routing_header")
+}
+
+model RoutingOperation {
+  id                          String         @id @default(uuid())
+  tenant_id                   String
+  routing_id                  String
+  operation_sequence          Int
+  operation_name              String
+  machine_id                  String?
+  standard_time_sec           Int?
+  setup_time_min              Int?
+  is_constraint               Boolean        @default(false)
+  is_pre_constraint_inspection Boolean       @default(false)
+  created_at                  DateTime       @default(now())
+  updated_at                  DateTime       @updatedAt
+
+  routing                     RoutingHeader  @relation(fields: [routing_id], references: [id])
+  machine                     MachineMaster? @relation(fields: [machine_id], references: [id])
+
+  @@map("routing_operation")
 }
