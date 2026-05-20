@@ -18,8 +18,9 @@ model Tenant {
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
-  users       User[]
-  items       ItemMaster[]
+  users             User[]
+  items             ItemMaster[]
+  suppliers         SupplierMaster[]
 
   @@map("tenants")
 }
@@ -43,7 +44,7 @@ model User {
 }
 
 model ItemMaster {
-  id              String      @id @default(uuid())
+  id              String          @id @default(uuid())
   tenant_id       String
   item_code       String
   item_name       String
@@ -51,21 +52,22 @@ model ItemMaster {
   unit_of_measure String
   item_category   String?
   description     String?
-  is_active       Boolean     @default(true)
-  created_at      DateTime    @default(now())
-  updated_at      DateTime    @updatedAt
+  is_active       Boolean         @default(true)
+  created_at      DateTime        @default(now())
+  updated_at      DateTime        @updatedAt
 
-  tenant          Tenant      @relation(fields: [tenant_id], references: [id])
+  tenant          Tenant          @relation(fields: [tenant_id], references: [id])
   pfep_detail     ItemPfepDetail?
+  item_suppliers  ItemSupplierMap[]
 
   @@unique([tenant_id, item_code])
   @@map("item_master")
 }
 
 model ItemPfepDetail {
-  id                    String   @id @default(uuid())
+  id                    String     @id @default(uuid())
   tenant_id             String
-  item_id               String   @unique
+  item_id               String     @unique
   gross_weight_kg       Float?
   net_weight_kg         Float?
   yield_percent         Float?
@@ -77,11 +79,53 @@ model ItemPfepDetail {
   order_quantity        Float?
   shelf_life_days       Int?
   abc_classification    String?
-  constraint_flag       Boolean  @default(false)
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
+  constraint_flag       Boolean    @default(false)
+  created_at            DateTime   @default(now())
+  updated_at            DateTime   @updatedAt
 
   item                  ItemMaster @relation(fields: [item_id], references: [id])
 
   @@map("item_pfep_detail")
+}
+
+model SupplierMaster {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  supplier_code   String
+  supplier_name   String
+  address         String?
+  gstin           String?
+  payment_terms   String?
+  lead_time_days  Int?
+  moq             Float?
+  currency        String   @default("INR")
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenant_id], references: [id])
+  item_suppliers  ItemSupplierMap[]
+
+  @@unique([tenant_id, supplier_code])
+  @@map("supplier_master")
+}
+
+model ItemSupplierMap {
+  id              String         @id @default(uuid())
+  tenant_id       String
+  item_id         String
+  supplier_id     String
+  price           Float?
+  moq             Float?
+  lead_time_days  Int?
+  is_preferred    Boolean        @default(false)
+  effective_date  DateTime?
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+
+  item            ItemMaster     @relation(fields: [item_id], references: [id])
+  supplier        SupplierMaster @relation(fields: [supplier_id], references: [id])
+
+  @@unique([tenant_id, item_id, supplier_id])
+  @@map("item_supplier_map")
 }
