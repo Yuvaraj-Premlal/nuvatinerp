@@ -19,6 +19,7 @@ model Tenant {
   updated_at  DateTime @updatedAt
 
   users       User[]
+  items       ItemMaster[]
 
   @@map("tenants")
 }
@@ -39,4 +40,48 @@ model User {
 
   @@unique([tenant_id, email])
   @@map("users")
+}
+
+model ItemMaster {
+  id              String      @id @default(uuid())
+  tenant_id       String
+  item_code       String
+  item_name       String
+  item_type       String
+  unit_of_measure String
+  item_category   String?
+  description     String?
+  is_active       Boolean     @default(true)
+  created_at      DateTime    @default(now())
+  updated_at      DateTime    @updatedAt
+
+  tenant          Tenant      @relation(fields: [tenant_id], references: [id])
+  pfep_detail     ItemPfepDetail?
+
+  @@unique([tenant_id, item_code])
+  @@map("item_master")
+}
+
+model ItemPfepDetail {
+  id                    String   @id @default(uuid())
+  tenant_id             String
+  item_id               String   @unique
+  gross_weight_kg       Float?
+  net_weight_kg         Float?
+  yield_percent         Float?
+  storage_location      String?
+  rack_address          String?
+  zone                  String?
+  reorder_point         Float?
+  safety_stock          Float?
+  order_quantity        Float?
+  shelf_life_days       Int?
+  abc_classification    String?
+  constraint_flag       Boolean  @default(false)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  item                  ItemMaster @relation(fields: [item_id], references: [id])
+
+  @@map("item_pfep_detail")
 }
