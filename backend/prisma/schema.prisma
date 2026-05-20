@@ -21,6 +21,8 @@ model Tenant {
   users             User[]
   items             ItemMaster[]
   suppliers         SupplierMaster[]
+  machines          MachineMaster[]
+  dies              DieMaster[]
 
   @@map("tenants")
 }
@@ -128,4 +130,57 @@ model ItemSupplierMap {
 
   @@unique([tenant_id, item_id, supplier_id])
   @@map("item_supplier_map")
+}
+
+model MachineMaster {
+  id                    String   @id @default(uuid())
+  tenant_id             String
+  machine_code          String
+  machine_name          String
+  machine_type          String?
+  capacity_tons         Float?
+  rated_cycle_time_sec  Int?
+  rated_shots_per_shift Int?
+  is_constraint         Boolean  @default(false)
+  oee_target_percent    Float?
+  location              String?
+  is_active             Boolean  @default(true)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  tenant                Tenant   @relation(fields: [tenant_id], references: [id])
+  dies                  DieMaster[]
+
+  @@unique([tenant_id, machine_code])
+  @@map("machine_master")
+}
+
+model DieMaster {
+  id                    String   @id @default(uuid())
+  tenant_id             String
+  die_number            String
+  die_name              String?
+  item_id               String?
+  cavity_count          Int      @default(1)
+  design_life_shots     Int?
+  current_shot_count    Int      @default(0)
+  shots_at_last_pm      Int      @default(0)
+  pm_interval_shots     Int?
+  next_pm_due_shots     Int?
+  die_owner             String?
+  customer_id           String?
+  current_status        String   @default("in_storage")
+  repair_vendor         String?
+  repair_lead_time_days Int?
+  machine_id            String?
+  location              String?
+  is_active             Boolean  @default(true)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  tenant                Tenant        @relation(fields: [tenant_id], references: [id])
+  machine               MachineMaster? @relation(fields: [machine_id], references: [id])
+
+  @@unique([tenant_id, die_number])
+  @@map("die_master")
 }
