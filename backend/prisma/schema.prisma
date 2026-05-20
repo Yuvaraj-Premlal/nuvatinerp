@@ -6,3 +6,17 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Tenant {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  industry    String?
+  address     String?
+  gstin       String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@map("tenants")
+}
