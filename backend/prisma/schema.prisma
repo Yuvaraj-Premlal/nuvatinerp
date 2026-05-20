@@ -18,12 +18,13 @@ model Tenant {
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
-  users             User[]
-  items             ItemMaster[]
-  suppliers         SupplierMaster[]
-  machines          MachineMaster[]
-  dies              DieMaster[]
-  bom_headers       BomHeader[]
+  users              User[]
+  items              ItemMaster[]
+  suppliers          SupplierMaster[]
+  machines           MachineMaster[]
+  dies               DieMaster[]
+  bom_headers        BomHeader[]
+  purchase_orders    PurchaseOrder[]
 
   @@map("tenants")
 }
@@ -59,11 +60,14 @@ model ItemMaster {
   created_at      DateTime        @default(now())
   updated_at      DateTime        @updatedAt
 
-  tenant          Tenant          @relation(fields: [tenant_id], references: [id])
+  tenant          Tenant            @relation(fields: [tenant_id], references: [id])
   pfep_detail     ItemPfepDetail?
   item_suppliers  ItemSupplierMap[]
   bom_headers     BomHeader[]
   bom_lines       BomLine[]
+  po_lines        PurchaseOrderLine[]
+  grn_lines       GrnLine[]
+  stock_ledger    StockLedger[]
 
   @@unique([tenant_id, item_code])
   @@map("item_master")
@@ -108,8 +112,9 @@ model SupplierMaster {
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
-  tenant          Tenant   @relation(fields: [tenant_id], references: [id])
+  tenant          Tenant            @relation(fields: [tenant_id], references: [id])
   item_suppliers  ItemSupplierMap[]
+  purchase_orders PurchaseOrder[]
 
   @@unique([tenant_id, supplier_code])
   @@map("supplier_master")
@@ -151,7 +156,7 @@ model MachineMaster {
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
 
-  tenant                Tenant   @relation(fields: [tenant_id], references: [id])
+  tenant                Tenant             @relation(fields: [tenant_id], references: [id])
   dies                  DieMaster[]
   routing_operations    RoutingOperation[]
 
@@ -245,21 +250,125 @@ model RoutingHeader {
 }
 
 model RoutingOperation {
-  id                          String         @id @default(uuid())
-  tenant_id                   String
-  routing_id                  String
-  operation_sequence          Int
-  operation_name              String
-  machine_id                  String?
-  standard_time_sec           Int?
-  setup_time_min              Int?
-  is_constraint               Boolean        @default(false)
-  is_pre_constraint_inspection Boolean       @default(false)
-  created_at                  DateTime       @default(now())
-  updated_at                  DateTime       @updatedAt
+  id                           String         @id @default(uuid())
+  tenant_id                    String
+  routing_id                   String
+  operation_sequence           Int
+  operation_name               String
+  machine_id                   String?
+  standard_time_sec            Int?
+  setup_time_min               Int?
+  is_constraint                Boolean        @default(false)
+  is_pre_constraint_inspection Boolean        @default(false)
+  created_at                   DateTime       @default(now())
+  updated_at                   DateTime       @updatedAt
 
-  routing                     RoutingHeader  @relation(fields: [routing_id], references: [id])
-  machine                     MachineMaster? @relation(fields: [machine_id], references: [id])
+  routing                      RoutingHeader  @relation(fields: [routing_id], references: [id])
+  machine                      MachineMaster? @relation(fields: [machine_id], references: [id])
 
   @@map("routing_operation")
+}
+
+model PurchaseOrder {
+  id                     String    @id @default(uuid())
+  tenant_id              String
+  po_number              String
+  supplier_id            String
+  po_date                DateTime  @default(now())
+  expected_delivery_date DateTime?
+  status                 String    @default("draft")
+  raised_by              String    @default("human")
+  total_value            Float?
+  currency               String    @default("INR")
+  notes                  String?
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+
+  tenant                 Tenant         @relation(fields: [tenant_id], references: [id])
+  supplier               SupplierMaster @relation(fields: [supplier_id], references: [id])
+  po_lines               PurchaseOrderLine[]
+  grn_headers            GrnHeader[]
+
+  @@unique([tenant_id, po_number])
+  @@map("purchase_order")
+}
+
+model PurchaseOrderLine {
+  id                 String        @id @default(uuid())
+  tenant_id          String
+  po_id              String
+  item_id            String
+  quantity_ordered   Float
+  unit_price         Float?
+  uom                String?
+  quantity_received  Float         @default(0)
+  quantity_pending   Float?
+  created_at         DateTime      @default(now())
+  updated_at         DateTime      @updatedAt
+
+  po                 PurchaseOrder @relation(fields: [po_id], references: [id])
+  item               ItemMaster    @relation(fields: [item_id], references: [id])
+
+  @@map("purchase_order_line")
+}
+
+model GrnHeader {
+  id                  String        @id @default(uuid())
+  tenant_id           String
+  grn_number          String
+  po_id               String?
+  supplier_id         String?
+  received_date       DateTime      @default(now())
+  received_by         String?
+  vehicle_number      String?
+  supplier_dc_number  String?
+  created_at          DateTime      @default(now())
+  updated_at          DateTime      @updatedAt
+
+  po                  PurchaseOrder? @relation(fields: [po_id], references: [id])
+  grn_lines           GrnLine[]
+
+  @@unique([tenant_id, grn_number])
+  @@map("grn_header")
+}
+
+model GrnLine {
+  id               String     @id @default(uuid())
+  tenant_id        String
+  grn_id           String
+  item_id          String
+  quantity_received Float
+  accepted_qty     Float?
+  rejected_qty     Float?
+  rejection_reason String?
+  batch_number     String?
+  lot_number       String?
+  unit_price       Float?
+  created_at       DateTime   @default(now())
+  updated_at       DateTime   @updatedAt
+
+  grn              GrnHeader  @relation(fields: [grn_id], references: [id])
+  item             ItemMaster @relation(fields: [item_id], references: [id])
+
+  @@map("grn_line")
+}
+
+model StockLedger {
+  id               String     @id @default(uuid())
+  tenant_id        String
+  item_id          String
+  transaction_type String
+  quantity         Float
+  unit_cost        Float?
+  reference_type   String?
+  reference_id     String?
+  location         String?
+  batch_number     String?
+  lot_number       String?
+  transacted_at    DateTime   @default(now())
+  transacted_by    String?
+
+  item             ItemMaster @relation(fields: [item_id], references: [id])
+
+  @@map("stock_ledger")
 }
