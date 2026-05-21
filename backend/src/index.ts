@@ -14,6 +14,7 @@ import dieRoutes from './routes/die.routes';
 import bomRoutes from './routes/bom.routes';
 import routingRoutes from './routes/routing.routes';
 import purchaseRoutes from './routes/purchase.routes';
+import grnRoutes from './routes/grn.routes';
 
 dotenv.config();
 
@@ -45,6 +46,7 @@ app.use('/api/dies', dieRoutes);
 app.use('/api/bom', bomRoutes);
 app.use('/api/routing', routingRoutes);
 app.use('/api/purchase', purchaseRoutes);
+app.use('/api/grn', grnRoutes);
 
 app.listen(PORT, () => {
   console.log('Nuvatin ERP backend running on port ' + PORT);
