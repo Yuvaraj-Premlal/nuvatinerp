@@ -94,11 +94,81 @@ export const updateOperationStatus = async (req: AuthRequest, res: Response) => 
     const tenant_id = req.user?.tenant_id as string;
     const op_id = req.params.op_id as string;
     const { status, actual_start, actual_end, operator_id, notes } = req.body;
-    const op = await prisma.jobCardOperation.updateMany({
+
+    const op = await prisma.jobCardOperation.findFirst({ where: { id: op_id, tenant_id } });
+    if (!op) return res.status(404).json({ success: false, error: 'Operation not found' });
+
+    await prisma.jobCardOperation.updateMany({
       where: { id: op_id, tenant_id },
       data: { status, actual_start, actual_end, operator_id, notes }
     });
-    res.json({ success: true, data: op });
+
+    if (status === 'in_progress' && op.operation_type === 'assembly' && op.job_id) {
+      const job = await prisma.jobCard.findFirst({ where: { id: op.job_id } });
+      if (job && job.bom_id) {
+        const assemblyComponents = await prisma.bomLine.findMany({
+          where: { bom_id: job.bom_id, line_type: 'assembly_component' }
+        });
+        for (const component of assemblyComponents) {
+          const requiredQty = component.quantity_per * job.planned_quantity;
+          await prisma.materialIssue.create({
+            data: {
+              tenant_id,
+              job_id: job.id,
+              item_id: component.component_item_id,
+              planned_qty: requiredQty,
+              issued_qty: requiredQty,
+              issued_by: operator_id || 'system'
+            }
+          });
+          await prisma.stockLedger.create({
+            data: {
+              tenant_id,
+              item_id: component.component_item_id,
+              transaction_type: 'issue',
+              quantity: -requiredQty,
+              reference_type: 'job_card',
+              reference_id: job.id
+            }
+          });
+        }
+      }
+    }
+
+    if (status === 'in_progress' && op.is_outsourced && op.vendor_id && op.job_id) {
+      const job = await prisma.jobCard.findFirst({ where: { id: op.job_id } });
+      if (job) {
+        const existingJWO = await prisma.jobWorkOrder.findFirst({
+          where: { job_card_id: op.job_id, operation_id: op_id }
+        });
+        if (!existingJWO) {
+          await prisma.jobWorkOrder.create({
+            data: {
+              tenant_id,
+              jwo_number: 'JWO-AUTO-' + Date.now(),
+              job_card_id: op.job_id,
+              vendor_id: op.vendor_id,
+              item_id: job.item_id,
+              operation_id: op_id,
+              quantity_sent: job.planned_quantity,
+              status: 'draft'
+            }
+          });
+          await prisma.systemAlert.create({
+            data: {
+              tenant_id,
+              alert_type: 'job_work_required',
+              severity: 'info',
+              message: 'Job Work Order auto-drafted for operation ' + op.operation_name + ' on job ' + op.job_id,
+              reference_type: 'job_card_operation',
+              reference_id: op_id
+            }
+          });
+        }
+      }
+    }
+
+    res.json({ success: true, data: { message: 'Operation updated' } });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
