@@ -18,6 +18,7 @@ import grnRoutes from './routes/grn.routes';
 import jobcardRoutes from './routes/jobcard.routes';
 import qualityRoutes from './routes/quality.routes';
 import dispatchRoutes from './routes/dispatch.routes';
+import vendorRoutes from './routes/vendor.routes';
 
 dotenv.config();
 
@@ -53,6 +54,7 @@ app.use('/api/grn', grnRoutes);
 app.use('/api/jobcards', jobcardRoutes);
 app.use('/api/quality', qualityRoutes);
 app.use('/api/dispatch', dispatchRoutes);
+app.use('/api/vendors', vendorRoutes);
 
 app.listen(PORT, () => {
   console.log('Nuvatin ERP backend running on port ' + PORT);
