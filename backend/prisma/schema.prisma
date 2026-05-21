@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/prisma"
+  provider        = "prisma-client-js"
+  output          = "../generated/prisma"
 }
 
 datasource db {
@@ -515,7 +515,7 @@ model InspectionLine {
 }
 
 model RejectionLog {
-  id                  String           @id @default(uuid())
+  id                  String            @id @default(uuid())
   tenant_id           String
   job_id              String?
   item_id             String?
@@ -527,11 +527,11 @@ model RejectionLog {
   die_id              String?
   machine_id          String?
   alloy_lot           String?
-  disposition         String           @default("scrap")
-  logged_at           DateTime         @default(now())
+  disposition         String            @default("scrap")
+  logged_at           DateTime          @default(now())
   logged_by           String?
 
-  job                 JobCard?         @relation(fields: [job_id], references: [id])
+  job                 JobCard?          @relation(fields: [job_id], references: [id])
   inspection          InspectionHeader? @relation(fields: [inspection_id], references: [id])
 
   @@map("rejection_log")
@@ -578,19 +578,19 @@ model SalesOrderLine {
 }
 
 model DispatchHeader {
-  id               String     @id @default(uuid())
+  id               String      @id @default(uuid())
   tenant_id        String
   dispatch_number  String
   so_id            String?
-  dispatch_date    DateTime   @default(now())
+  dispatch_date    DateTime    @default(now())
   dispatched_by    String?
   vehicle_number   String?
   transporter      String?
   challan_number   String?
   eway_bill_number String?
-  status           String     @default("draft")
-  created_at       DateTime   @default(now())
-  updated_at       DateTime   @updatedAt
+  status           String      @default("draft")
+  created_at       DateTime    @default(now())
+  updated_at       DateTime    @updatedAt
 
   so               SalesOrder? @relation(fields: [so_id], references: [id])
   dispatch_lines   DispatchLine[]
@@ -600,37 +600,37 @@ model DispatchHeader {
 }
 
 model DispatchLine {
-  id                  String         @id @default(uuid())
-  tenant_id           String
-  dispatch_id         String
-  item_id             String
-  so_line_id          String?
-  quantity_dispatched Float
-  batch_number        String?
-  pack_count          Int?
-  pieces_per_pack     Int?
-  created_at          DateTime       @default(now())
+  id                   String          @id @default(uuid())
+  tenant_id            String
+  dispatch_id          String
+  item_id              String
+  so_line_id           String?
+  quantity_dispatched  Float
+  batch_number         String?
+  pack_count           Int?
+  pieces_per_pack      Int?
+  created_at           DateTime        @default(now())
 
-  dispatch            DispatchHeader @relation(fields: [dispatch_id], references: [id])
-  item                ItemMaster     @relation(fields: [item_id], references: [id])
-  so_line             SalesOrderLine? @relation(fields: [so_line_id], references: [id])
+  dispatch             DispatchHeader  @relation(fields: [dispatch_id], references: [id])
+  item                 ItemMaster      @relation(fields: [item_id], references: [id])
+  so_line              SalesOrderLine? @relation(fields: [so_line_id], references: [id])
 
   @@map("dispatch_line")
 }
 
 model ConstraintConfig {
-  id                    String         @id @default(uuid())
+  id                    String        @id @default(uuid())
   tenant_id             String
   machine_id            String
-  is_active_constraint  Boolean        @default(true)
+  is_active_constraint  Boolean       @default(true)
   buffer_target_hours   Float?
   throughput_per_hour   Float?
   effective_from        DateTime?
   effective_to          DateTime?
-  created_at            DateTime       @default(now())
-  updated_at            DateTime       @updatedAt
+  created_at            DateTime      @default(now())
+  updated_at            DateTime      @updatedAt
 
-  machine               MachineMaster  @relation(fields: [machine_id], references: [id])
+  machine               MachineMaster @relation(fields: [machine_id], references: [id])
 
   @@map("constraint_config")
 }

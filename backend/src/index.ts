@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import tenantRoutes from './routes/tenant.routes';
 
 dotenv.config();
 
@@ -22,6 +23,8 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV
   });
 });
+
+app.use('/api/tenants', tenantRoutes);
 
 app.listen(PORT, () => {
   console.log(`Nuvatin ERP backend running on port ${PORT}`);
