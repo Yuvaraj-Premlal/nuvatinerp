@@ -425,6 +425,7 @@ model JobCard {
   downtime_logs         DowntimeLog[]
   material_issues       MaterialIssue[]
   rejection_logs        RejectionLog[]
+  job_operations        JobCardOperation[]
 
   @@unique([tenant_id, job_number])
   @@map("job_card")
@@ -552,7 +553,8 @@ model SalesOrder {
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt
 
-  tenant         Tenant    @relation(fields: [tenant_id], references: [id])
+  tenant         Tenant           @relation(fields: [tenant_id], references: [id])
+  customer       CustomerMaster?  @relation(fields: [customer_id], references: [id])
   so_lines       SalesOrderLine[]
   dispatches     DispatchHeader[]
 
@@ -732,4 +734,49 @@ model JobWorkReceipt {
 
   @@unique([tenant_id, jwr_number])
   @@map("job_work_receipt")
+}
+
+model CustomerMaster {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  customer_code   String
+  customer_name   String
+  address         String?
+  gstin           String?
+  contact_person  String?
+  contact_phone   String?
+  payment_terms   String?
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  sales_orders    SalesOrder[]
+
+  @@unique([tenant_id, customer_code])
+  @@map("customer_master")
+}
+
+model JobCardOperation {
+  id                  String    @id @default(uuid())
+  tenant_id           String
+  job_id              String
+  operation_id        String?
+  operation_sequence  Int
+  operation_name      String
+  operation_type      String    @default("production")
+  is_outsourced       Boolean   @default(false)
+  vendor_id           String?
+  machine_id          String?
+  operator_id         String?
+  status              String    @default("pending")
+  planned_start       DateTime?
+  actual_start        DateTime?
+  actual_end          DateTime?
+  notes               String?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  job                 JobCard   @relation(fields: [job_id], references: [id])
+
+  @@map("job_card_operation")
 }
