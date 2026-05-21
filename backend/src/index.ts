@@ -8,6 +8,7 @@ import userRoutes from './routes/user.routes';
 import authRoutes from './routes/auth.routes';
 import itemRoutes from './routes/item.routes';
 import pfepRoutes from './routes/pfep.routes';
+import supplierRoutes from './routes/supplier.routes';
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.use('/api/tenants', tenantRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/pfep', pfepRoutes);
+app.use('/api/suppliers', supplierRoutes);
 
 app.listen(PORT, () => {
   console.log('Nuvatin ERP backend running on port ' + PORT);
