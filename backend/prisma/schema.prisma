@@ -283,6 +283,9 @@ model RoutingOperation {
   setup_time_min               Int?
   is_constraint                Boolean        @default(false)
   is_pre_constraint_inspection Boolean        @default(false)
+  operation_type               String         @default("production")
+  is_outsourced                Boolean        @default(false)
+  vendor_id                    String?
   created_at                   DateTime       @default(now())
   updated_at                   DateTime       @updatedAt
 
@@ -666,4 +669,67 @@ model SystemAlert {
   resolved_by     String?
 
   @@map("system_alert")
+}
+
+model VendorMaster {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  vendor_code       String
+  vendor_name       String
+  address           String?
+  gstin             String?
+  operation_types   String?
+  payment_terms     String?
+  lead_time_days    Int?
+  is_active         Boolean  @default(true)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  job_work_orders   JobWorkOrder[]
+
+  @@unique([tenant_id, vendor_code])
+  @@map("vendor_master")
+}
+
+model JobWorkOrder {
+  id                    String    @id @default(uuid())
+  tenant_id             String
+  jwo_number            String
+  job_card_id           String?
+  vendor_id             String
+  item_id               String?
+  operation_id          String?
+  quantity_sent         Float
+  outward_challan       String?
+  expected_return_date  DateTime?
+  job_work_charge       Float?
+  status                String    @default("draft")
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  vendor                VendorMaster      @relation(fields: [vendor_id], references: [id])
+  receipts              JobWorkReceipt[]
+
+  @@unique([tenant_id, jwo_number])
+  @@map("job_work_order")
+}
+
+model JobWorkReceipt {
+  id                      String       @id @default(uuid())
+  tenant_id               String
+  jwr_number              String
+  jwo_id                  String
+  quantity_received       Float
+  accepted_qty            Float?
+  rejected_qty            Float?
+  rejection_reason        String?
+  inward_challan          String?
+  job_work_charge_billed  Float?
+  received_at             DateTime     @default(now())
+  received_by             String?
+
+  jwo                     JobWorkOrder @relation(fields: [jwo_id], references: [id])
+
+  @@unique([tenant_id, jwr_number])
+  @@map("job_work_receipt")
 }
