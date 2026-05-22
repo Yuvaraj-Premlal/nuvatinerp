@@ -24,10 +24,7 @@ const Stores: React.FC = () => {
     refetchInterval: 60000
   });
 
-  const { data: _movements } = useQuery({
-    queryKey: ['stockMovements'],
-    queryFn: () => api.get('/api/stock').then(r => r.data.data)
-  });
+
 
   const redItems = stock?.filter((s: any) => s.zone === 'red') || [];
   const yellowItems = stock?.filter((s: any) => s.zone === 'yellow') || [];

@@ -5,7 +5,7 @@ import api from '../../services/api';
 const Quality: React.FC = () => {
   const [activeTab, setActiveTab] = useState('rejections');
 
-  const { data: rejections, isLoading: _rLoading } = useQuery({
+  const { data: rejections } = useQuery({
     queryKey: ['rejections'],
     queryFn: () => api.get('/api/quality/rejections').then(r => r.data.data)
   });
