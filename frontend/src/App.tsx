@@ -6,6 +6,13 @@ import Dashboard from './pages/dashboard/Dashboard';
 import AppLayout from './components/layout/AppLayout';
 import { useAuthStore } from './store/auth.store';
 import Factory from './pages/factory/Factory';
+import PFEP from './pages/pfep/PFEP';
+import Production from './pages/production/Production';
+import Quality from './pages/quality/Quality';
+import Stores from './pages/stores/Stores';
+import Purchase from './pages/purchase/Purchase';
+import Dispatch from './pages/dispatch/Dispatch';
+import TOC from './pages/toc/TOC';
 
 const queryClient = new QueryClient();
 
@@ -26,6 +33,14 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/factory" element={<ProtectedRoute><Factory /></ProtectedRoute>} />
+          <Route path="/pfep" element={<ProtectedRoute><PFEP /></ProtectedRoute>} />
+          <Route path="/production" element={<ProtectedRoute><Production /></ProtectedRoute>} />
+          <Route path="/quality" element={<ProtectedRoute><Quality /></ProtectedRoute>} />
+          <Route path="/stores" element={<ProtectedRoute><Stores /></ProtectedRoute>} />
+          <Route path="/purchase" element={<ProtectedRoute><Purchase /></ProtectedRoute>} />
+          <Route path="/dispatch" element={<ProtectedRoute><Dispatch /></ProtectedRoute>} />
+          <Route path="/toc" element={<ProtectedRoute><TOC /></ProtectedRoute>} />
+          <Route path="/pfep" element={<ProtectedRoute><PFEP /></ProtectedRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>
       </BrowserRouter>
