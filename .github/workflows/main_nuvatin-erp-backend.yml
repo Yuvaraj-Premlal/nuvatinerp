@@ -20,10 +20,11 @@ jobs:
         with:
           node-version: '22.x'
 
-      - name: npm install and build
+      - name: npm install, generate prisma and build
         run: |
           cd backend
           npm install
+          npx prisma generate
           npx tsc
 
       - name: Upload artifact for deployment job
