@@ -24,6 +24,7 @@ import oeeRoutes from './routes/oee.routes';
 import customerRoutes from './routes/customer.routes';
 import tocRoutes from './routes/toc.routes';
 import alertRoutes from './routes/alert.routes';
+import factoryRoutes from './routes/factory.routes';
 
 dotenv.config();
 
@@ -65,6 +66,7 @@ app.use('/api/oee', oeeRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/toc', tocRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/factory', factoryRoutes);
 
 app.listen(PORT, () => {
   console.log('Nuvatin ERP backend running on port ' + PORT);
