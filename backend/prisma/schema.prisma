@@ -58,6 +58,8 @@ model ItemMaster {
   unit_of_measure String
   item_category   String?
   description     String?
+  selling_price   Float?
+  material_cost   Float?
   is_active       Boolean         @default(true)
   created_at      DateTime        @default(now())
   updated_at      DateTime        @updatedAt
@@ -779,4 +781,16 @@ model JobCardOperation {
   job                 JobCard   @relation(fields: [job_id], references: [id])
 
   @@map("job_card_operation")
+}
+
+model BufferLog {
+  id                    String   @id @default(uuid())
+  tenant_id             String
+  machine_id            String
+  buffer_hours          Float
+  buffer_target_hours   Float
+  buffer_status         String
+  logged_at             DateTime @default(now())
+
+  @@map("buffer_log")
 }
