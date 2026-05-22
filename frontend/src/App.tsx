@@ -5,6 +5,7 @@ import Login from './pages/auth/Login';
 import Dashboard from './pages/dashboard/Dashboard';
 import AppLayout from './components/layout/AppLayout';
 import { useAuthStore } from './store/auth.store';
+import Factory from './pages/factory/Factory';
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ function App() {
               <Dashboard />
             </ProtectedRoute>
           } />
+          <Route path="/factory" element={<ProtectedRoute><Factory /></ProtectedRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>
       </BrowserRouter>
