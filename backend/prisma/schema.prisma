@@ -158,6 +158,8 @@ model MachineMaster {
   rated_shots_per_shift Int?
   is_constraint         Boolean  @default(false)
   oee_target_percent    Float?
+  power_kw              Float?
+  operators_required    Int?
   location              String?
   is_active             Boolean  @default(true)
   created_at            DateTime @default(now())
@@ -288,6 +290,7 @@ model RoutingOperation {
   operation_type               String         @default("production")
   is_outsourced                Boolean        @default(false)
   vendor_id                    String?
+  operators_required           Int?
   created_at                   DateTime       @default(now())
   updated_at                   DateTime       @updatedAt
 
@@ -793,4 +796,18 @@ model BufferLog {
   logged_at             DateTime @default(now())
 
   @@map("buffer_log")
+}
+
+model CostConfig {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  config_key      String
+  config_value    Float
+  description     String?
+  effective_from  DateTime @default(now())
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@unique([tenant_id, config_key])
+  @@map("cost_config")
 }
