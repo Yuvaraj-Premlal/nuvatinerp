@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 
 const ZoneBadge: React.FC<{ zone: string }> = ({ zone }) => {
@@ -15,8 +15,128 @@ const ZoneBadge: React.FC<{ zone: string }> = ({ zone }) => {
   );
 };
 
+const IssueMaterialModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    job_id: '',
+    item_id: '',
+    planned_qty: '',
+    issued_qty: '',
+    issued_by: 'Storekeeper'
+  });
+
+  const { data: jobs } = useQuery({
+    queryKey: ['jobcards'],
+    queryFn: () => api.get('/api/jobcards').then(r => r.data.data)
+  });
+
+  const { data: items } = useQuery({
+    queryKey: ['items'],
+    queryFn: () => api.get('/api/items').then(r => r.data.data)
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data: any) => api.post('/api/stock/issue', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stock'] });
+      onClose();
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      ...form,
+      planned_qty: parseFloat(form.planned_qty),
+      issued_qty: parseFloat(form.issued_qty)
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h2 className="font-bold text-text-primary">Issue Material</h2>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Job Card</label>
+            <select
+              value={form.job_id}
+              onChange={e => setForm({ ...form, job_id: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              required
+            >
+              <option value="">Select job...</option>
+              {jobs?.map((j: any) => (
+                <option key={j.id} value={j.id}>{j.job_number}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Material</label>
+            <select
+              value={form.item_id}
+              onChange={e => setForm({ ...form, item_id: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              required
+            >
+              <option value="">Select item...</option>
+              {items?.filter((i: any) => i.item_type === 'raw_material' || i.item_type === 'consumable')
+                .map((i: any) => (
+                  <option key={i.id} value={i.id}>{i.item_name} ({i.item_code})</option>
+                ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Planned Qty</label>
+              <input
+                type="number"
+                value={form.planned_qty}
+                onChange={e => setForm({ ...form, planned_qty: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Issued Qty</label>
+              <input
+                type="number"
+                value={form.issued_qty}
+                onChange={e => setForm({ ...form, issued_qty: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Issued By</label>
+            <input
+              value={form.issued_by}
+              onChange={e => setForm({ ...form, issued_by: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+            />
+          </div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to issue material</p>}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">
+              Cancel
+            </button>
+            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Issuing...' : 'Issue Material'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const Stores: React.FC = () => {
   const [activeTab, setActiveTab] = useState('stock');
+  const [showIssueModal, setShowIssueModal] = useState(false);
 
   const { data: stock, isLoading } = useQuery({
     queryKey: ['stock'],
@@ -24,7 +144,11 @@ const Stores: React.FC = () => {
     refetchInterval: 60000
   });
 
-
+  const { data: movements } = useQuery({
+    queryKey: ['stockMovements'],
+    queryFn: () => api.get('/api/stock/movements').then(r => r.data.data),
+    enabled: activeTab === 'movements'
+  });
 
   const redItems = stock?.filter((s: any) => s.zone === 'red') || [];
   const yellowItems = stock?.filter((s: any) => s.zone === 'yellow') || [];
@@ -37,12 +161,17 @@ const Stores: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {showIssueModal && <IssueMaterialModal onClose={() => setShowIssueModal(false)} />}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-text-primary">Stores</h1>
           <p className="text-text-secondary text-sm mt-1">Stock balance and material movements</p>
         </div>
-        <button className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition-colors">
+        <button
+          onClick={() => setShowIssueModal(true)}
+          className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition-colors"
+        >
           + Issue Material
         </button>
       </div>
@@ -148,8 +277,44 @@ const Stores: React.FC = () => {
       )}
 
       {activeTab === 'movements' && (
-        <div className="bg-white rounded-xl p-6 shadow-sm text-center text-text-secondary">
-          Stock movement history will appear here
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-brand-light">
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Date</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Item</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Type</th>
+                <th className="text-right px-4 py-3 text-brand-primary font-medium">Quantity</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Reference</th>
+              </tr>
+            </thead>
+            <tbody>
+              {movements?.map((m: any, i: number) => (
+                <tr key={m.id} className={`border-t border-border ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
+                  <td className="px-4 py-3 text-text-secondary text-xs">
+                    {new Date(m.created_at).toLocaleDateString('en-IN')}
+                  </td>
+                  <td className="px-4 py-3 text-text-primary text-xs">{m.item_id}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      m.transaction_type === 'receipt' ? 'bg-green-50 text-green-600' :
+                      m.transaction_type === 'issue' ? 'bg-red-50 text-red-600' :
+                      'bg-gray-50 text-gray-500'
+                    }`}>
+                      {m.transaction_type}
+                    </span>
+                  </td>
+                  <td className={`px-4 py-3 text-right font-bold ${m.quantity > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    {m.quantity > 0 ? '+' : ''}{m.quantity}
+                  </td>
+                  <td className="px-4 py-3 text-text-secondary text-xs">{m.reference_type} — {m.reference_id?.slice(0, 8)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {movements?.length === 0 && (
+            <div className="text-center py-12 text-text-secondary">No movements found</div>
+          )}
         </div>
       )}
     </div>

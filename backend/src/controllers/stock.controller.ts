@@ -51,3 +51,42 @@ export const getStockBalanceByItem = async (req: AuthRequest, res: Response) => 
     res.status(500).json({ success: false, error: error.message });
   }
 };
+export const getStockMovements = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const movements = await prisma.stockLedger.findMany({
+      where: { tenant_id },
+      orderBy: { transacted_at: 'desc' },
+      take: 100
+    });
+    res.json({ success: true, data: movements });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const issueMaterial = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const { job_id, item_id, planned_qty, issued_qty, issued_by } = req.body;
+
+    const issue = await prisma.materialIssue.create({
+      data: { tenant_id, job_id, item_id, planned_qty, issued_qty, issued_by }
+    });
+
+    await prisma.stockLedger.create({
+      data: {
+        tenant_id,
+        item_id,
+        transaction_type: 'issue',
+        quantity: -issued_qty,
+        reference_type: 'job_card',
+        reference_id: job_id
+      }
+    });
+
+    res.status(201).json({ success: true, data: issue });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
