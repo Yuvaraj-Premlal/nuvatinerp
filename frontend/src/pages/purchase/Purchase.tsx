@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
@@ -18,8 +18,381 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   );
 };
 
+const CreatePOModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    po_number: 'PO-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-4),
+    supplier_id: '',
+    po_date: new Date().toISOString().split('T')[0],
+    expected_delivery_date: '',
+    payment_terms: 'Net 30',
+    notes: ''
+  });
+  const [lines, setLines] = useState([
+    { item_id: '', quantity_ordered: '', unit_price: '', unit_of_measure: 'KG' }
+  ]);
+
+  const { data: suppliers } = useQuery({
+    queryKey: ['suppliers'],
+    queryFn: () => api.get('/api/suppliers').then(r => r.data.data)
+  });
+
+  const { data: items } = useQuery({
+    queryKey: ['items'],
+    queryFn: () => api.get('/api/items').then(r => r.data.data)
+  });
+
+  const addLine = () => setLines([...lines, { item_id: '', quantity_ordered: '', unit_price: '', unit_of_measure: 'KG' }]);
+  const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
+  const updateLine = (i: number, field: string, value: string) => {
+    const updated = [...lines];
+    updated[i] = { ...updated[i], [field]: value };
+    setLines(updated);
+  };
+
+  const totalValue = lines.reduce((sum, l) =>
+    sum + (parseFloat(l.quantity_ordered || '0') * parseFloat(l.unit_price || '0')), 0);
+
+  const mutation = useMutation({
+    mutationFn: (data: any) => api.post('/api/purchase', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
+      onClose();
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      ...form,
+      po_date: new Date(form.po_date).toISOString(),
+      expected_delivery_date: form.expected_delivery_date ? new Date(form.expected_delivery_date).toISOString() : null,
+      total_value: totalValue,
+      lines: lines.map(l => ({
+        ...l,
+        quantity_ordered: parseFloat(l.quantity_ordered),
+        unit_price: parseFloat(l.unit_price)
+      }))
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-screen overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h2 className="font-bold text-text-primary">Create Purchase Order</h2>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">PO Number</label>
+              <input
+                value={form.po_number}
+                onChange={e => setForm({ ...form, po_number: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Supplier</label>
+              <select
+                value={form.supplier_id}
+                onChange={e => setForm({ ...form, supplier_id: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                required
+              >
+                <option value="">Select supplier...</option>
+                {suppliers?.map((s: any) => (
+                  <option key={s.id} value={s.id}>{s.supplier_name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">PO Date</label>
+              <input
+                type="date"
+                value={form.po_date}
+                onChange={e => setForm({ ...form, po_date: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Expected Delivery</label>
+              <input
+                type="date"
+                value={form.expected_delivery_date}
+                onChange={e => setForm({ ...form, expected_delivery_date: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Payment Terms</label>
+              <select
+                value={form.payment_terms}
+                onChange={e => setForm({ ...form, payment_terms: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              >
+                <option>Net 30</option>
+                <option>Net 45</option>
+                <option>Net 60</option>
+                <option>Advance</option>
+                <option>COD</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Notes</label>
+              <input
+                value={form.notes}
+                onChange={e => setForm({ ...form, notes: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                placeholder="Optional notes..."
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-text-primary">Line Items</label>
+              <button type="button" onClick={addLine} className="text-xs text-brand-primary hover:text-brand-dark font-medium">
+                + Add Line
+              </button>
+            </div>
+            <div className="space-y-2">
+              {lines.map((line, i) => (
+                <div key={i} className="grid grid-cols-5 gap-2 items-center bg-surface p-2 rounded-lg">
+                  <div className="col-span-2">
+                    <select
+                      value={line.item_id}
+                      onChange={e => updateLine(i, 'item_id', e.target.value)}
+                      className="w-full px-2 py-1.5 border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                    >
+                      <option value="">Select item...</option>
+                      {items?.filter((it: any) => it.item_type === 'raw_material' || it.item_type === 'consumable')
+                        .map((it: any) => (
+                          <option key={it.id} value={it.id}>{it.item_name}</option>
+                        ))}
+                    </select>
+                  </div>
+                  <input
+                    type="number"
+                    value={line.quantity_ordered}
+                    onChange={e => updateLine(i, 'quantity_ordered', e.target.value)}
+                    placeholder="Qty"
+                    className="px-2 py-1.5 border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                  />
+                  <input
+                    type="number"
+                    value={line.unit_price}
+                    onChange={e => updateLine(i, 'unit_price', e.target.value)}
+                    placeholder="Unit price ₹"
+                    className="px-2 py-1.5 border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                  />
+                  <div className="flex items-center gap-1">
+                    <select
+                      value={line.unit_of_measure}
+                      onChange={e => updateLine(i, 'unit_of_measure', e.target.value)}
+                      className="flex-1 px-1 py-1.5 border border-border rounded text-xs focus:outline-none"
+                    >
+                      <option>KG</option>
+                      <option>MT</option>
+                      <option>PCS</option>
+                      <option>LTR</option>
+                    </select>
+                    {lines.length > 1 && (
+                      <button type="button" onClick={() => removeLine(i)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end mt-2">
+              <p className="text-sm font-bold text-text-primary">
+                Total: ₹{totalValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to create PO</p>}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">
+              Cancel
+            </button>
+            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Creating...' : 'Create PO'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    grn_number: 'GRN-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-4),
+    received_date: new Date().toISOString().split('T')[0],
+    vehicle_number: '',
+    received_by: 'Storekeeper',
+    lines: po.po_lines?.map((l: any) => ({
+      po_line_id: l.id,
+      item_id: l.item_id,
+      item_name: l.item?.item_name || '',
+      quantity_ordered: l.quantity_ordered,
+      quantity_received: '',
+      quantity_rejected: '0',
+      unit_price: l.unit_price
+    })) || []
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data: any) => api.post('/api/grn', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['grns'] });
+      queryClient.invalidateQueries({ queryKey: ['stock'] });
+      onClose();
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      ...form,
+      po_id: po.id,
+      received_date: new Date(form.received_date).toISOString(),
+      lines: form.lines.map((l: any) => ({
+        ...l,
+        quantity_received: parseFloat(l.quantity_received),
+        quantity_rejected: parseFloat(l.quantity_rejected),
+        unit_price: parseFloat(l.unit_price)
+      }))
+    });
+  };
+
+  const updateLine = (i: number, field: string, value: string) => {
+    const updated = [...form.lines];
+    updated[i] = { ...updated[i], [field]: value };
+    setForm({ ...form, lines: updated });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-screen overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h2 className="font-bold text-text-primary">Create GRN</h2>
+            <p className="text-text-secondary text-sm">Against {po.po_number}</p>
+          </div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">GRN Number</label>
+              <input
+                value={form.grn_number}
+                onChange={e => setForm({ ...form, grn_number: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Received Date</label>
+              <input
+                type="date"
+                value={form.received_date}
+                onChange={e => setForm({ ...form, received_date: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Vehicle Number</label>
+              <input
+                value={form.vehicle_number}
+                onChange={e => setForm({ ...form, vehicle_number: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                placeholder="e.g. TN01AB1234"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Received By</label>
+              <input
+                value={form.received_by}
+                onChange={e => setForm({ ...form, received_by: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              />
+            </div>
+          </div>
+
+          {form.lines.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-2">Items Received</label>
+              <div className="space-y-2">
+                {form.lines.map((line: any, i: number) => (
+                  <div key={i} className="bg-surface p-3 rounded-lg">
+                    <p className="text-sm font-medium text-text-primary mb-2">{line.item_name}</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-xs text-text-secondary">Ordered</label>
+                        <p className="text-sm font-bold text-text-primary">{line.quantity_ordered}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-text-secondary">Received</label>
+                        <input
+                          type="number"
+                          value={line.quantity_received}
+                          onChange={e => updateLine(i, 'quantity_received', e.target.value)}
+                          className="w-full px-2 py-1 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-text-secondary">Rejected</label>
+                        <input
+                          type="number"
+                          value={line.quantity_rejected}
+                          onChange={e => updateLine(i, 'quantity_rejected', e.target.value)}
+                          className="w-full px-2 py-1 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to create GRN</p>}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">
+              Cancel
+            </button>
+            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Creating...' : 'Confirm GRN'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const Purchase: React.FC = () => {
   const [activeTab, setActiveTab] = useState('po');
+  const [showCreatePO, setShowCreatePO] = useState(false);
+  const [selectedPO, setSelectedPO] = useState<any>(null);
 
   const { data: pos, isLoading } = useQuery({
     queryKey: ['purchaseOrders'],
@@ -31,12 +404,20 @@ const Purchase: React.FC = () => {
     queryFn: () => api.get('/api/grn').then(r => r.data.data)
   });
 
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => api.put(`/api/purchase/${id}/approve`, {}),
+    onSuccess: () => {
+      useQueryClient().invalidateQueries({ queryKey: ['purchaseOrders'] });
+    }
+  });
+
+  const queryClient = useQueryClient();
+
   const summary = {
     total: pos?.length || 0,
     draft: pos?.filter((p: any) => p.status === 'draft').length || 0,
     approved: pos?.filter((p: any) => p.status === 'approved').length || 0,
-    received: pos?.filter((p: any) => p.status === 'received').length || 0,
-    totalValue: pos?.reduce((s: number, p: any) => s + (p.total_value || 0), 0) || 0
+    received: pos?.filter((p: any) => p.status === 'received').length || 0
   };
 
   if (isLoading) return (
@@ -47,12 +428,18 @@ const Purchase: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {showCreatePO && <CreatePOModal onClose={() => setShowCreatePO(false)} />}
+      {selectedPO && <CreateGRNModal po={selectedPO} onClose={() => setSelectedPO(null)} />}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-text-primary">Purchase</h1>
           <p className="text-text-secondary text-sm mt-1">Purchase orders and goods receipt</p>
         </div>
-        <button className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition-colors">
+        <button
+          onClick={() => setShowCreatePO(true)}
+          className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition-colors"
+        >
           + New PO
         </button>
       </div>
@@ -103,32 +490,51 @@ const Purchase: React.FC = () => {
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Expected</th>
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Raised By</th>
                 <th className="text-center px-4 py-3 text-brand-primary font-medium">Status</th>
+                <th className="text-center px-4 py-3 text-brand-primary font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {pos?.map((po: any, i: number) => (
-                <tr key={po.id} className={`border-t border-border hover:bg-surface cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
+                <tr key={po.id} className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
                   <td className="px-4 py-3 font-medium text-brand-primary">{po.po_number}</td>
                   <td className="px-4 py-3 text-text-primary">{po.supplier?.supplier_name}</td>
                   <td className="px-4 py-3 text-text-secondary text-xs">
                     {new Date(po.po_date).toLocaleDateString('en-IN')}
                   </td>
                   <td className="px-4 py-3 text-text-secondary text-xs">
-                    {po.expected_delivery_date
-                      ? new Date(po.expected_delivery_date).toLocaleDateString('en-IN')
-                      : '—'}
+                    {po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString('en-IN') : '—'}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      po.raised_by === 'agent'
-                        ? 'bg-purple-50 text-purple-600'
-                        : 'bg-gray-50 text-gray-600'
-                    }`}>
-                      {po.raised_by}
-                    </span>
+                      po.raised_by === 'agent' ? 'bg-purple-50 text-purple-600' : 'bg-gray-50 text-gray-600'
+                    }`}>{po.raised_by}</span>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <StatusBadge status={po.status} />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      {po.status === 'draft' && (
+                        <button
+                          onClick={() => {
+                            api.put(`/api/purchase/${po.id}/approve`, {}).then(() => {
+                              queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
+                            });
+                          }}
+                          className="text-xs bg-green-50 text-green-600 px-2 py-1 rounded hover:bg-green-100"
+                        >
+                          Approve
+                        </button>
+                      )}
+                      {(po.status === 'approved' || po.status === 'sent') && (
+                        <button
+                          onClick={() => setSelectedPO(po)}
+                          className="text-xs bg-brand-light text-brand-primary px-2 py-1 rounded hover:bg-blue-100"
+                        >
+                          + GRN
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -146,7 +552,6 @@ const Purchase: React.FC = () => {
             <thead>
               <tr className="bg-brand-light">
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">GRN Number</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">PO Reference</th>
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Received Date</th>
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Vehicle</th>
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Received By</th>
@@ -156,7 +561,6 @@ const Purchase: React.FC = () => {
               {grns?.map((grn: any, i: number) => (
                 <tr key={grn.id} className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
                   <td className="px-4 py-3 font-medium text-brand-primary">{grn.grn_number}</td>
-                  <td className="px-4 py-3 text-text-secondary text-xs">{grn.po_id || '—'}</td>
                   <td className="px-4 py-3 text-text-secondary text-xs">
                     {new Date(grn.received_date).toLocaleDateString('en-IN')}
                   </td>
