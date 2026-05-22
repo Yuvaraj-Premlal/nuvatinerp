@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../../store/auth.store';
+// import { useAuthStore } from '../../store/auth.store';
 
 const navItems = [
   { path: '/dashboard', icon: '⬡', label: 'Dashboard' },

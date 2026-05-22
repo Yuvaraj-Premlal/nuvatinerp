@@ -24,7 +24,7 @@ const Stores: React.FC = () => {
     refetchInterval: 60000
   });
 
-  const { data: movements } = useQuery({
+  const { data: _movements } = useQuery({
     queryKey: ['stockMovements'],
     queryFn: () => api.get('/api/stock').then(r => r.data.data)
   });
