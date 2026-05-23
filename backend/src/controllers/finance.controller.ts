@@ -57,8 +57,8 @@ export const getInvoices = async (req: AuthRequest, res: Response) => {
     const tenant_id = req.user?.tenant_id as string;
     const { status, customer_id } = req.query;
     const where: any = { tenant_id };
-    if (status) where.status = status;
-    if (customer_id) where.customer_id = customer_id;
+    if (status) where.status = String(status);
+    if (customer_id) where.customer_id = String(customer_id);
     const invoices = await prisma.invoiceHeader.findMany({
       where,
       include: { lines: true, payments: true },
@@ -179,8 +179,11 @@ export const createInvoiceFromDispatch = async (req: AuthRequest, res: Response)
     });
     if (!dispatch) return res.status(404).json({ success: false, error: 'Dispatch not found' });
 
-    const customer = dispatch.customer_id
-      ? await prisma.customerMaster.findUnique({ where: { id: dispatch.customer_id } })
+    const salesOrder = dispatch.so_id
+      ? await prisma.salesOrder.findFirst({ where: { id: dispatch.so_id } })
+      : null;
+    const customer = (salesOrder as any)?.customer_id
+      ? await prisma.customerMaster.findUnique({ where: { id: (salesOrder as any).customer_id } })
       : null;
 
     const config = await prisma.companyConfig.findUnique({ where: { tenant_id } });
@@ -200,8 +203,8 @@ export const createInvoiceFromDispatch = async (req: AuthRequest, res: Response)
     req.body = {
       invoice_date: new Date().toISOString(),
       due_date: null,
-      customer_id: dispatch.customer_id,
-      customer_name: (dispatch as any).customer_name || customer?.customer_name || '',
+      customer_id: salesOrder?.customer_id || '',
+      customer_name: (salesOrder as any)?.customer_name || customer?.customer_name || '',
       customer_gstin: (customer as any)?.gstin || '',
       dispatch_id,
       is_inter_state: isInterState,
@@ -458,7 +461,7 @@ export const createSupplierBillFromGRN = async (req: AuthRequest, res: Response)
     const grn_id = req.params.grn_id;
 
     const grn = await prisma.grnHeader.findFirst({
-      where: { id: grn_id, tenant_id },
+      where: { id: grn_id, tenant_id: tenant_id },
       include: { grn_lines: { include: { item: true } } }
     });
     if (!grn) return res.status(404).json({ success: false, error: 'GRN not found' });
@@ -660,7 +663,7 @@ export const getExpenses = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const expenses = await prisma.expenseEntry.findMany({
-      where: { tenant_id, is_reversed: false },
+      where: { tenant_id, is_reversed: false as boolean },
       orderBy: { expense_date: 'desc' }
     });
     res.json({ success: true, data: expenses });
@@ -748,7 +751,7 @@ export const getProfitAndLoss = async (req: AuthRequest, res: Response) => {
     const to = to_date ? new Date(to_date as string) : new Date();
 
     const invoices = await prisma.invoiceHeader.findMany({
-      where: { tenant_id, invoice_date: { gte: from, lte: to }, status: { not: 'reversed' } }
+      where: { tenant_id, invoice_date: { gte: from, lte: to }, status: { not: 'reversed' as string } }
     });
     const totalRevenue = invoices.reduce((s: number, i: any) => s + i.subtotal, 0);
 
@@ -810,7 +813,7 @@ export const getCustomerAging = async (req: AuthRequest, res: Response) => {
     const today = new Date();
 
     const invoices = await prisma.invoiceHeader.findMany({
-      where: { tenant_id, status: { in: ['sent', 'partial', 'overdue'] } }
+      where: { tenant_id, status: { in: ['sent', 'partial', 'overdue'] as string[] } }
     });
 
     const aging: any = {};
@@ -858,7 +861,7 @@ export const getSupplierAging = async (req: AuthRequest, res: Response) => {
     const today = new Date();
 
     const bills = await prisma.supplierBill.findMany({
-      where: { tenant_id, status: { in: ['pending', 'partial'] } }
+      where: { tenant_id, status: { in: ['pending', 'partial'] as string[] } }
     });
 
     const aging: any = {};
@@ -906,7 +909,7 @@ export const getGSTSummary = async (req: AuthRequest, res: Response) => {
     const to = new Date(y, m + 1, 0, 23, 59, 59);
 
     const invoices = await prisma.invoiceHeader.findMany({
-      where: { tenant_id, invoice_date: { gte: from, lte: to }, status: { not: 'reversed' } },
+      where: { tenant_id, invoice_date: { gte: from, lte: to }, status: { not: 'reversed' as string } },
       include: { lines: true }
     });
 
@@ -986,12 +989,12 @@ export const getCashPosition = async (req: AuthRequest, res: Response) => {
     const next30 = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     const receivablesDue = await prisma.invoiceHeader.findMany({
-      where: { tenant_id, status: { in: ['sent', 'partial', 'overdue'] }, due_date: { lte: next30 } }
+      where: { tenant_id, status: { in: ['sent', 'partial', 'overdue'] as string[] }, due_date: { lte: next30 } }
     });
     const totalReceivablesDue = receivablesDue.reduce((s: number, i: any) => s + (i.total_amount - i.amount_paid), 0);
 
     const payablesDue = await prisma.supplierBill.findMany({
-      where: { tenant_id, status: { in: ['pending', 'partial'] }, due_date: { lte: next30 } }
+      where: { tenant_id, status: { in: ['pending', 'partial'] as string[] }, due_date: { lte: next30 } }
     });
     const totalPayablesDue = payablesDue.reduce((s: number, b: any) => s + (b.total_amount - b.amount_paid), 0);
 
