@@ -11,6 +11,7 @@ const navItems = [
   { path: '/purchase', icon: '🛒', label: 'Purchase' },
   { path: '/dispatch', icon: '🚚', label: 'Dispatch' },
   { path: '/toc', icon: '📊', label: 'TOC' },
+  { path: '/finance', icon: '💰', label: 'Finance' },
 ];
 
 const Sidebar: React.FC = () => {
