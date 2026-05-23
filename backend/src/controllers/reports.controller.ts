@@ -10,8 +10,9 @@ async function getConfig(tenant_id: string, key: string) {
 }
 
 async function getMonthRange(month: number, year: number) {
-  const from = new Date(year, month - 1, 1, 0, 0, 0);
-  const to = new Date(year, month, 0, 23, 59, 59);
+  const from = new Date(`${year}-${String(month).padStart(2,'0')}-01T00:00:00.000Z`);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const to = new Date(`${year}-${String(month).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}T23:59:59.999Z`);
   return { from, to };
 }
 
@@ -146,9 +147,8 @@ export const getDailyThroughput = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const dateStr = req.query.date ? String(req.query.date) : new Date().toISOString().split('T')[0];
-    const date = new Date(dateStr);
-    const from = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
-    const to = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+    const from = new Date(`${dateStr}T00:00:00.000Z`);
+    const to = new Date(`${dateStr}T23:59:59.999Z`);
 
     const opex = await getConfig(tenant_id, 'operating_expense_per_shift');
     const revenue = await getRevenueForPeriod(tenant_id, from, to);
@@ -579,9 +579,8 @@ export const getShiftReport = async (req: AuthRequest, res: Response) => {
     const tenant_id = req.user?.tenant_id as string;
     const dateStr = req.query.date ? String(req.query.date) : new Date().toISOString().split('T')[0];
     const shift = req.query.shift ? String(req.query.shift) : undefined;
-    const date = new Date(dateStr);
-    const from = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
-    const to = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+    const from = new Date(`${dateStr}T00:00:00.000Z`);
+    const to = new Date(`${dateStr}T23:59:59.999Z`);
 
     const where: any = { tenant_id, planned_date: { gte: from, lte: to } };
     if (shift) where.shift = shift;
