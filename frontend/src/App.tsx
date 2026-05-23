@@ -16,6 +16,7 @@ import TOC from './pages/toc/TOC';
 import Settings from './pages/settings/Settings';
 import Finance from './pages/finance/Finance';
 import Maintenance from './pages/maintenance/Maintenance';
+import Reports from './pages/reports/Reports';
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ function App() {
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
           <Route path="/maintenance" element={<ProtectedRoute><Maintenance /></ProtectedRoute>} />
+          <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="/pfep" element={<ProtectedRoute><PFEP /></ProtectedRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>

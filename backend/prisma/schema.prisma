@@ -1305,3 +1305,48 @@ model SparePart_Usage {
 
   @@map("spare_part_usage")
 }
+
+model FixedAsset {
+  id                    String   @id @default(uuid())
+  tenant_id             String
+  asset_code            String
+  asset_name            String
+  category              String   // machinery / die / vehicle / computer / furniture / other
+  purchase_value        Float
+  purchase_date         DateTime
+  useful_life_years     Int
+  salvage_value         Float    @default(0)
+  depreciation_method   String   @default("straight_line") // straight_line / wdv
+  annual_depreciation   Float?
+  monthly_depreciation  Float?
+  accumulated_depreciation Float  @default(0)
+  current_book_value    Float?
+  is_active             Boolean  @default(true)
+  notes                 String?
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@unique([tenant_id, asset_code])
+  @@map("fixed_asset")
+}
+
+model LoanAccount {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  loan_name         String
+  lender_name       String
+  loan_type         String   @default("term_loan") // term_loan / working_capital / overdraft
+  principal_amount  Float
+  outstanding_amount Float
+  interest_rate     Float
+  emi_amount        Float?
+  disbursement_date DateTime?
+  maturity_date     DateTime?
+  next_due_date     DateTime?
+  is_active         Boolean  @default(true)
+  notes             String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@map("loan_account")
+}

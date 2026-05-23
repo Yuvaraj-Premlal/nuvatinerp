@@ -30,6 +30,7 @@ import factoryRoutes from './routes/factory.routes';
 import financeRoutes from './routes/finance.routes';
 import complaintRoutes from './routes/complaint.routes';
 import maintenanceRoutes from './routes/maintenance.routes';
+import reportsRoutes from './routes/reports.routes';
 import costingRoutes from './routes/costing.routes';
 import ownerRoutes from './routes/owner.routes';
 
@@ -77,6 +78,7 @@ app.use('/api/factory', factoryRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/reports', reportsRoutes);
 app.use('/api/costing', costingRoutes);
 app.use('/api/owner', ownerRoutes);
 
