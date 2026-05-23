@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-// import { useAuthStore } from '../../store/auth.store';
 
 const navItems = [
   { path: '/dashboard', icon: '⬡', label: 'Dashboard' },
@@ -23,10 +22,7 @@ const Sidebar: React.FC = () => {
     <div className={`${collapsed ? 'w-16' : 'w-56'} bg-brand-dark min-h-screen flex flex-col transition-all duration-200`}>
       <div className="flex items-center justify-between p-4 border-b border-blue-800">
         {!collapsed && <span className="text-white text-xs font-medium uppercase tracking-wider">Menu</span>}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="text-blue-300 hover:text-white transition-colors ml-auto"
-        >
+        <button onClick={() => setCollapsed(!collapsed)} className="text-blue-300 hover:text-white transition-colors ml-auto">
           {collapsed ? '→' : '←'}
         </button>
       </div>
@@ -51,9 +47,20 @@ const Sidebar: React.FC = () => {
         })}
       </nav>
 
-      <div className="p-4 border-t border-blue-800">
+      <div className="border-t border-blue-800">
+        <button
+          onClick={() => navigate('/settings')}
+          className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors
+            ${location.pathname === '/settings'
+              ? 'bg-brand-primary text-white border-l-4 border-brand-accent'
+              : 'text-blue-200 hover:bg-blue-800 hover:text-white border-l-4 border-transparent'
+            }`}
+        >
+          <span className="text-lg">⚙</span>
+          {!collapsed && <span className="text-sm font-medium">Settings</span>}
+        </button>
         {!collapsed && (
-          <p className="text-blue-400 text-xs text-center">Nuvatin ERP v1.0</p>
+          <p className="text-blue-400 text-xs text-center py-2">Nuvatin ERP v1.0</p>
         )}
       </div>
     </div>

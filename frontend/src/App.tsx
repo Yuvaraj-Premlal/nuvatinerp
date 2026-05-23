@@ -13,6 +13,7 @@ import Stores from './pages/stores/Stores';
 import Purchase from './pages/purchase/Purchase';
 import Dispatch from './pages/dispatch/Dispatch';
 import TOC from './pages/toc/TOC';
+import Settings from './pages/settings/Settings';
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ function App() {
           <Route path="/purchase" element={<ProtectedRoute><Purchase /></ProtectedRoute>} />
           <Route path="/dispatch" element={<ProtectedRoute><Dispatch /></ProtectedRoute>} />
           <Route path="/toc" element={<ProtectedRoute><TOC /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/pfep" element={<ProtectedRoute><PFEP /></ProtectedRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>
