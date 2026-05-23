@@ -75,7 +75,7 @@ export const getInvoiceById = async (req: AuthRequest, res: Response) => {
     const tenant_id = req.user?.tenant_id as string;
     const id = req.params.id;
     const invoice = await prisma.invoiceHeader.findFirst({
-      where: { id, tenant_id },
+      where: { id: id as string, tenant_id: tenant_id as string },
       include: { lines: true, payments: true, credit_notes: true }
     });
     if (!invoice) return res.status(404).json({ success: false, error: 'Invoice not found' });
