@@ -128,7 +128,7 @@ export const updateComplaintAction = async (req: AuthRequest, res: Response) => 
       }
     });
 
-    const action = await prisma.complaintAction.findFirst({ where: { id: action_id } });
+    const action = await prisma.complaintAction.findFirst({ where: { id: String(action_id) } });
     if (!action) return res.status(404).json({ success: false, error: 'Action not found' });
 
     const allActions = await prisma.complaintAction.findMany({ where: { complaint_id: String(action.complaint_id) } });
@@ -153,11 +153,11 @@ export const closeComplaint = async (req: AuthRequest, res: Response) => {
     const id = req.params.id;
     const { closed_by, effectiveness_notes } = req.body;
 
-    const complaint = await prisma.complaintHeader.findFirst({ where: { id, tenant_id } });
+    const complaint = await prisma.complaintHeader.findFirst({ where: { id: String(id), tenant_id: String(tenant_id) } });
     if (!complaint) return res.status(404).json({ success: false, error: 'Complaint not found' });
 
     const openActions = await prisma.complaintAction.count({
-      where: { complaint_id: id, status: { not: 'completed' as string } }
+      where: { complaint_id: String(id), status: { not: 'completed' as string } }
     });
 
     if (openActions > 0) {
@@ -177,7 +177,7 @@ export const closeComplaint = async (req: AuthRequest, res: Response) => {
         tenant_id,
         part_number: complaint.part_number ?? undefined,
         status: 'closed',
-        id: { not: id }
+        id: { not: String(id) }
       }
     });
 
