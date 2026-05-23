@@ -360,11 +360,111 @@ const AddExpenseModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
+
+const PayBillModal: React.FC<{ bill: any; onClose: () => void }> = ({ bill, onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    amount_paid: bill.total_amount - bill.amount_paid,
+    payment_date: new Date().toISOString().split('T')[0],
+    payment_mode: 'bank',
+    reference_number: '',
+    bank_account_id: '',
+    notes: ''
+  });
+
+  const { data: bankAccounts } = useQuery({ queryKey: ['bankAccounts'], queryFn: () => api.get('/api/finance/bank-accounts').then(r => r.data.data) });
+
+  const mutation = useMutation({
+    mutationFn: (data: any) => api.post('/api/finance/vouchers', data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['supplierBills'] }); onClose(); }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({ ...form, bill_id: bill.id, payment_date: new Date(form.payment_date).toISOString() });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h2 className="font-bold text-text-primary">Pay Supplier Bill</h2>
+            <p className="text-text-secondary text-sm">{bill.bill_number} — {bill.supplier_name}</p>
+          </div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="bg-surface rounded-lg p-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-text-secondary">Bill Total</span>
+              <span className="font-bold">{fmt(bill.total_amount)}</span>
+            </div>
+            <div className="flex justify-between text-sm mt-1">
+              <span className="text-text-secondary">Already Paid</span>
+              <span className="text-green-600">{fmt(bill.amount_paid)}</span>
+            </div>
+            <div className="flex justify-between text-sm mt-1 pt-1 border-t border-border">
+              <span className="font-medium">Outstanding</span>
+              <span className="font-bold text-red-500">{fmt(bill.total_amount - bill.amount_paid)}</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Amount Paying</label>
+              <input type="number" value={form.amount_paid} onChange={e => setForm({ ...form, amount_paid: parseFloat(e.target.value) })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Payment Date</label>
+              <input type="date" value={form.payment_date} onChange={e => setForm({ ...form, payment_date: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Payment Mode</label>
+              <select value={form.payment_mode} onChange={e => setForm({ ...form, payment_mode: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+                <option value="bank">Bank Transfer</option>
+                <option value="neft">NEFT</option>
+                <option value="rtgs">RTGS</option>
+                <option value="upi">UPI</option>
+                <option value="cheque">Cheque</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Bank Account</label>
+              <select value={form.bank_account_id} onChange={e => setForm({ ...form, bank_account_id: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+                <option value="">Select account...</option>
+                {bankAccounts?.map((a: any) => <option key={a.id} value={a.id}>{a.account_name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Reference / UTR</label>
+            <input value={form.reference_number} onChange={e => setForm({ ...form, reference_number: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              placeholder="UTR / Cheque number" />
+          </div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to record payment</p>}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Paying...' : 'Record Payment'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const Finance: React.FC = () => {
   const [activeTab, setActiveTab] = useState('invoices');
   const [showCreateInvoice, setShowCreateInvoice] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [selectedBill, setSelectedBill] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: invoices } = useQuery({ queryKey: ['invoices'], queryFn: () => api.get('/api/finance/invoices').then(r => r.data.data) });
@@ -390,6 +490,7 @@ const Finance: React.FC = () => {
       {showCreateInvoice && <CreateInvoiceModal onClose={() => setShowCreateInvoice(false)} />}
       {showAddExpense && <AddExpenseModal onClose={() => setShowAddExpense(false)} />}
       {selectedInvoice && <RecordPaymentModal invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />}
+      {selectedBill && <PayBillModal bill={selectedBill} onClose={() => setSelectedBill(null)} />}
 
       <div className="flex items-center justify-between">
         <div>
@@ -492,6 +593,7 @@ const Finance: React.FC = () => {
                 <th className="text-right px-4 py-3 text-brand-primary font-medium">Amount</th>
                 <th className="text-right px-4 py-3 text-brand-primary font-medium">Paid</th>
                 <th className="text-center px-4 py-3 text-brand-primary font-medium">Status</th>
+                <th className="text-center px-4 py-3 text-brand-primary font-medium">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -503,6 +605,11 @@ const Finance: React.FC = () => {
                   <td className="px-4 py-3 text-right font-medium">{fmt(bill.total_amount)}</td>
                   <td className="px-4 py-3 text-right text-green-600">{fmt(bill.amount_paid)}</td>
                   <td className="px-4 py-3 text-center"><StatusBadge status={bill.status} /></td>
+                  <td className="px-4 py-3 text-center">
+                    {['pending', 'partial'].includes(bill.status) && (
+                      <button onClick={() => setSelectedBill(bill)} className="text-xs bg-brand-light text-brand-primary px-2 py-1 rounded hover:bg-blue-100">+ Pay</button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

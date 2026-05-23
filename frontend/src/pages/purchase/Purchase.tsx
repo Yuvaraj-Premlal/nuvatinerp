@@ -389,6 +389,29 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
   );
 };
 
+
+const CreateBillButton: React.FC<{ grnId: string }> = ({ grnId }) => {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: () => api.post(`/api/finance/bills/from-grn/${grnId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['supplierBills'] });
+      alert('Supplier bill created successfully');
+    },
+    onError: () => alert('Failed to create bill — may already exist')
+  });
+
+  return (
+    <button
+      onClick={() => mutation.mutate()}
+      disabled={mutation.isPending}
+      className="text-xs bg-brand-light text-brand-primary px-2 py-1 rounded hover:bg-blue-100 disabled:opacity-50"
+    >
+      {mutation.isPending ? '...' : '+ Bill'}
+    </button>
+  );
+};
+
 const Purchase: React.FC = () => {
   const [activeTab, setActiveTab] = useState('po');
   const [showCreatePO, setShowCreatePO] = useState(false);
@@ -555,6 +578,7 @@ const Purchase: React.FC = () => {
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Received Date</th>
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Vehicle</th>
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Received By</th>
+                <th className="text-center px-4 py-3 text-brand-primary font-medium">Bill</th>
               </tr>
             </thead>
             <tbody>
@@ -566,6 +590,9 @@ const Purchase: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 text-text-secondary text-xs">{grn.vehicle_number || '—'}</td>
                   <td className="px-4 py-3 text-text-secondary text-xs">{grn.received_by || '—'}</td>
+                  <td className="px-4 py-3 text-center">
+                    <CreateBillButton grnId={grn.id} />
+                  </td>
                 </tr>
               ))}
             </tbody>
