@@ -38,7 +38,7 @@ export const getComplaintById = async (req: AuthRequest, res: Response) => {
     const tenant_id = req.user?.tenant_id as string;
     const id = req.params.id;
     const complaint = await prisma.complaintHeader.findFirst({
-      where: { id, tenant_id },
+      where: { id: String(id), tenant_id: String(tenant_id) },
       include: { actions: { orderBy: { step_number: 'asc' } } }
     });
     if (!complaint) return res.status(404).json({ success: false, error: 'Complaint not found' });
@@ -117,7 +117,7 @@ export const updateComplaintAction = async (req: AuthRequest, res: Response) => 
     const { description, responsible_person, target_date, completion_date, status, evidence_notes } = req.body;
 
     await prisma.complaintAction.updateMany({
-      where: { id: action_id, tenant_id },
+      where: { id: String(action_id), tenant_id: String(tenant_id) },
       data: {
         description,
         responsible_person,
@@ -131,12 +131,12 @@ export const updateComplaintAction = async (req: AuthRequest, res: Response) => 
     const action = await prisma.complaintAction.findFirst({ where: { id: action_id } });
     if (!action) return res.status(404).json({ success: false, error: 'Action not found' });
 
-    const allActions = await prisma.complaintAction.findMany({ where: { complaint_id: action.complaint_id } });
+    const allActions = await prisma.complaintAction.findMany({ where: { complaint_id: String(action.complaint_id) } });
     const allDone = allActions.every((a: any) => a.status === 'completed');
 
     if (allDone) {
       await prisma.complaintHeader.updateMany({
-        where: { id: action.complaint_id },
+        where: { id: String(action.complaint_id) },
         data: { status: 'capa_complete' }
       });
     }
@@ -157,7 +157,7 @@ export const closeComplaint = async (req: AuthRequest, res: Response) => {
     if (!complaint) return res.status(404).json({ success: false, error: 'Complaint not found' });
 
     const openActions = await prisma.complaintAction.count({
-      where: { complaint_id: id, status: { not: 'completed' } }
+      where: { complaint_id: id, status: { not: 'completed' as string } }
     });
 
     if (openActions > 0) {
@@ -168,14 +168,14 @@ export const closeComplaint = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.complaintHeader.updateMany({
-      where: { id, tenant_id },
+      where: { id: String(id), tenant_id: String(tenant_id) },
       data: { status: 'closed', closed_at: new Date(), closed_by }
     });
 
     const similarComplaints = await prisma.complaintHeader.count({
       where: {
         tenant_id,
-        part_number: complaint.part_number || undefined,
+        part_number: complaint.part_number ?? undefined,
         status: 'closed',
         id: { not: id }
       }
@@ -183,7 +183,7 @@ export const closeComplaint = async (req: AuthRequest, res: Response) => {
 
     if (similarComplaints > 0) {
       await prisma.complaintHeader.updateMany({
-        where: { id, tenant_id },
+        where: { id: String(id), tenant_id: String(tenant_id) },
         data: { is_repeat: true }
       });
     }
@@ -199,18 +199,18 @@ export const getComplaintSummary = async (req: AuthRequest, res: Response) => {
     const tenant_id = req.user?.tenant_id as string;
 
     const total = await prisma.complaintHeader.count({ where: { tenant_id } });
-    const open = await prisma.complaintHeader.count({ where: { tenant_id, status: { not: 'closed' } } });
+    const open = await prisma.complaintHeader.count({ where: { tenant_id, status: { not: 'closed' as string } } });
     const customer = await prisma.complaintHeader.count({ where: { tenant_id, complaint_type: 'customer' } });
     const internal = await prisma.complaintHeader.count({ where: { tenant_id, complaint_type: 'internal' } });
     const supplier = await prisma.complaintHeader.count({ where: { tenant_id, complaint_type: 'supplier' } });
-    const critical = await prisma.complaintHeader.count({ where: { tenant_id, severity: 'critical', status: { not: 'closed' } } });
+    const critical = await prisma.complaintHeader.count({ where: { tenant_id, severity: 'critical', status: { not: 'closed' as string } } });
     const repeat = await prisma.complaintHeader.count({ where: { tenant_id, is_repeat: true } });
 
     const today = new Date();
     const overdue = await prisma.complaintHeader.count({
       where: {
         tenant_id,
-        status: { not: 'closed' },
+        status: { not: 'closed' as string },
         due_date: { lt: today }
       }
     });
