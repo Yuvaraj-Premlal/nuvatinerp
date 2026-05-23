@@ -679,7 +679,10 @@ export const ShiftReport: React.FC = () => {
 
       {isLoading && <div className="text-brand-primary animate-pulse">Loading...</div>}
 
-      {data && (
+      {!isLoading && data && data.summary?.total_jobs === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center"><p className="text-amber-700 font-medium">No job cards found for this date. Try 21 May or 22 May 2026.</p></div>
+      )}
+      {data && data.summary?.total_jobs > 0 && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
