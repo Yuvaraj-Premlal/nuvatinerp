@@ -57,7 +57,7 @@ export const getInvoices = async (req: AuthRequest, res: Response) => {
     const tenant_id = req.user?.tenant_id as string;
     const { status, customer_id } = req.query;
     const where: any = { tenant_id };
-    if (status) where.status = String(status);
+    if (status) where.status = { equals: String(status) };
     if (customer_id) where.customer_id = String(customer_id);
     const invoices = await prisma.invoiceHeader.findMany({
       where,
@@ -174,7 +174,7 @@ export const createInvoiceFromDispatch = async (req: AuthRequest, res: Response)
     const dispatch_id = req.params.dispatch_id;
 
     const dispatch = await prisma.dispatchHeader.findFirst({
-      where: { id: dispatch_id, tenant_id },
+      where: { id: dispatch_id as string, tenant_id: tenant_id as string },
       include: { dispatch_lines: { include: { item: true } } }
     });
     if (!dispatch) return res.status(404).json({ success: false, error: 'Dispatch not found' });
@@ -223,7 +223,7 @@ export const updateInvoiceStatus = async (req: AuthRequest, res: Response) => {
     const tenant_id = req.user?.tenant_id as string;
     const id = req.params.id;
     const { status } = req.body;
-    await prisma.invoiceHeader.updateMany({ where: { id, tenant_id }, data: { status } });
+    await prisma.invoiceHeader.updateMany({ where: { id, tenant_id }, data: { status: status as string } });
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
@@ -314,11 +314,11 @@ export const reversePaymentReceipt = async (req: AuthRequest, res: Response) => 
 
     const receipt = await prisma.paymentReceipt.findFirst({ where: { id, tenant_id } });
     if (!receipt) return res.status(404).json({ success: false, error: 'Receipt not found' });
-    if (receipt.status === 'reversed') return res.status(400).json({ success: false, error: 'Already reversed' });
+    if ((receipt as any).status === 'reversed') return res.status(400).json({ success: false, error: 'Already reversed' });
 
     await prisma.paymentReceipt.updateMany({
       where: { id },
-      data: { status: 'reversed', reversal_reason: reason, reversed_at: new Date() }
+      data: { status: 'reversed' as string, reversal_reason: reason, reversed_at: new Date() }
     });
 
     await prisma.invoiceHeader.updateMany({
@@ -461,7 +461,7 @@ export const createSupplierBillFromGRN = async (req: AuthRequest, res: Response)
     const grn_id = req.params.grn_id;
 
     const grn = await prisma.grnHeader.findFirst({
-      where: { id: grn_id, tenant_id: tenant_id },
+      where: { id: grn_id as string, tenant_id: tenant_id as string },
       include: { grn_lines: { include: { item: true } } }
     });
     if (!grn) return res.status(404).json({ success: false, error: 'GRN not found' });
@@ -516,7 +516,7 @@ export const createSupplierBillFromGRN = async (req: AuthRequest, res: Response)
         supplier_id: po?.supplier_id || '',
         supplier_name: supplier?.supplier_name || '',
         supplier_gstin: (supplier as any)?.gstin || '',
-        grn_id,
+        grn_id: grn_id as string,
         subtotal: Math.round(subtotal * 100) / 100,
         cgst_amount: Math.round(total_cgst * 100) / 100,
         sgst_amount: Math.round(total_sgst * 100) / 100,
@@ -663,7 +663,7 @@ export const getExpenses = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const expenses = await prisma.expenseEntry.findMany({
-      where: { tenant_id, is_reversed: false as boolean },
+      where: { tenant_id: tenant_id as string, is_reversed: false },
       orderBy: { expense_date: 'desc' }
     });
     res.json({ success: true, data: expenses });
@@ -725,7 +725,7 @@ export const reverseExpense = async (req: AuthRequest, res: Response) => {
 
     await prisma.expenseEntry.updateMany({
       where: { id },
-      data: { is_reversed: true, reversal_reason: reason, reversed_at: new Date() }
+      data: { is_reversed: true as boolean, reversal_reason: reason, reversed_at: new Date() }
     });
 
     if (expense.bank_account_id) {
