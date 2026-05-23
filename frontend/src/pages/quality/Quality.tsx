@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Complaints from './Complaints';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 
@@ -478,7 +479,7 @@ const Quality: React.FC = () => {
       </div>
 
       <div className="flex gap-2">
-        {['rejections', 'inspections'].map((tab) => (
+        {['rejections', 'inspections', 'complaints'].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -547,6 +548,8 @@ const Quality: React.FC = () => {
           </button>
         </div>
       )}
+
+      {activeTab === 'complaints' && <Complaints />}
     </div>
   );
 };

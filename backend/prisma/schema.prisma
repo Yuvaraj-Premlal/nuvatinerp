@@ -1160,3 +1160,58 @@ model CompanyConfig {
 
   @@map("company_config")
 }
+
+model ComplaintHeader {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  complaint_number  String
+  complaint_type    String   // customer / internal / supplier
+  raised_date       DateTime @default(now())
+  raised_by         String?
+  severity          String   @default("major") // critical / major / minor
+  status            String   @default("open")
+  title             String
+  description       String?
+  customer_id       String?
+  dispatch_id       String?
+  invoice_id        String?
+  job_card_id       String?
+  inspection_id     String?
+  rejection_log_id  String?
+  supplier_id       String?
+  grn_id            String?
+  part_number       String?
+  quantity_affected Float?
+  due_date          DateTime?
+  closed_at         DateTime?
+  closed_by         String?
+  is_repeat         Boolean  @default(false)
+  repeat_reference  String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  actions           ComplaintAction[]
+
+  @@unique([tenant_id, complaint_number])
+  @@map("complaint_header")
+}
+
+model ComplaintAction {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  complaint_id      String
+  action_type       String   // D1/D2/D3/D4/D5/D6/D7/D8 or containment/rca/capa/verify
+  step_number       Int?
+  description       String
+  responsible_person String?
+  target_date       DateTime?
+  completion_date   DateTime?
+  status            String   @default("pending")
+  evidence_notes    String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  complaint         ComplaintHeader @relation(fields: [complaint_id], references: [id])
+
+  @@map("complaint_action")
+}

@@ -28,6 +28,7 @@ import tocRoutes from './routes/toc.routes';
 import alertRoutes from './routes/alert.routes';
 import factoryRoutes from './routes/factory.routes';
 import financeRoutes from './routes/finance.routes';
+import complaintRoutes from './routes/complaint.routes';
 import costingRoutes from './routes/costing.routes';
 import ownerRoutes from './routes/owner.routes';
 
@@ -73,6 +74,7 @@ app.use('/api/toc', tocRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/factory', factoryRoutes);
 app.use('/api/finance', financeRoutes);
+app.use('/api/complaints', complaintRoutes);
 app.use('/api/costing', costingRoutes);
 app.use('/api/owner', ownerRoutes);
 
