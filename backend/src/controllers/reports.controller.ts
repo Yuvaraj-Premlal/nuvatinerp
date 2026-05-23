@@ -591,8 +591,7 @@ export const getShiftReport = async (req: AuthRequest, res: Response) => {
         job_operations: true,
         shot_logs: true,
         downtime_logs: true,
-        rejection_logs: true,
-        item: { select: { item_name: true, item_code: true } }
+        rejection_logs: true
       }
     });
 
@@ -638,15 +637,18 @@ export const getShiftReport = async (req: AuthRequest, res: Response) => {
           availability_percent: availability,
           quality_percent: quality
         },
-        jobs: jobs.map((j: any) => ({
-          job_number: j.job_number,
-          item_name: (j.item as any)?.item_name,
-          planned_qty: j.planned_quantity,
-          good_parts: j.actual_quantity_good,
-          shots: j.shot_logs.length,
-          rejections: j.rejection_logs.length,
-          downtime_min: j.downtime_logs.reduce((s: number, d: any) => s + (d.duration_min || 0), 0),
-          status: j.status
+        jobs: await Promise.all(jobs.map(async (j: any) => {
+          const item = j.item_id ? await prisma.itemMaster.findUnique({ where: { id: j.item_id }, select: { item_name: true, item_code: true } }) : null;
+          return {
+            job_number: j.job_number,
+            item_name: item?.item_name || '',
+            planned_qty: j.planned_quantity,
+            good_parts: j.actual_quantity_good,
+            shots: j.shot_logs.length,
+            rejections: j.rejection_logs.length,
+            downtime_min: j.downtime_logs.reduce((s: number, d: any) => s + (d.duration_min || 0), 0),
+            status: j.status
+          };
         })),
         downtime_log: allDowntimes,
         rejection_log: allRejections
@@ -671,8 +673,7 @@ export const getMonthlyProductionSummary = async (req: AuthRequest, res: Respons
       include: {
         shot_logs: true,
         downtime_logs: true,
-        rejection_logs: true,
-        item: { select: { item_name: true, item_code: true } }
+        rejection_logs: true
       }
     });
 
@@ -683,13 +684,18 @@ export const getMonthlyProductionSummary = async (req: AuthRequest, res: Respons
     const totalDowntime = jobs.reduce((s: number, j: any) =>
       s + j.downtime_logs.reduce((ds: number, d: any) => ds + (d.duration_min || 0), 0), 0);
 
+    const itemCache: any = {};
     const byProduct: any = {};
-    jobs.forEach((j: any) => {
+    for (const j of jobs) {
       const key = j.item_id || 'unknown';
       if (!byProduct[key]) {
+        if (j.item_id && !itemCache[j.item_id]) {
+          itemCache[j.item_id] = await prisma.itemMaster.findUnique({ where: { id: j.item_id }, select: { item_name: true, item_code: true } });
+        }
+        const item = j.item_id ? itemCache[j.item_id] : null;
         byProduct[key] = {
-          item_name: (j.item as any)?.item_name || 'Unknown',
-          item_code: (j.item as any)?.item_code || '',
+          item_name: item?.item_name || 'Unknown',
+          item_code: item?.item_code || '',
           planned: 0, good: 0, rejections: 0, jobs: 0
         };
       }
@@ -697,7 +703,7 @@ export const getMonthlyProductionSummary = async (req: AuthRequest, res: Respons
       byProduct[key].good += j.actual_quantity_good;
       byProduct[key].rejections += j.rejection_logs.length;
       byProduct[key].jobs += 1;
-    });
+    }
 
     const downtimeByReason: any = {};
     jobs.forEach((j: any) => {
