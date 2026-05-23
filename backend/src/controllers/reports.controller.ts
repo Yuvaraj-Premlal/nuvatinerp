@@ -571,3 +571,433 @@ export const createLoanAccount = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// ─── SHIFT REPORT ─────────────────────────────────────────────────────────────
+
+export const getShiftReport = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const dateStr = req.query.date ? String(req.query.date) : new Date().toISOString().split('T')[0];
+    const shift = req.query.shift ? String(req.query.shift) : undefined;
+    const date = new Date(dateStr);
+    const from = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+    const to = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+
+    const where: any = { tenant_id, planned_date: { gte: from, lte: to } };
+    if (shift) where.shift = shift;
+
+    const jobs = await prisma.jobCard.findMany({
+      where,
+      include: {
+        job_operations: true,
+        shot_logs: true,
+        downtime_logs: true,
+        rejection_logs: true,
+        item: { select: { item_name: true, item_code: true } }
+      }
+    });
+
+    const totalPlanned = jobs.reduce((s: number, j: any) => s + j.planned_quantity, 0);
+    const totalGood = jobs.reduce((s: number, j: any) => s + j.actual_quantity_good, 0);
+    const totalShots = jobs.reduce((s: number, j: any) => s + j.shot_logs.length, 0);
+    const totalRejections = jobs.reduce((s: number, j: any) => s + j.rejection_logs.length, 0);
+    const totalDowntime = jobs.reduce((s: number, j: any) =>
+      s + j.downtime_logs.reduce((ds: number, d: any) => ds + (d.duration_min || 0), 0), 0);
+
+    const shiftMin = 480;
+    const availability = Math.round(((shiftMin - totalDowntime) / shiftMin) * 100);
+    const quality = totalShots > 0 ? Math.round((totalGood / totalShots) * 100) : 0;
+
+    const allDowntimes = jobs.flatMap((j: any) => j.downtime_logs.map((d: any) => ({
+      job_number: j.job_number,
+      reason_code: d.reason_code || d.downtime_category,
+      duration_min: d.duration_min,
+      category: d.downtime_category
+    })));
+
+    const allRejections = jobs.flatMap((j: any) => j.rejection_logs.map((r: any) => ({
+      job_number: j.job_number,
+      defect_code: r.defect_code,
+      quantity: r.quantity_rejected,
+      disposition: r.disposition
+    })));
+
+    res.json({
+      success: true,
+      data: {
+        date: from,
+        shift: shift || 'all',
+        summary: {
+          total_jobs: jobs.length,
+          planned_qty: totalPlanned,
+          good_parts: totalGood,
+          achievement_percent: totalPlanned > 0 ? Math.round((totalGood / totalPlanned) * 100) : 0,
+          total_shots: totalShots,
+          total_rejections: totalRejections,
+          rejection_rate: totalShots > 0 ? Math.round((totalRejections / totalShots) * 100 * 10) / 10 : 0,
+          downtime_minutes: totalDowntime,
+          availability_percent: availability,
+          quality_percent: quality
+        },
+        jobs: jobs.map((j: any) => ({
+          job_number: j.job_number,
+          item_name: (j.item as any)?.item_name,
+          planned_qty: j.planned_quantity,
+          good_parts: j.actual_quantity_good,
+          shots: j.shot_logs.length,
+          rejections: j.rejection_logs.length,
+          downtime_min: j.downtime_logs.reduce((s: number, d: any) => s + (d.duration_min || 0), 0),
+          status: j.status
+        })),
+        downtime_log: allDowntimes,
+        rejection_log: allRejections
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ─── MONTHLY PRODUCTION SUMMARY ───────────────────────────────────────────────
+
+export const getMonthlyProductionSummary = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const month = req.query.month ? parseInt(String(req.query.month)) : new Date().getMonth() + 1;
+    const year = req.query.year ? parseInt(String(req.query.year)) : new Date().getFullYear();
+    const { from, to } = await getMonthRange(month, year);
+
+    const jobs = await prisma.jobCard.findMany({
+      where: { tenant_id, planned_date: { gte: from, lte: to } },
+      include: {
+        shot_logs: true,
+        downtime_logs: true,
+        rejection_logs: true,
+        item: { select: { item_name: true, item_code: true } }
+      }
+    });
+
+    const totalPlanned = jobs.reduce((s: number, j: any) => s + j.planned_quantity, 0);
+    const totalGood = jobs.reduce((s: number, j: any) => s + j.actual_quantity_good, 0);
+    const totalShots = jobs.reduce((s: number, j: any) => s + j.shot_logs.length, 0);
+    const totalRejections = jobs.reduce((s: number, j: any) => s + j.rejection_logs.length, 0);
+    const totalDowntime = jobs.reduce((s: number, j: any) =>
+      s + j.downtime_logs.reduce((ds: number, d: any) => ds + (d.duration_min || 0), 0), 0);
+
+    const byProduct: any = {};
+    jobs.forEach((j: any) => {
+      const key = j.item_id || 'unknown';
+      if (!byProduct[key]) {
+        byProduct[key] = {
+          item_name: (j.item as any)?.item_name || 'Unknown',
+          item_code: (j.item as any)?.item_code || '',
+          planned: 0, good: 0, rejections: 0, jobs: 0
+        };
+      }
+      byProduct[key].planned += j.planned_quantity;
+      byProduct[key].good += j.actual_quantity_good;
+      byProduct[key].rejections += j.rejection_logs.length;
+      byProduct[key].jobs += 1;
+    });
+
+    const downtimeByReason: any = {};
+    jobs.forEach((j: any) => {
+      j.downtime_logs.forEach((d: any) => {
+        const key = d.reason_code || d.downtime_category || 'unknown';
+        downtimeByReason[key] = (downtimeByReason[key] || 0) + (d.duration_min || 0);
+      });
+    });
+
+    const top5Downtime = Object.entries(downtimeByReason)
+      .sort(([, a]: any, [, b]: any) => b - a)
+      .slice(0, 5)
+      .map(([reason, minutes]) => ({ reason, minutes }));
+
+    res.json({
+      success: true,
+      data: {
+        period: { month, year },
+        summary: {
+          total_jobs: jobs.length,
+          planned_qty: totalPlanned,
+          good_parts: totalGood,
+          achievement_percent: totalPlanned > 0 ? Math.round((totalGood / totalPlanned) * 100) : 0,
+          total_shots: totalShots,
+          total_rejections: totalRejections,
+          rejection_rate: totalShots > 0 ? Math.round((totalRejections / totalShots) * 100 * 10) / 10 : 0,
+          total_downtime_hours: Math.round(totalDowntime / 60 * 10) / 10
+        },
+        by_product: Object.values(byProduct),
+        top_5_downtime_reasons: top5Downtime
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ─── CUSTOMER OTIF ────────────────────────────────────────────────────────────
+
+export const getCustomerOTIF = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const month = req.query.month ? parseInt(String(req.query.month)) : new Date().getMonth() + 1;
+    const year = req.query.year ? parseInt(String(req.query.year)) : new Date().getFullYear();
+    const { from, to } = await getMonthRange(month, year);
+
+    const dispatches = await prisma.dispatchHeader.findMany({
+      where: { tenant_id, dispatch_date: { gte: from, lte: to } },
+      include: { dispatch_lines: { include: { item: true } } }
+    });
+
+    const salesOrders = await prisma.salesOrder.findMany({
+      where: { tenant_id, delivery_date: { gte: from, lte: to } },
+      include: { so_lines: true }
+    });
+
+    const customerStats: any = {};
+
+    salesOrders.forEach((so: any) => {
+      const custId = so.customer_id || so.customer_name;
+      if (!customerStats[custId]) {
+        customerStats[custId] = {
+          customer_name: so.customer_name,
+          total_orders: 0,
+          on_time: 0,
+          in_full: 0,
+          otif: 0,
+          orders: []
+        };
+      }
+
+      const totalOrdered = so.so_lines.reduce((s: number, l: any) => s + l.quantity_ordered, 0);
+      const totalDispatched = so.so_lines.reduce((s: number, l: any) => s + (l.quantity_dispatched || 0), 0);
+
+      const deliveryDate = so.delivery_date ? new Date(so.delivery_date) : null;
+      const lastDispatch = dispatches.find((d: any) => d.so_id === so.id);
+      const dispatchDate = lastDispatch ? new Date(lastDispatch.dispatch_date) : null;
+
+      const isOnTime = deliveryDate && dispatchDate ? dispatchDate <= deliveryDate : false;
+      const isInFull = totalDispatched >= totalOrdered;
+
+      customerStats[custId].total_orders++;
+      if (isOnTime) customerStats[custId].on_time++;
+      if (isInFull) customerStats[custId].in_full++;
+      customerStats[custId].orders.push({
+        so_number: so.so_number,
+        delivery_date: deliveryDate,
+        dispatch_date: dispatchDate,
+        ordered: totalOrdered,
+        dispatched: totalDispatched,
+        on_time: isOnTime,
+        in_full: isInFull,
+        otif: isOnTime && isInFull
+      });
+    });
+
+    Object.values(customerStats).forEach((c: any) => {
+      const otifCount = c.orders.filter((o: any) => o.otif).length;
+      c.otif_count = otifCount;
+      c.otif_percent = c.total_orders > 0 ? Math.round((otifCount / c.total_orders) * 100) : 0;
+      c.on_time_percent = c.total_orders > 0 ? Math.round((c.on_time / c.total_orders) * 100) : 0;
+      c.in_full_percent = c.total_orders > 0 ? Math.round((c.in_full / c.total_orders) * 100) : 0;
+    });
+
+    const allOrders = Object.values(customerStats).reduce((s: number, c: any) => s + c.total_orders, 0);
+    const allOTIF = Object.values(customerStats).reduce((s: number, c: any) => s + c.otif_count, 0);
+
+    res.json({
+      success: true,
+      data: {
+        period: { month, year },
+        overall_otif_percent: allOrders > 0 ? Math.round((allOTIF / allOrders) * 100) : 0,
+        total_orders: allOrders,
+        customers: Object.values(customerStats)
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ─── REJECTION TREND ──────────────────────────────────────────────────────────
+
+export const getRejectionTrend = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const month = req.query.month ? parseInt(String(req.query.month)) : new Date().getMonth() + 1;
+    const year = req.query.year ? parseInt(String(req.query.year)) : new Date().getFullYear();
+    const { from, to } = await getMonthRange(month, year);
+
+    const rejections = await prisma.rejectionLog.findMany({
+      where: { tenant_id, logged_at: { gte: from, lte: to } }
+    });
+
+    const byDefect: any = {};
+    rejections.forEach((r: any) => {
+      const key = r.defect_code || 'unknown';
+      if (!byDefect[key]) byDefect[key] = { defect_code: key, count: 0, quantity: 0 };
+      byDefect[key].count++;
+      byDefect[key].quantity += r.quantity_rejected || 1;
+    });
+
+    const pareto = Object.values(byDefect)
+      .sort((a: any, b: any) => b.quantity - a.quantity);
+
+    const total = pareto.reduce((s: number, d: any) => s + (d as any).quantity, 0);
+    let cumulative = 0;
+    pareto.forEach((d: any) => {
+      d.percent = total > 0 ? Math.round((d.quantity / total) * 100) : 0;
+      cumulative += d.percent;
+      d.cumulative_percent = cumulative;
+    });
+
+    const byDisposition = rejections.reduce((acc: any, r: any) => {
+      const key = r.disposition || 'unknown';
+      acc[key] = (acc[key] || 0) + (r.quantity_rejected || 1);
+      return acc;
+    }, {});
+
+    res.json({
+      success: true,
+      data: {
+        period: { month, year },
+        total_rejections: rejections.length,
+        total_qty_rejected: total,
+        pareto: pareto,
+        by_disposition: byDisposition
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ─── DIE HEALTH REPORT ────────────────────────────────────────────────────────
+
+export const getDieHealthReport = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+
+    const dies = await prisma.dieMaster.findMany({
+      where: { tenant_id, is_active: true },
+      orderBy: { current_shot_count: 'desc' }
+    });
+
+    const dieHealth = dies.map((die: any) => {
+      const shotsSincePM = die.current_shot_count - die.shots_at_last_pm;
+      const pmInterval = die.pm_interval_shots ?? 20000;
+      const shotsToNextPM = pmInterval - shotsSincePM;
+      const pmPercent = Math.round((shotsSincePM / pmInterval) * 100);
+      const designLifeRemaining = die.design_life_shots
+        ? Math.round(((die.design_life_shots - die.current_shot_count) / die.design_life_shots) * 100)
+        : null;
+
+      return {
+        die_number: die.die_number,
+        die_name: die.die_name,
+        current_shot_count: die.current_shot_count,
+        shots_at_last_pm: die.shots_at_last_pm,
+        shots_since_last_pm: shotsSincePM,
+        pm_interval: pmInterval,
+        shots_to_next_pm: shotsToNextPM,
+        pm_percent: pmPercent,
+        pm_status: pmPercent >= 100 ? 'overdue' : pmPercent >= 90 ? 'critical' : pmPercent >= 75 ? 'warning' : 'healthy',
+        design_life_shots: die.design_life_shots,
+        design_life_remaining_percent: designLifeRemaining,
+        current_status: die.current_status
+      };
+    });
+
+    const summary = {
+      total_dies: dies.length,
+      overdue: dieHealth.filter((d: any) => d.pm_status === 'overdue').length,
+      critical: dieHealth.filter((d: any) => d.pm_status === 'critical').length,
+      warning: dieHealth.filter((d: any) => d.pm_status === 'warning').length,
+      healthy: dieHealth.filter((d: any) => d.pm_status === 'healthy').length
+    };
+
+    res.json({ success: true, data: { summary, dies: dieHealth } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ─── SUPPLIER PERFORMANCE ─────────────────────────────────────────────────────
+
+export const getSupplierPerformance = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const month = req.query.month ? parseInt(String(req.query.month)) : new Date().getMonth() + 1;
+    const year = req.query.year ? parseInt(String(req.query.year)) : new Date().getFullYear();
+    const { from, to } = await getMonthRange(month, year);
+
+    const pos = await prisma.purchaseOrder.findMany({
+      where: { tenant_id, po_date: { gte: from, lte: to } },
+      include: { supplier: true }
+    });
+
+    const grns = await prisma.grnHeader.findMany({
+      where: { tenant_id, received_date: { gte: from, lte: to } },
+      include: { grn_lines: true }
+    });
+
+    const supplierStats: any = {};
+
+    pos.forEach((po: any) => {
+      const suppId = po.supplier_id;
+      if (!suppId) return;
+      if (!supplierStats[suppId]) {
+        supplierStats[suppId] = {
+          supplier_name: po.supplier?.supplier_name || 'Unknown',
+          total_pos: 0,
+          grns_received: 0,
+          on_time_deliveries: 0,
+          total_qty_ordered: 0,
+          total_qty_received: 0,
+          total_qty_rejected: 0
+        };
+      }
+      supplierStats[suppId].total_pos++;
+    });
+
+    grns.forEach((grn: any) => {
+      const po = pos.find((p: any) => p.id === grn.po_id);
+      if (!po?.supplier_id) return;
+      const suppId = po.supplier_id;
+      if (!supplierStats[suppId]) return;
+
+      supplierStats[suppId].grns_received++;
+
+      const totalReceived = grn.grn_lines.reduce((s: number, l: any) => s + l.quantity_received, 0);
+      const totalRejected = grn.grn_lines.reduce((s: number, l: any) => s + (l.quantity_rejected || 0), 0);
+
+      supplierStats[suppId].total_qty_received += totalReceived;
+      supplierStats[suppId].total_qty_rejected += totalRejected;
+
+      if (po.expected_delivery_date) {
+        const isOnTime = new Date(grn.received_date) <= new Date(po.expected_delivery_date);
+        if (isOnTime) supplierStats[suppId].on_time_deliveries++;
+      }
+    });
+
+    Object.values(supplierStats).forEach((s: any) => {
+      s.on_time_percent = s.grns_received > 0
+        ? Math.round((s.on_time_deliveries / s.grns_received) * 100) : 0;
+      s.rejection_rate = s.total_qty_received > 0
+        ? Math.round((s.total_qty_rejected / s.total_qty_received) * 100 * 10) / 10 : 0;
+      s.delivery_rate = s.total_pos > 0
+        ? Math.round((s.grns_received / s.total_pos) * 100) : 0;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        period: { month, year },
+        suppliers: Object.values(supplierStats)
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

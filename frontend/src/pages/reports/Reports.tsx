@@ -675,12 +675,50 @@ const Reports: React.FC = () => {
               {r.label}
             </button>
           ))}
-          <div className="bg-gray-50 px-4 py-3 mt-2">
-            <p className="text-text-secondary text-xs font-semibold uppercase tracking-wider">Coming Soon</p>
+          <div className="bg-brand-primary bg-opacity-10 px-4 py-3 mt-2">
+            <p className="text-brand-primary text-xs font-semibold uppercase tracking-wider">Production</p>
           </div>
-          {['Shift Report', 'Monthly Production', 'Customer OTIF', 'Rejection Trend', 'Die Health', 'Supplier Performance'].map(r => (
-            <button key={r} className="w-full text-left px-4 py-3 text-sm border-b border-border text-gray-300 cursor-not-allowed">
-              {r}
+          {[
+            { id: 'shift-report', label: 'Shift Report' },
+            { id: 'monthly-production', label: 'Monthly Production' }
+          ].map(r => (
+            <button key={r.id} onClick={() => setActiveReport(r.id)}
+              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
+              {r.label}
+            </button>
+          ))}
+          <div className="bg-brand-primary bg-opacity-10 px-4 py-3">
+            <p className="text-brand-primary text-xs font-semibold uppercase tracking-wider">Quality</p>
+          </div>
+          {[
+            { id: 'otif', label: 'Customer OTIF' },
+            { id: 'rejection-trend', label: 'Rejection Trend' }
+          ].map(r => (
+            <button key={r.id} onClick={() => setActiveReport(r.id)}
+              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
+              {r.label}
+            </button>
+          ))}
+          <div className="bg-brand-primary bg-opacity-10 px-4 py-3">
+            <p className="text-brand-primary text-xs font-semibold uppercase tracking-wider">Maintenance</p>
+          </div>
+          {[
+            { id: 'die-health', label: 'Die Health Report' }
+          ].map(r => (
+            <button key={r.id} onClick={() => setActiveReport(r.id)}
+              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
+              {r.label}
+            </button>
+          ))}
+          <div className="bg-brand-primary bg-opacity-10 px-4 py-3">
+            <p className="text-brand-primary text-xs font-semibold uppercase tracking-wider">Purchase</p>
+          </div>
+          {[
+            { id: 'supplier-performance', label: 'Supplier Performance' }
+          ].map(r => (
+            <button key={r.id} onClick={() => setActiveReport(r.id)}
+              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
+              {r.label}
             </button>
           ))}
         </div>
@@ -697,9 +735,470 @@ const Reports: React.FC = () => {
         {activeReport === 'monthly-operating' && <MonthlyOperatingStatement />}
         {activeReport === 'monthly-statement' && <MonthlyFinanceStatement />}
         {activeReport === 'finance-config' && <FinanceConfigSection />}
+        {activeReport === 'shift-report' && <ShiftReport />}
+        {activeReport === 'monthly-production' && <MonthlyProductionReport />}
+        {activeReport === 'otif' && <OTIFReport />}
+        {activeReport === 'rejection-trend' && <RejectionTrendReport />}
+        {activeReport === 'die-health' && <DieHealthReport />}
+        {activeReport === 'supplier-performance' && <SupplierPerformanceReport />}
       </div>
     </div>
   );
 };
 
 export default Reports;
+
+// ─── PRODUCTION REPORTS ───────────────────────────────────────────────────────
+
+export const ShiftReport: React.FC = () => {
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [shift, setShift] = useState('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['shiftReport', date, shift],
+    queryFn: () => api.get(`/api/reports/production/shift?date=${date}${shift ? `&shift=${shift}` : ''}`).then(r => r.data.data)
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <input type="date" value={date} onChange={e => setDate(e.target.value)}
+          className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+        <select value={shift} onChange={e => setShift(e.target.value)}
+          className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+          <option value="">All Shifts</option>
+          <option value="Morning">Morning</option>
+          <option value="Afternoon">Afternoon</option>
+          <option value="Night">Night</option>
+        </select>
+        <button onClick={() => window.print()} className="px-4 py-2 bg-brand-primary text-white rounded-lg text-sm hover:bg-brand-dark">🖨 Print</button>
+      </div>
+
+      {isLoading && <div className="text-brand-primary animate-pulse">Loading...</div>}
+
+      {data && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: 'Good Parts', value: data.summary?.good_parts, sub: `of ${data.summary?.planned_qty} (${data.summary?.achievement_percent}%)`, color: 'border-green-400' },
+              { label: 'Rejection Rate', value: `${data.summary?.rejection_rate}%`, sub: `${data.summary?.total_rejections} pcs`, color: 'border-red-400' },
+              { label: 'Availability', value: `${data.summary?.availability_percent}%`, sub: `${data.summary?.downtime_minutes} min downtime`, color: 'border-blue-400' },
+              { label: 'Quality', value: `${data.summary?.quality_percent}%`, sub: `${data.summary?.total_shots} shots`, color: 'border-amber-400' }
+            ].map((m, i) => (
+              <div key={i} className={`bg-white rounded-xl p-4 shadow-sm border-l-4 ${m.color}`}>
+                <p className="text-xs text-text-secondary uppercase">{m.label}</p>
+                <p className="text-2xl font-bold text-text-primary">{m.value}</p>
+                <p className="text-xs text-text-secondary">{m.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-brand-light px-4 py-2"><p className="font-semibold text-brand-primary text-sm">Job Cards</p></div>
+            <table className="w-full text-sm">
+              <thead><tr className="bg-surface">
+                <th className="text-left px-4 py-2 text-text-secondary font-medium">Job</th>
+                <th className="text-left px-4 py-2 text-text-secondary font-medium">Part</th>
+                <th className="text-right px-4 py-2 text-text-secondary font-medium">Planned</th>
+                <th className="text-right px-4 py-2 text-text-secondary font-medium">Good</th>
+                <th className="text-right px-4 py-2 text-text-secondary font-medium">Rejections</th>
+                <th className="text-right px-4 py-2 text-text-secondary font-medium">Downtime</th>
+              </tr></thead>
+              <tbody>
+                {data.jobs?.map((j: any, i: number) => (
+                  <tr key={i} className="border-t border-border">
+                    <td className="px-4 py-2 font-medium text-brand-primary">{j.job_number}</td>
+                    <td className="px-4 py-2 text-text-secondary text-xs">{j.item_name}</td>
+                    <td className="px-4 py-2 text-right">{j.planned_qty}</td>
+                    <td className="px-4 py-2 text-right text-green-600 font-bold">{j.good_parts}</td>
+                    <td className="px-4 py-2 text-right text-red-500">{j.rejections}</td>
+                    <td className="px-4 py-2 text-right text-text-secondary">{j.downtime_min} min</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {data.downtime_log?.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="bg-red-50 px-4 py-2"><p className="font-semibold text-red-700 text-sm">Downtime Log</p></div>
+              <table className="w-full text-sm">
+                <thead><tr className="bg-surface">
+                  <th className="text-left px-4 py-2 text-text-secondary">Job</th>
+                  <th className="text-left px-4 py-2 text-text-secondary">Reason</th>
+                  <th className="text-right px-4 py-2 text-text-secondary">Duration</th>
+                </tr></thead>
+                <tbody>
+                  {data.downtime_log.map((d: any, i: number) => (
+                    <tr key={i} className="border-t border-border">
+                      <td className="px-4 py-2 text-xs">{d.job_number}</td>
+                      <td className="px-4 py-2 text-xs">{d.reason_code || d.category}</td>
+                      <td className="px-4 py-2 text-right text-red-500 font-medium">{d.duration_min} min</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const MonthlyProductionReport: React.FC = () => {
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [year, setYear] = useState(new Date().getFullYear());
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['monthlyProduction', month, year],
+    queryFn: () => api.get(`/api/reports/production/monthly-summary?month=${month}&year=${year}`).then(r => r.data.data)
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <select value={month} onChange={e => setMonth(parseInt(e.target.value))}
+          className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+          {Array.from({ length: 12 }, (_, i) => <option key={i+1} value={i+1}>{new Date(2024,i,1).toLocaleString('en-IN',{month:'long'})}</option>)}
+        </select>
+        <select value={year} onChange={e => setYear(parseInt(e.target.value))}
+          className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+          {[2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <button onClick={() => window.print()} className="px-4 py-2 bg-brand-primary text-white rounded-lg text-sm hover:bg-brand-dark">🖨 Print</button>
+      </div>
+
+      {isLoading && <div className="text-brand-primary animate-pulse">Loading...</div>}
+
+      {data && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: 'Good Parts', value: data.summary?.good_parts, color: 'border-green-400' },
+              { label: 'Achievement', value: `${data.summary?.achievement_percent}%`, color: 'border-brand-primary' },
+              { label: 'Rejection Rate', value: `${data.summary?.rejection_rate}%`, color: 'border-red-400' },
+              { label: 'Downtime', value: `${data.summary?.total_downtime_hours}h`, color: 'border-amber-400' }
+            ].map((m, i) => (
+              <div key={i} className={`bg-white rounded-xl p-4 shadow-sm border-l-4 ${m.color}`}>
+                <p className="text-xs text-text-secondary uppercase">{m.label}</p>
+                <p className="text-2xl font-bold text-text-primary">{m.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <h3 className="font-semibold text-text-primary mb-3">By Product</h3>
+              <table className="w-full text-sm">
+                <thead><tr className="bg-brand-light">
+                  <th className="text-left px-3 py-2 text-brand-primary">Part</th>
+                  <th className="text-right px-3 py-2 text-brand-primary">Planned</th>
+                  <th className="text-right px-3 py-2 text-brand-primary">Good</th>
+                  <th className="text-right px-3 py-2 text-brand-primary">Rejected</th>
+                </tr></thead>
+                <tbody>
+                  {data.by_product?.map((p: any, i: number) => (
+                    <tr key={i} className="border-t border-border">
+                      <td className="px-3 py-2 text-xs font-medium">{p.item_name}</td>
+                      <td className="px-3 py-2 text-right text-xs">{p.planned}</td>
+                      <td className="px-3 py-2 text-right text-xs text-green-600 font-bold">{p.good}</td>
+                      <td className="px-3 py-2 text-right text-xs text-red-500">{p.rejections}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <h3 className="font-semibold text-text-primary mb-3">Top 5 Downtime Reasons</h3>
+              {data.top_5_downtime_reasons?.map((d: any, i: number) => (
+                <div key={i} className="flex justify-between py-2 border-b border-border last:border-0 text-sm">
+                  <span className="text-text-primary">{d.reason}</span>
+                  <span className="font-bold text-red-500">{d.minutes} min</span>
+                </div>
+              ))}
+              {data.top_5_downtime_reasons?.length === 0 && <p className="text-text-secondary text-sm">No downtime recorded</p>}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── QUALITY REPORTS ──────────────────────────────────────────────────────────
+
+export const OTIFReport: React.FC = () => {
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [year, setYear] = useState(new Date().getFullYear());
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['otif', month, year],
+    queryFn: () => api.get(`/api/reports/quality/otif?month=${month}&year=${year}`).then(r => r.data.data)
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <select value={month} onChange={e => setMonth(parseInt(e.target.value))}
+          className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+          {Array.from({ length: 12 }, (_, i) => <option key={i+1} value={i+1}>{new Date(2024,i,1).toLocaleString('en-IN',{month:'long'})}</option>)}
+        </select>
+        <select value={year} onChange={e => setYear(parseInt(e.target.value))}
+          className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+          {[2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+
+      {isLoading && <div className="text-brand-primary animate-pulse">Loading...</div>}
+
+      {data && (
+        <div className="space-y-4">
+          <div className={`rounded-xl p-5 text-white ${data.overall_otif_percent >= 95 ? 'bg-green-500' : data.overall_otif_percent >= 80 ? 'bg-amber-500' : 'bg-red-500'}`}>
+            <p className="text-sm opacity-90">Overall OTIF</p>
+            <p className="text-4xl font-bold">{data.overall_otif_percent}%</p>
+            <p className="text-sm opacity-90">{data.total_orders} orders</p>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead><tr className="bg-brand-light">
+                <th className="text-left px-4 py-3 text-brand-primary">Customer</th>
+                <th className="text-right px-4 py-3 text-brand-primary">Orders</th>
+                <th className="text-right px-4 py-3 text-brand-primary">On Time %</th>
+                <th className="text-right px-4 py-3 text-brand-primary">In Full %</th>
+                <th className="text-right px-4 py-3 text-brand-primary">OTIF %</th>
+              </tr></thead>
+              <tbody>
+                {data.customers?.map((c: any, i: number) => (
+                  <tr key={i} className="border-t border-border">
+                    <td className="px-4 py-3 font-medium">{c.customer_name}</td>
+                    <td className="px-4 py-3 text-right">{c.total_orders}</td>
+                    <td className="px-4 py-3 text-right">{c.on_time_percent}%</td>
+                    <td className="px-4 py-3 text-right">{c.in_full_percent}%</td>
+                    <td className={`px-4 py-3 text-right font-bold ${c.otif_percent >= 95 ? 'text-green-600' : c.otif_percent >= 80 ? 'text-amber-500' : 'text-red-500'}`}>
+                      {c.otif_percent}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {data.customers?.length === 0 && <div className="text-center py-12 text-text-secondary">No dispatch data found</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const RejectionTrendReport: React.FC = () => {
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [year, setYear] = useState(new Date().getFullYear());
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['rejectionTrend', month, year],
+    queryFn: () => api.get(`/api/reports/quality/rejection-trend?month=${month}&year=${year}`).then(r => r.data.data)
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <select value={month} onChange={e => setMonth(parseInt(e.target.value))}
+          className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+          {Array.from({ length: 12 }, (_, i) => <option key={i+1} value={i+1}>{new Date(2024,i,1).toLocaleString('en-IN',{month:'long'})}</option>)}
+        </select>
+        <select value={year} onChange={e => setYear(parseInt(e.target.value))}
+          className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+          {[2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+
+      {isLoading && <div className="text-brand-primary animate-pulse">Loading...</div>}
+
+      {data && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-red-400">
+              <p className="text-xs text-text-secondary uppercase">Total Rejections</p>
+              <p className="text-3xl font-bold text-red-500">{data.total_rejections}</p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-amber-400">
+              <p className="text-xs text-text-secondary uppercase">Total Qty Rejected</p>
+              <p className="text-3xl font-bold text-amber-500">{data.total_qty_rejected} pcs</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-5 shadow-sm">
+            <h3 className="font-semibold text-text-primary mb-3">Pareto — Defect Analysis</h3>
+            <table className="w-full text-sm">
+              <thead><tr className="bg-brand-light">
+                <th className="text-left px-4 py-2 text-brand-primary">Defect Code</th>
+                <th className="text-right px-4 py-2 text-brand-primary">Qty</th>
+                <th className="text-right px-4 py-2 text-brand-primary">%</th>
+                <th className="text-right px-4 py-2 text-brand-primary">Cumulative %</th>
+                <th className="px-4 py-2 text-brand-primary">Bar</th>
+              </tr></thead>
+              <tbody>
+                {data.pareto?.map((d: any, i: number) => (
+                  <tr key={i} className="border-t border-border">
+                    <td className="px-4 py-2 font-medium">{d.defect_code}</td>
+                    <td className="px-4 py-2 text-right text-red-500 font-bold">{d.quantity}</td>
+                    <td className="px-4 py-2 text-right">{d.percent}%</td>
+                    <td className="px-4 py-2 text-right text-text-secondary">{d.cumulative_percent}%</td>
+                    <td className="px-4 py-2">
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div className="bg-red-400 h-2 rounded-full" style={{ width: `${d.percent}%` }}></div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {data.pareto?.length === 0 && <div className="text-center py-6 text-text-secondary">No rejections found</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── MAINTENANCE REPORTS ──────────────────────────────────────────────────────
+
+export const DieHealthReport: React.FC = () => {
+  const { data, isLoading } = useQuery({
+    queryKey: ['dieHealthReport'],
+    queryFn: () => api.get('/api/reports/maintenance/die-health').then(r => r.data.data)
+  });
+
+  const statusColor: any = {
+    overdue: 'text-red-600 bg-red-50',
+    critical: 'text-red-500 bg-red-50',
+    warning: 'text-amber-500 bg-amber-50',
+    healthy: 'text-green-600 bg-green-50'
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button onClick={() => window.print()} className="px-4 py-2 bg-brand-primary text-white rounded-lg text-sm hover:bg-brand-dark">🖨 Print</button>
+      </div>
+
+      {isLoading && <div className="text-brand-primary animate-pulse">Loading...</div>}
+
+      {data && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { label: 'Total Dies', value: data.summary?.total_dies, color: 'border-brand-primary' },
+              { label: 'Overdue PM', value: data.summary?.overdue, color: 'border-red-500' },
+              { label: 'Critical', value: data.summary?.critical, color: 'border-red-400' },
+              { label: 'Healthy', value: data.summary?.healthy, color: 'border-green-400' }
+            ].map((m, i) => (
+              <div key={i} className={`bg-white rounded-xl p-4 shadow-sm border-l-4 ${m.color}`}>
+                <p className="text-xs text-text-secondary uppercase">{m.label}</p>
+                <p className="text-3xl font-bold text-text-primary">{m.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead><tr className="bg-brand-light">
+                <th className="text-left px-4 py-3 text-brand-primary">Die Number</th>
+                <th className="text-left px-4 py-3 text-brand-primary">Die Name</th>
+                <th className="text-right px-4 py-3 text-brand-primary">Total Shots</th>
+                <th className="text-right px-4 py-3 text-brand-primary">Since Last PM</th>
+                <th className="text-right px-4 py-3 text-brand-primary">To Next PM</th>
+                <th className="text-right px-4 py-3 text-brand-primary">Life Remaining</th>
+                <th className="text-center px-4 py-3 text-brand-primary">Status</th>
+              </tr></thead>
+              <tbody>
+                {data.dies?.map((d: any, i: number) => (
+                  <tr key={i} className={`border-t border-border ${d.pm_status === 'overdue' || d.pm_status === 'critical' ? 'bg-red-50' : ''}`}>
+                    <td className="px-4 py-3 font-medium text-brand-primary">{d.die_number}</td>
+                    <td className="px-4 py-3 text-text-secondary text-xs">{d.die_name}</td>
+                    <td className="px-4 py-3 text-right">{d.current_shot_count?.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-amber-600">{d.shots_since_last_pm?.toLocaleString()}</td>
+                    <td className={`px-4 py-3 text-right font-bold ${d.shots_to_next_pm <= 0 ? 'text-red-500' : 'text-green-600'}`}>
+                      {d.shots_to_next_pm <= 0 ? 'OVERDUE' : d.shots_to_next_pm?.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-right text-text-secondary">
+                      {d.design_life_remaining_percent !== null ? `${d.design_life_remaining_percent}%` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[d.pm_status] || 'bg-gray-50 text-gray-500'}`}>
+                        {d.pm_status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── SUPPLIER PERFORMANCE REPORT ──────────────────────────────────────────────
+
+export const SupplierPerformanceReport: React.FC = () => {
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [year, setYear] = useState(new Date().getFullYear());
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['supplierPerformance', month, year],
+    queryFn: () => api.get(`/api/reports/purchase/supplier-performance?month=${month}&year=${year}`).then(r => r.data.data)
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <select value={month} onChange={e => setMonth(parseInt(e.target.value))}
+          className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+          {Array.from({ length: 12 }, (_, i) => <option key={i+1} value={i+1}>{new Date(2024,i,1).toLocaleString('en-IN',{month:'long'})}</option>)}
+        </select>
+        <select value={year} onChange={e => setYear(parseInt(e.target.value))}
+          className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+          {[2024,2025,2026,2027].map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+
+      {isLoading && <div className="text-brand-primary animate-pulse">Loading...</div>}
+
+      {data && (
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead><tr className="bg-brand-light">
+              <th className="text-left px-4 py-3 text-brand-primary">Supplier</th>
+              <th className="text-right px-4 py-3 text-brand-primary">POs</th>
+              <th className="text-right px-4 py-3 text-brand-primary">GRNs</th>
+              <th className="text-right px-4 py-3 text-brand-primary">Delivery Rate</th>
+              <th className="text-right px-4 py-3 text-brand-primary">On Time %</th>
+              <th className="text-right px-4 py-3 text-brand-primary">Rejection Rate</th>
+            </tr></thead>
+            <tbody>
+              {data.suppliers?.map((s: any, i: number) => (
+                <tr key={i} className="border-t border-border">
+                  <td className="px-4 py-3 font-medium">{s.supplier_name}</td>
+                  <td className="px-4 py-3 text-right">{s.total_pos}</td>
+                  <td className="px-4 py-3 text-right">{s.grns_received}</td>
+                  <td className="px-4 py-3 text-right">{s.delivery_rate}%</td>
+                  <td className={`px-4 py-3 text-right font-bold ${s.on_time_percent >= 90 ? 'text-green-600' : s.on_time_percent >= 70 ? 'text-amber-500' : 'text-red-500'}`}>
+                    {s.on_time_percent}%
+                  </td>
+                  <td className={`px-4 py-3 text-right font-bold ${s.rejection_rate <= 1 ? 'text-green-600' : s.rejection_rate <= 3 ? 'text-amber-500' : 'text-red-500'}`}>
+                    {s.rejection_rate}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {data.suppliers?.length === 0 && <div className="text-center py-12 text-text-secondary">No supplier data found</div>}
+        </div>
+      )}
+    </div>
+  );
+};
