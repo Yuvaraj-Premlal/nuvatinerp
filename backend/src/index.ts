@@ -1,4 +1,6 @@
 import express from 'express';
+import cron from 'node-cron';
+import { runTOCForAllTenants } from './jobs/toc.scheduler';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -71,6 +73,10 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/factory', factoryRoutes);
 app.use('/api/costing', costingRoutes);
 app.use('/api/owner', ownerRoutes);
+
+// TOC Scheduler — 6 AM and 2 PM daily
+cron.schedule('0 6 * * *', () => { console.log('[CRON] 6 AM TOC run'); runTOCForAllTenants().catch(console.error); });
+cron.schedule('0 14 * * *', () => { console.log('[CRON] 2 PM TOC run'); runTOCForAllTenants().catch(console.error); });
 
 app.listen(PORT, () => {
   console.log('Nuvatin ERP backend running on port ' + PORT);
