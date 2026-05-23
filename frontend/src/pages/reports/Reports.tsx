@@ -651,103 +651,6 @@ const FinanceConfigSection: React.FC = () => {
   );
 };
 
-const Reports: React.FC = () => {
-  const [activeReport, setActiveReport] = useState('daily-throughput');
-
-  const financeReports = [
-    { id: 'daily-throughput', label: 'Daily Throughput' },
-    { id: 'monthly-throughput', label: 'Monthly Throughput' },
-    { id: 'monthly-operating', label: 'Monthly Operating Statement' },
-    { id: 'monthly-statement', label: 'Monthly Finance Statement' },
-    { id: 'finance-config', label: '⚙ Finance Config' }
-  ];
-
-  return (
-    <div className="flex gap-6">
-      <div className="w-56 flex-shrink-0">
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="bg-brand-primary px-4 py-3">
-            <p className="text-white text-xs font-semibold uppercase tracking-wider">Finance Reports</p>
-          </div>
-          {financeReports.map(r => (
-            <button key={r.id} onClick={() => setActiveReport(r.id)}
-              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
-              {r.label}
-            </button>
-          ))}
-          <div className="bg-brand-primary bg-opacity-10 px-4 py-3 mt-2">
-            <p className="text-brand-primary text-xs font-semibold uppercase tracking-wider">Production</p>
-          </div>
-          {[
-            { id: 'shift-report', label: 'Shift Report' },
-            { id: 'monthly-production', label: 'Monthly Production' }
-          ].map(r => (
-            <button key={r.id} onClick={() => setActiveReport(r.id)}
-              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
-              {r.label}
-            </button>
-          ))}
-          <div className="bg-brand-primary bg-opacity-10 px-4 py-3">
-            <p className="text-brand-primary text-xs font-semibold uppercase tracking-wider">Quality</p>
-          </div>
-          {[
-            { id: 'otif', label: 'Customer OTIF' },
-            { id: 'rejection-trend', label: 'Rejection Trend' }
-          ].map(r => (
-            <button key={r.id} onClick={() => setActiveReport(r.id)}
-              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
-              {r.label}
-            </button>
-          ))}
-          <div className="bg-brand-primary bg-opacity-10 px-4 py-3">
-            <p className="text-brand-primary text-xs font-semibold uppercase tracking-wider">Maintenance</p>
-          </div>
-          {[
-            { id: 'die-health', label: 'Die Health Report' }
-          ].map(r => (
-            <button key={r.id} onClick={() => setActiveReport(r.id)}
-              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
-              {r.label}
-            </button>
-          ))}
-          <div className="bg-brand-primary bg-opacity-10 px-4 py-3">
-            <p className="text-brand-primary text-xs font-semibold uppercase tracking-wider">Purchase</p>
-          </div>
-          {[
-            { id: 'supplier-performance', label: 'Supplier Performance' }
-          ].map(r => (
-            <button key={r.id} onClick={() => setActiveReport(r.id)}
-              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
-              {r.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex-1">
-        <div className="mb-4">
-          <h1 className="text-xl font-bold text-text-primary">Reports</h1>
-          <p className="text-text-secondary text-sm">Finance reports — RBAC restricted</p>
-        </div>
-
-        {activeReport === 'daily-throughput' && <DailyThroughputReport />}
-        {activeReport === 'monthly-throughput' && <MonthlyThroughputReport />}
-        {activeReport === 'monthly-operating' && <MonthlyOperatingStatement />}
-        {activeReport === 'monthly-statement' && <MonthlyFinanceStatement />}
-        {activeReport === 'finance-config' && <FinanceConfigSection />}
-        {activeReport === 'shift-report' && <ShiftReport />}
-        {activeReport === 'monthly-production' && <MonthlyProductionReport />}
-        {activeReport === 'otif' && <OTIFReport />}
-        {activeReport === 'rejection-trend' && <RejectionTrendReport />}
-        {activeReport === 'die-health' && <DieHealthReport />}
-        {activeReport === 'supplier-performance' && <SupplierPerformanceReport />}
-      </div>
-    </div>
-  );
-};
-
-export default Reports;
-
 // ─── PRODUCTION REPORTS ───────────────────────────────────────────────────────
 
 export const ShiftReport: React.FC = () => {
@@ -1202,3 +1105,101 @@ export const SupplierPerformanceReport: React.FC = () => {
     </div>
   );
 };
+
+
+const Reports: React.FC = () => {
+  const [activeReport, setActiveReport] = useState('daily-throughput');
+
+  const financeReports = [
+    { id: 'daily-throughput', label: 'Daily Throughput' },
+    { id: 'monthly-throughput', label: 'Monthly Throughput' },
+    { id: 'monthly-operating', label: 'Monthly Operating Statement' },
+    { id: 'monthly-statement', label: 'Monthly Finance Statement' },
+    { id: 'finance-config', label: '⚙ Finance Config' }
+  ];
+
+  return (
+    <div className="flex gap-6">
+      <div className="w-56 flex-shrink-0">
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-brand-primary px-4 py-3">
+            <p className="text-white text-xs font-semibold uppercase tracking-wider">Finance Reports</p>
+          </div>
+          {financeReports.map(r => (
+            <button key={r.id} onClick={() => setActiveReport(r.id)}
+              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
+              {r.label}
+            </button>
+          ))}
+          <div className="bg-brand-primary bg-opacity-10 px-4 py-3 mt-2">
+            <p className="text-brand-primary text-xs font-semibold uppercase tracking-wider">Production</p>
+          </div>
+          {[
+            { id: 'shift-report', label: 'Shift Report' },
+            { id: 'monthly-production', label: 'Monthly Production' }
+          ].map(r => (
+            <button key={r.id} onClick={() => setActiveReport(r.id)}
+              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
+              {r.label}
+            </button>
+          ))}
+          <div className="bg-brand-primary bg-opacity-10 px-4 py-3">
+            <p className="text-brand-primary text-xs font-semibold uppercase tracking-wider">Quality</p>
+          </div>
+          {[
+            { id: 'otif', label: 'Customer OTIF' },
+            { id: 'rejection-trend', label: 'Rejection Trend' }
+          ].map(r => (
+            <button key={r.id} onClick={() => setActiveReport(r.id)}
+              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
+              {r.label}
+            </button>
+          ))}
+          <div className="bg-brand-primary bg-opacity-10 px-4 py-3">
+            <p className="text-brand-primary text-xs font-semibold uppercase tracking-wider">Maintenance</p>
+          </div>
+          {[
+            { id: 'die-health', label: 'Die Health Report' }
+          ].map(r => (
+            <button key={r.id} onClick={() => setActiveReport(r.id)}
+              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
+              {r.label}
+            </button>
+          ))}
+          <div className="bg-brand-primary bg-opacity-10 px-4 py-3">
+            <p className="text-brand-primary text-xs font-semibold uppercase tracking-wider">Purchase</p>
+          </div>
+          {[
+            { id: 'supplier-performance', label: 'Supplier Performance' }
+          ].map(r => (
+            <button key={r.id} onClick={() => setActiveReport(r.id)}
+              className={`w-full text-left px-4 py-3 text-sm border-b border-border transition-colors ${activeReport === r.id ? 'bg-brand-light text-brand-primary font-medium border-l-4 border-l-brand-primary' : 'text-text-secondary hover:bg-surface'}`}>
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1">
+        <div className="mb-4">
+          <h1 className="text-xl font-bold text-text-primary">Reports</h1>
+          <p className="text-text-secondary text-sm">Finance reports — RBAC restricted</p>
+        </div>
+
+        {activeReport === 'daily-throughput' && <DailyThroughputReport />}
+        {activeReport === 'monthly-throughput' && <MonthlyThroughputReport />}
+        {activeReport === 'monthly-operating' && <MonthlyOperatingStatement />}
+        {activeReport === 'monthly-statement' && <MonthlyFinanceStatement />}
+        {activeReport === 'finance-config' && <FinanceConfigSection />}
+        {activeReport === 'shift-report' && <ShiftReport />}
+        {activeReport === 'monthly-production' && <MonthlyProductionReport />}
+        {activeReport === 'otif' && <OTIFReport />}
+        {activeReport === 'rejection-trend' && <RejectionTrendReport />}
+        {activeReport === 'die-health' && <DieHealthReport />}
+        {activeReport === 'supplier-performance' && <SupplierPerformanceReport />}
+      </div>
+    </div>
+  );
+};
+
+export default Reports;
