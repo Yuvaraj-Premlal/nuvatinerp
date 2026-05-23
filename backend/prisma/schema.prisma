@@ -170,6 +170,8 @@ model MachineMaster {
   routing_operations    RoutingOperation[]
   downtime_logs         DowntimeLog[]
   constraint_configs    ConstraintConfig[]
+  maintenance_wos       MaintenanceWorkOrder[]
+  maintenance_schedules MaintenanceSchedule[]
 
   @@unique([tenant_id, machine_code])
   @@map("machine_master")
@@ -1214,4 +1216,92 @@ model ComplaintAction {
   complaint         ComplaintHeader @relation(fields: [complaint_id], references: [id])
 
   @@map("complaint_action")
+}
+
+model MaintenanceWorkOrder {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  wo_number         String
+  machine_id        String
+  maintenance_type  String   // preventive / breakdown / calibration / predictive
+  raised_date       DateTime @default(now())
+  scheduled_date    DateTime?
+  started_at        DateTime?
+  completed_at      DateTime?
+  description       String?
+  findings          String?
+  action_taken      String?
+  raised_by         String?
+  assigned_to       String?
+  status            String   @default("open")
+  downtime_minutes  Float?
+  cost              Float?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  machine           MachineMaster      @relation(fields: [machine_id], references: [id])
+  spare_usages      SparePart_Usage[]
+
+  @@unique([tenant_id, wo_number])
+  @@map("maintenance_work_order")
+}
+
+model MaintenanceSchedule {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  machine_id        String
+  maintenance_type  String   @default("preventive")
+  title             String
+  frequency         String   // daily / weekly / monthly / quarterly / annual
+  scheduled_date    DateTime
+  next_due_date     DateTime?
+  checklist         String?
+  status            String   @default("scheduled")
+  completed_at      DateTime?
+  completed_by      String?
+  notes             String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  machine           MachineMaster @relation(fields: [machine_id], references: [id])
+
+  @@map("maintenance_schedule")
+}
+
+model SparePart {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  part_code         String
+  part_name         String
+  machine_id        String?
+  description       String?
+  unit_of_measure   String   @default("NOS")
+  quantity_on_hand  Float    @default(0)
+  reorder_point     Float    @default(2)
+  unit_cost         Float?
+  storage_location  String?
+  is_critical       Boolean  @default(false)
+  is_active         Boolean  @default(true)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  usages            SparePart_Usage[]
+
+  @@unique([tenant_id, part_code])
+  @@map("spare_part")
+}
+
+model SparePart_Usage {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  wo_id             String
+  spare_part_id     String
+  quantity_used     Float
+  unit_cost         Float?
+  used_at           DateTime @default(now())
+
+  work_order        MaintenanceWorkOrder @relation(fields: [wo_id], references: [id])
+  spare_part        SparePart            @relation(fields: [spare_part_id], references: [id])
+
+  @@map("spare_part_usage")
 }
