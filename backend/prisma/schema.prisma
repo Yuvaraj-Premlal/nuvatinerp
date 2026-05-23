@@ -811,3 +811,352 @@ model CostConfig {
   @@unique([tenant_id, config_key])
   @@map("cost_config")
 }
+
+model ChartOfAccount {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  account_code    String
+  account_name    String
+  account_type    String   // asset / liability / income / expense / equity
+  account_subtype String?  // current_asset / fixed_asset / current_liability etc
+  parent_id       String?
+  is_system       Boolean  @default(false)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  journal_lines   JournalLine[]
+
+  @@unique([tenant_id, account_code])
+  @@map("chart_of_accounts")
+}
+
+model JournalEntry {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  entry_number    String
+  entry_date      DateTime
+  entry_type      String   // auto / manual
+  reference_type  String?  // invoice / payment / grn / dispatch / expense etc
+  reference_id    String?
+  description     String?
+  is_reversal     Boolean  @default(false)
+  reversed_by     String?
+  reversed_entry  String?
+  posted_by       String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  lines           JournalLine[]
+
+  @@map("journal_entry")
+}
+
+model JournalLine {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  entry_id        String
+  account_id      String
+  debit           Float    @default(0)
+  credit          Float    @default(0)
+  description     String?
+  created_at      DateTime @default(now())
+
+  entry           JournalEntry      @relation(fields: [entry_id], references: [id])
+  account         ChartOfAccount    @relation(fields: [account_id], references: [id])
+
+  @@map("journal_line")
+}
+
+model InvoiceHeader {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  invoice_number  String
+  invoice_date    DateTime
+  due_date        DateTime?
+  customer_id     String
+  customer_name   String
+  customer_gstin  String?
+  dispatch_id     String?
+  subtotal        Float    @default(0)
+  cgst_amount     Float    @default(0)
+  sgst_amount     Float    @default(0)
+  igst_amount     Float    @default(0)
+  total_amount    Float    @default(0)
+  amount_paid     Float    @default(0)
+  status          String   @default("draft")
+  payment_terms   String?
+  notes           String?
+  created_by      String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  lines           InvoiceLine[]
+  payments        PaymentReceipt[]
+  credit_notes    CreditNote[]
+
+  @@unique([tenant_id, invoice_number])
+  @@map("invoice_header")
+}
+
+model InvoiceLine {
+  id              String   @id @default(uuid())
+  invoice_id      String
+  item_id         String?
+  item_name       String
+  hsn_code        String?
+  quantity        Float
+  unit_price      Float
+  amount          Float
+  tax_rate        Float    @default(18)
+  cgst_rate       Float    @default(9)
+  sgst_rate       Float    @default(9)
+  igst_rate       Float    @default(0)
+  cgst_amount     Float    @default(0)
+  sgst_amount     Float    @default(0)
+  igst_amount     Float    @default(0)
+  total_amount    Float
+
+  invoice         InvoiceHeader @relation(fields: [invoice_id], references: [id])
+
+  @@map("invoice_line")
+}
+
+model PaymentReceipt {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  receipt_number  String
+  receipt_date    DateTime
+  invoice_id      String
+  customer_id     String
+  amount_received Float
+  payment_mode    String   // bank / cash / upi / cheque / neft / rtgs
+  reference_number String?
+  bank_account_id String?
+  status          String   @default("received")
+  reversal_reason String?
+  reversed_at     DateTime?
+  notes           String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  invoice         InvoiceHeader @relation(fields: [invoice_id], references: [id])
+
+  @@map("payment_receipt")
+}
+
+model CreditNote {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  cn_number       String
+  cn_date         DateTime
+  invoice_id      String
+  customer_id     String
+  customer_name   String
+  reason          String
+  return_type     String   // pre_invoice / post_invoice
+  subtotal        Float    @default(0)
+  cgst_amount     Float    @default(0)
+  sgst_amount     Float    @default(0)
+  igst_amount     Float    @default(0)
+  total_amount    Float    @default(0)
+  status          String   @default("draft")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  invoice         InvoiceHeader @relation(fields: [invoice_id], references: [id])
+  return_lines    CustomerReturnLine[]
+
+  @@map("credit_note")
+}
+
+model CustomerReturnHeader {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  return_number   String
+  return_date     DateTime
+  dispatch_id     String?
+  invoice_id      String?
+  reason          String
+  return_type     String   // pre_invoice / post_invoice
+  status          String   @default("received")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  lines           CustomerReturnLine[]
+
+  @@map("customer_return_header")
+}
+
+model CustomerReturnLine {
+  id                  String   @id @default(uuid())
+  return_id           String
+  credit_note_id      String?
+  item_id             String
+  quantity_returned   Float
+  quantity_accepted   Float    @default(0)
+  quantity_scrapped   Float    @default(0)
+  inspection_notes    String?
+  created_at          DateTime @default(now())
+
+  return_header       CustomerReturnHeader @relation(fields: [return_id], references: [id])
+  credit_note         CreditNote?          @relation(fields: [credit_note_id], references: [id])
+
+  @@map("customer_return_line")
+}
+
+model SupplierBill {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  bill_number     String
+  bill_date       DateTime
+  due_date        DateTime?
+  supplier_id     String
+  supplier_name   String
+  supplier_gstin  String?
+  grn_id          String?
+  subtotal        Float    @default(0)
+  cgst_amount     Float    @default(0)
+  sgst_amount     Float    @default(0)
+  igst_amount     Float    @default(0)
+  total_amount    Float    @default(0)
+  amount_paid     Float    @default(0)
+  status          String   @default("pending")
+  notes           String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  lines           SupplierBillLine[]
+  payments        PaymentVoucher[]
+  debit_notes     DebitNote[]
+
+  @@map("supplier_bill")
+}
+
+model SupplierBillLine {
+  id              String   @id @default(uuid())
+  bill_id         String
+  item_id         String?
+  item_name       String
+  hsn_code        String?
+  quantity        Float
+  unit_price      Float
+  amount          Float
+  tax_rate        Float    @default(18)
+  cgst_amount     Float    @default(0)
+  sgst_amount     Float    @default(0)
+  igst_amount     Float    @default(0)
+  total_amount    Float
+
+  bill            SupplierBill @relation(fields: [bill_id], references: [id])
+
+  @@map("supplier_bill_line")
+}
+
+model PaymentVoucher {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  voucher_number  String
+  voucher_date    DateTime
+  bill_id         String
+  supplier_id     String
+  amount_paid     Float
+  payment_mode    String
+  reference_number String?
+  bank_account_id String?
+  status          String   @default("paid")
+  reversal_reason String?
+  reversed_at     DateTime?
+  notes           String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  bill            SupplierBill @relation(fields: [bill_id], references: [id])
+
+  @@map("payment_voucher")
+}
+
+model DebitNote {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  dn_number       String
+  dn_date         DateTime
+  bill_id         String
+  supplier_id     String
+  supplier_name   String
+  reason          String
+  quantity_returned Float
+  subtotal        Float    @default(0)
+  cgst_amount     Float    @default(0)
+  sgst_amount     Float    @default(0)
+  igst_amount     Float    @default(0)
+  total_amount    Float    @default(0)
+  status          String   @default("draft")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  bill            SupplierBill @relation(fields: [bill_id], references: [id])
+
+  @@map("debit_note")
+}
+
+model ExpenseEntry {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  expense_number  String
+  expense_date    DateTime
+  category        String   // salary / rent / utilities / maintenance / other
+  description     String
+  amount          Float
+  payment_mode    String
+  bank_account_id String?
+  reference_number String?
+  is_reversed     Boolean  @default(false)
+  reversal_reason String?
+  reversed_at     DateTime?
+  created_by      String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@map("expense_entry")
+}
+
+model BankAccount {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  account_name    String
+  bank_name       String
+  account_number  String
+  ifsc_code       String?
+  opening_balance Float    @default(0)
+  current_balance Float    @default(0)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@map("bank_account")
+}
+
+model CompanyConfig {
+  id              String   @id @default(uuid())
+  tenant_id       String   @unique
+  legal_name      String
+  gstin           String?
+  pan             String?
+  address         String?
+  city            String?
+  state           String?
+  state_code      String?
+  pincode         String?
+  phone           String?
+  email           String?
+  bank_details    String?
+  signature_text  String?
+  invoice_prefix  String   @default("INV")
+  cn_prefix       String   @default("CN")
+  dn_prefix       String   @default("DN")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@map("company_config")
+}

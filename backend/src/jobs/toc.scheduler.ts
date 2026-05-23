@@ -36,7 +36,7 @@ export async function runTOCSchedule(tenant_id: string) {
     await prisma.machineMaster.updateMany({ where: { tenant_id }, data: { is_constraint: false } });
     await prisma.machineMaster.updateMany({ where: { id: detectedConstraint.machine_id, tenant_id }, data: { is_constraint: true } });
     alerts.push({ alert_type: 'constraint_shift', severity: 'info', message: `Constraint auto-updated to ${detectedConstraint.machine_name} at ${detectedConstraint.load_percent}% load` });
-    await prisma.agentActionLog.create({ data: { tenant_id, agent_name: 'toc_scheduler', action_type: 'constraint_shift', action_detail: `Constraint shifted to ${detectedConstraint.machine_name}`, result: 'success' } });
+    await prisma.agentActionLog.create({ data: { tenant_id, agent_type: 'toc_scheduler', action_taken: `constraint_shift — ${detectedConstraint.machine_name}`, status: 'completed' } });
   }
 
   const today = new Date();
@@ -148,7 +148,7 @@ export async function runTOCSchedule(tenant_id: string) {
     await prisma.systemAlert.create({ data: { tenant_id, alert_type: alert.alert_type, severity: alert.severity, message: alert.message, reference_type: 'toc_scheduler', reference_id: tenant_id } });
   }
 
-  await prisma.agentActionLog.create({ data: { tenant_id, agent_name: 'toc_scheduler', action_type: 'scheduled_run', action_detail: `TOC check complete. ${alerts.length} alerts generated.`, result: 'success' } });
+  await prisma.agentActionLog.create({ data: { tenant_id, agent_type: 'toc_scheduler', action_taken: `scheduled_run — ${alerts.length} alerts generated`, status: 'completed' } });
   console.log(`[TOC Scheduler] Done. Alerts: ${alerts.length}`);
   return { alerts_generated: alerts.length, constraint: detectedConstraint.machine_name };
 }
