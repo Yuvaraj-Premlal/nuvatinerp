@@ -57,7 +57,7 @@ export const getInvoices = async (req: AuthRequest, res: Response) => {
     const tenant_id = req.user?.tenant_id as string;
     const { status, customer_id } = req.query;
     const where: any = { tenant_id };
-    if (status) where.status = { equals: String(status) };
+    if (status) where.status = status as string;
     if (customer_id) where.customer_id = String(customer_id);
     const invoices = await prisma.invoiceHeader.findMany({
       where,
@@ -223,7 +223,7 @@ export const updateInvoiceStatus = async (req: AuthRequest, res: Response) => {
     const tenant_id = req.user?.tenant_id as string;
     const id = req.params.id;
     const { status } = req.body;
-    await prisma.invoiceHeader.updateMany({ where: { id, tenant_id }, data: { status: status as string } });
+    await prisma.invoiceHeader.updateMany({ where: { id: id as string, tenant_id: tenant_id as string }, data: { status: status as string } });
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
@@ -312,13 +312,13 @@ export const reversePaymentReceipt = async (req: AuthRequest, res: Response) => 
     const id = req.params.id;
     const { reason } = req.body;
 
-    const receipt = await prisma.paymentReceipt.findFirst({ where: { id, tenant_id } });
+    const receipt = await prisma.paymentReceipt.findFirst({ where: { id: id as string, tenant_id: tenant_id as string } });
     if (!receipt) return res.status(404).json({ success: false, error: 'Receipt not found' });
-    if ((receipt as any).status === 'reversed') return res.status(400).json({ success: false, error: 'Already reversed' });
+    if (receipt && receipt.status === 'reversed') return res.status(400).json({ success: false, error: 'Already reversed' });
 
     await prisma.paymentReceipt.updateMany({
-      where: { id },
-      data: { status: 'reversed' as string, reversal_reason: reason, reversed_at: new Date() }
+      where: { id: id as string },
+      data: { status: 'reversed', reversal_reason: reason, reversed_at: new Date() }
     });
 
     await prisma.invoiceHeader.updateMany({
@@ -720,12 +720,12 @@ export const reverseExpense = async (req: AuthRequest, res: Response) => {
     const id = req.params.id;
     const { reason } = req.body;
 
-    const expense = await prisma.expenseEntry.findFirst({ where: { id, tenant_id } });
+    const expense = await prisma.expenseEntry.findFirst({ where: { id: id as string, tenant_id: tenant_id as string } });
     if (!expense) return res.status(404).json({ success: false, error: 'Expense not found' });
 
     await prisma.expenseEntry.updateMany({
-      where: { id },
-      data: { is_reversed: true as boolean, reversal_reason: reason, reversed_at: new Date() }
+      where: { id: id as string },
+      data: { is_reversed: true, reversal_reason: reason, reversed_at: new Date() }
     });
 
     if (expense.bank_account_id) {
