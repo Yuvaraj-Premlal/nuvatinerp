@@ -93,3 +93,36 @@ export const getDispatches = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+export const getDispatchById = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const id = String(req.params.id);
+    const dispatch = await prisma.dispatchHeader.findFirst({
+      where: { id, tenant_id },
+      include: {
+        dispatch_lines: {
+          include: { item: true }
+        }
+      }
+    });
+    if (!dispatch) return res.status(404).json({ success: false, error: 'Dispatch not found' });
+    res.json({ success: true, data: dispatch });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const getSalesOrderById = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const id = String(req.params.id);
+    const so = await prisma.salesOrder.findFirst({
+      where: { id, tenant_id },
+      include: { so_lines: true }
+    });
+    if (!so) return res.status(404).json({ success: false, error: 'Sales order not found' });
+    res.json({ success: true, data: so });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

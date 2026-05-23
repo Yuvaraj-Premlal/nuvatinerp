@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { printInvoice } from '../../utils/invoice.pdf';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 
@@ -459,6 +460,27 @@ const PayBillModal: React.FC<{ bill: any; onClose: () => void }> = ({ bill, onCl
   );
 };
 
+
+const PrintInvoiceButton: React.FC<{ invoice: any }> = ({ invoice }) => {
+  const { data: company } = useQuery({ queryKey: ['companyConfig'], queryFn: () => api.get('/api/finance/config').then(r => r.data.data) });
+  const { data: fullInvoice } = useQuery({
+    queryKey: ['invoice', invoice.id],
+    queryFn: () => api.get(`/api/finance/invoices/${invoice.id}`).then(r => r.data.data),
+    enabled: false
+  });
+
+  const handlePrint = async () => {
+    const res = await api.get(`/api/finance/invoices/${invoice.id}`);
+    printInvoice(res.data.data, company);
+  };
+
+  return (
+    <button onClick={handlePrint} className="text-xs bg-brand-light text-brand-primary px-2 py-1 rounded hover:bg-blue-100">
+      🖨 PDF
+    </button>
+  );
+};
+
 const Finance: React.FC = () => {
   const [activeTab, setActiveTab] = useState('invoices');
   const [showCreateInvoice, setShowCreateInvoice] = useState(false);
@@ -567,12 +589,15 @@ const Finance: React.FC = () => {
                   <td className="px-4 py-3 text-right text-green-600">{fmt(inv.amount_paid)}</td>
                   <td className="px-4 py-3 text-center"><StatusBadge status={inv.status} /></td>
                   <td className="px-4 py-3 text-center">
-                    {['draft', 'sent', 'partial', 'overdue'].includes(inv.status) && (
-                      <button onClick={() => setSelectedInvoice(inv)}
-                        className="text-xs bg-green-50 text-green-600 px-2 py-1 rounded hover:bg-green-100">
-                        + Payment
-                      </button>
-                    )}
+                    <div className="flex items-center justify-center gap-1">
+                      {['draft', 'sent', 'partial', 'overdue'].includes(inv.status) && (
+                        <button onClick={() => setSelectedInvoice(inv)}
+                          className="text-xs bg-green-50 text-green-600 px-2 py-1 rounded hover:bg-green-100">
+                          + Payment
+                        </button>
+                      )}
+                      <PrintInvoiceButton invoice={inv} />
+                    </div>
                   </td>
                 </tr>
               ))}

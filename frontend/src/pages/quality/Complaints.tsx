@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { print8D } from '../../utils/eightd.pdf';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 
@@ -249,15 +250,18 @@ const ComplaintDetail: React.FC<{ complaint: any; onClose: () => void }> = ({ co
                 <h3 className="font-semibold text-text-primary text-sm">
                   {complaint.complaint_type === 'customer' ? '8D Action Plan' : 'CAPA Actions'}
                 </h3>
-                {data?.status !== 'closed' && (
-                  <button
-                    onClick={() => closeMutation.mutate()}
-                    disabled={closeMutation.isPending}
-                    className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg hover:bg-green-100 disabled:opacity-50"
-                  >
-                    {closeMutation.isPending ? 'Closing...' : '✓ Close Complaint'}
-                  </button>
-                )}
+                <div className="flex gap-2">
+                  <Print8DButton complaint={data} />
+                  {data?.status !== 'closed' && (
+                    <button
+                      onClick={() => closeMutation.mutate()}
+                      disabled={closeMutation.isPending}
+                      className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg hover:bg-green-100 disabled:opacity-50"
+                    >
+                      {closeMutation.isPending ? 'Closing...' : '✓ Close Complaint'}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -350,6 +354,21 @@ const ComplaintDetail: React.FC<{ complaint: any; onClose: () => void }> = ({ co
         )}
       </div>
     </div>
+  );
+};
+
+
+const Print8DButton: React.FC<{ complaint: any }> = ({ complaint }) => {
+  const { data: company } = useQuery({ queryKey: ['companyConfig'], queryFn: () => api.get('/api/finance/config').then(r => r.data.data) });
+
+  const handlePrint = () => {
+    print8D(complaint, company);
+  };
+
+  return (
+    <button onClick={handlePrint} className="text-xs bg-brand-light text-brand-primary px-3 py-1.5 rounded-lg hover:bg-blue-100">
+      🖨 8D PDF
+    </button>
   );
 };
 

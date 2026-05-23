@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { printChallan } from '../../utils/challan.pdf';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 
@@ -372,6 +373,23 @@ const CreateDispatchModal: React.FC<{ so: any; onClose: () => void }> = ({ so, o
   );
 };
 
+
+const PrintChallanButton: React.FC<{ dispatch: any }> = ({ dispatch: d }) => {
+  const { data: company } = useQuery({ queryKey: ['companyConfig'], queryFn: () => api.get('/api/finance/config').then(r => r.data.data) });
+
+  const handlePrint = async () => {
+    const soRes = d.so_id ? await api.get(`/api/dispatch/sales-orders/${d.so_id}`).catch(() => null) : null;
+    const dispatchWithLines = await api.get(`/api/dispatch/${d.id}`).catch(() => ({ data: { data: d } }));
+    printChallan(dispatchWithLines.data.data || d, company, soRes?.data?.data || {});
+  };
+
+  return (
+    <button onClick={handlePrint} className="text-xs bg-brand-light text-brand-primary px-2 py-1 rounded hover:bg-blue-100 ml-1">
+      🖨 Challan
+    </button>
+  );
+};
+
 const Dispatch: React.FC = () => {
   const [activeTab, setActiveTab] = useState('orders');
   const [showCreateSO, setShowCreateSO] = useState(false);
@@ -528,9 +546,12 @@ const Dispatch: React.FC = () => {
                   <td className="px-4 py-3 text-text-secondary text-xs">{d.challan_number || '—'}</td>
                   <td className="px-4 py-3 text-text-secondary text-xs">{d.eway_bill_number || '—'}</td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      d.status === 'confirmed' ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-500'
-                    }`}>{d.status}</span>
+                    <div className="flex items-center justify-center gap-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        d.status === 'confirmed' ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-500'
+                      }`}>{d.status}</span>
+                      <PrintChallanButton dispatch={d} />
+                    </div>
                   </td>
                 </tr>
               ))}
