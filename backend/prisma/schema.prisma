@@ -314,6 +314,7 @@ model PurchaseOrder {
   total_value            Float?
   currency               String    @default("INR")
   notes                  String?
+  payment_terms          String?
   created_at             DateTime  @default(now())
   updated_at             DateTime  @updatedAt
 
