@@ -5,8 +5,9 @@ import { AuthRequest } from '../middleware/auth.middleware';
 export const createPO = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
-    const count = await prisma.purchaseOrder.count({ where: { tenant_id } });
-    const po_number = `PO-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+    const latest = await prisma.purchaseOrder.findFirst({ where: { tenant_id }, orderBy: { po_number: 'desc' } });
+    const lastNum = latest ? parseInt(latest.po_number.split('-')[2]) : 0;
+    const po_number = `PO-${new Date().getFullYear()}-${String(lastNum + 1).padStart(4, '0')}`;
     const { lines, ...header } = req.body;
 
     const po = await prisma.purchaseOrder.create({
