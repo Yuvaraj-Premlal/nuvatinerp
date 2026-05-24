@@ -6,4 +6,5 @@ const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
 router.post('/', auth_middleware_1.authenticate, grn_controller_1.createGRN);
 router.get('/', auth_middleware_1.authenticate, grn_controller_1.getGRNs);
+router.post('/:id/reverse', auth_middleware_1.authenticate, grn_controller_1.reverseGRN);
 exports.default = router;

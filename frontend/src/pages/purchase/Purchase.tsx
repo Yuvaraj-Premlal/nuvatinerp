@@ -475,6 +475,44 @@ const AmendPOModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClose 
   );
 };
 
+const ReverseGRNModal: React.FC<{ grn: any; onClose: () => void }> = ({ grn, onClose }) => {
+  const queryClient = useQueryClient();
+  const [reason, setReason] = useState('');
+  const mutation = useMutation({
+    mutationFn: () => api.post(`/api/grn/${grn.id}/reverse`, { reason }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['grns'] }); queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] }); onClose(); },
+    onError: (err: any) => alert(err.response?.data?.error || 'Failed to reverse GRN')
+  });
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Reverse GRN</h2><p className="text-text-secondary text-sm">{grn.grn_number}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            This will reverse all stock entries and revert PO status. Cannot be undone if bill is already processed.
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Reversal Reason <span className="text-red-500">*</span></label>
+            <textarea value={reason} onChange={e => setReason(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              rows={3} placeholder="Reason for reversal..." />
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate()} disabled={!reason.trim() || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 disabled:opacity-50">
+              {mutation.isPending ? 'Reversing...' : 'Reverse GRN'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Purchase: React.FC = () => {
   const [activeTab, setActiveTab] = useState('active');
   const [poSubTab, setPoSubTab] = useState('active');
@@ -483,6 +521,7 @@ const Purchase: React.FC = () => {
   const [viewPOId, setViewPOId] = useState<string | null>(null);
   const [cancelPO, setCancelPO] = useState<any>(null);
   const [amendPO, setAmendPO] = useState<any>(null);
+  const [reverseGRN, setReverseGRN] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: pos, isLoading } = useQuery({
@@ -539,6 +578,7 @@ const Purchase: React.FC = () => {
       {viewPOId && <PODetailModal poId={viewPOId} onClose={() => setViewPOId(null)} />}
       {cancelPO && <CancelPOModal po={cancelPO} onClose={() => setCancelPO(null)} />}
       {amendPO && <AmendPOModal po={amendPO} onClose={() => setAmendPO(null)} />}
+      {reverseGRN && <ReverseGRNModal grn={reverseGRN} onClose={() => setReverseGRN(null)} />}
 
       <div className="flex items-center justify-between">
         <div>
@@ -620,7 +660,27 @@ const Purchase: React.FC = () => {
                     <td className="px-4 py-3 text-text-secondary text-xs">{new Date(po.po_date).toLocaleDateString('en-IN')}</td>
                     <td className="px-4 py-3 text-text-secondary text-xs">{po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString('en-IN') : '—'}</td>
                     <td className="px-4 py-3 text-text-secondary text-xs">{po.payment_terms || '—'}</td>
-                    <td className="px-4 py-3 text-center"><StatusBadge status={po.status} /></td>
+                    <td className="px-4 py-3 text-center">
+                      <StatusBadge status={po.status} />
+                      {po.po_lines?.some((l: any) => l.quantity_ordered > 0) && (
+                        <div className="mt-1">
+                          {po.po_lines.map((l: any) => {
+                            const pct = Math.min(Math.round((l.quantity_received / l.quantity_ordered) * 100), 100);
+                            return (
+                              <div key={l.id} className="text-xs text-text-secondary">
+                                <div className="flex justify-between mb-0.5">
+                                  <span>{l.quantity_received}/{l.quantity_ordered}</span>
+                                  <span>{pct}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-1">
+                                  <div className={`h-1 rounded-full ${pct === 100 ? 'bg-green-500' : pct > 0 ? 'bg-amber-400' : 'bg-gray-300'}`} style={{width: `${pct}%`}}></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         {po.status === 'draft' && (
@@ -658,19 +718,47 @@ const Purchase: React.FC = () => {
               <tr className="bg-brand-light">
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">GRN Number</th>
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Received Date</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Vehicle</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Items</th>
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Received By</th>
-                <th className="text-center px-4 py-3 text-brand-primary font-medium">Bill</th>
+                <th className="text-center px-4 py-3 text-brand-primary font-medium">Status</th>
+                <th className="text-center px-4 py-3 text-brand-primary font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {grns?.map((grn: any, i: number) => (
                 <tr key={grn.id} className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
-                  <td className="px-4 py-3 font-medium text-brand-primary">{grn.grn_number}</td>
+                  <td className="px-4 py-3 font-medium text-brand-primary">
+                    {grn.grn_number}
+                    {(grn as any).is_reversed && <span className="ml-1 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Reversed</span>}
+                  </td>
                   <td className="px-4 py-3 text-text-secondary text-xs">{new Date(grn.received_date).toLocaleDateString('en-IN')}</td>
-                  <td className="px-4 py-3 text-text-secondary text-xs">{grn.vehicle_number || '—'}</td>
+                  <td className="px-4 py-3 text-xs">
+                    {grn.grn_lines?.map((gl: any) => (
+                      <div key={gl.id} className="mb-1">
+                        <span className="text-text-primary font-medium">{gl.item?.item_name}</span>
+                        <span className="text-green-600 ml-2">✓ {gl.accepted_qty || gl.quantity_received}</span>
+                        {gl.rejected_qty > 0 && <span className="text-red-500 ml-2">✗ {gl.rejected_qty}</span>}
+                        <span className="text-text-secondary ml-1">{gl.item?.unit_of_measure}</span>
+                      </div>
+                    ))}
+                  </td>
                   <td className="px-4 py-3 text-text-secondary text-xs">{grn.received_by || '—'}</td>
-                  <td className="px-4 py-3 text-center"><CreateBillButton grnId={grn.id} /></td>
+                  <td className="px-4 py-3 text-center">
+                    {!(grn as any).is_reversed ? (
+                      <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">Active</span>
+                    ) : (
+                      <span className="text-xs bg-red-50 text-red-500 px-2 py-0.5 rounded-full">Reversed</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      {!(grn as any).is_reversed && <CreateBillButton grnId={grn.id} />}
+                      {!(grn as any).is_reversed && (
+                        <button onClick={() => setReverseGRN(grn)}
+                          className="text-xs bg-red-50 text-red-500 px-2 py-1 rounded hover:bg-red-100">Reverse</button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

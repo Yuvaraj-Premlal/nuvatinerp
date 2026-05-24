@@ -366,6 +366,9 @@ model GrnHeader {
   created_at          DateTime       @default(now())
   updated_at          DateTime       @updatedAt
 
+  is_reversed         Boolean   @default(false)
+  reversal_reason     String?
+  reversed_at         DateTime?
   po                  PurchaseOrder? @relation(fields: [po_id], references: [id])
   grn_lines           GrnLine[]
 
