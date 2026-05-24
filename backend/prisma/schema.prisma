@@ -1350,3 +1350,18 @@ model LoanAccount {
 
   @@map("loan_account")
 }
+
+model POAmendmentLog {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  po_id             String
+  po_number         String
+  revision_from     Int
+  revision_to       Int
+  amended_by        String?
+  amended_at        DateTime @default(now())
+  amendment_reason  String
+  changes_summary   String?
+
+  @@map("po_amendment_log")
+}

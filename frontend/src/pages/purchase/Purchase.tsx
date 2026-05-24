@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { printPO } from '../../utils/po.pdf';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 
@@ -21,7 +22,6 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 const CreatePOModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
-    po_number: 'PO-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-4),
     supplier_id: '',
     po_date: new Date().toISOString().split('T')[0],
     expected_delivery_date: '',
@@ -88,8 +88,8 @@ const CreatePOModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">PO Number</label>
               <input
-                value={form.po_number}
-                onChange={e => setForm({ ...form, po_number: e.target.value })}
+                value="Auto-generated on save"
+                disabled
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
                 required
               />
@@ -412,10 +412,222 @@ const CreateBillButton: React.FC<{ grnId: string }> = ({ grnId }) => {
   );
 };
 
+
+const PODetailModal: React.FC<{ poId: string; onClose: () => void }> = ({ poId, onClose }) => {
+  const { data: company } = useQuery({ queryKey: ['companyConfig'], queryFn: () => api.get('/api/finance/config').then(r => r.data.data) });
+  const { data: po, isLoading } = useQuery({
+    queryKey: ['po', poId],
+    queryFn: () => api.get(`/api/purchase/${poId}`).then(r => r.data.data)
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-screen overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h2 className="font-bold text-text-primary">{po?.po_number}</h2>
+            <p className="text-text-secondary text-sm">{po?.supplier?.supplier_name}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {po && <button onClick={() => printPO(po, company)} className="text-xs bg-brand-light text-brand-primary px-3 py-1.5 rounded-lg hover:bg-blue-100">🖨 Print PO</button>}
+            <button onClick={onClose} className="text-text-secondary hover:text-text-primary text-xl">✕</button>
+          </div>
+        </div>
+        {isLoading ? (
+          <div className="p-8 text-center text-brand-primary animate-pulse">Loading...</div>
+        ) : po ? (
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div className="bg-surface rounded-lg p-3">
+                <p className="text-xs text-text-secondary">PO Date</p>
+                <p className="font-medium">{new Date(po.po_date).toLocaleDateString('en-IN')}</p>
+              </div>
+              <div className="bg-surface rounded-lg p-3">
+                <p className="text-xs text-text-secondary">Expected Delivery</p>
+                <p className="font-medium">{po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString('en-IN') : '—'}</p>
+              </div>
+              <div className="bg-surface rounded-lg p-3">
+                <p className="text-xs text-text-secondary">Status</p>
+                <p className="font-medium capitalize">{po.status}</p>
+              </div>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-brand-light">
+                  <th className="text-left px-4 py-2 text-brand-primary">#</th>
+                  <th className="text-left px-4 py-2 text-brand-primary">Item</th>
+                  <th className="text-right px-4 py-2 text-brand-primary">Qty</th>
+                  <th className="text-right px-4 py-2 text-brand-primary">Unit Price</th>
+                  <th className="text-right px-4 py-2 text-brand-primary">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {po.po_lines?.map((line: any, i: number) => (
+                  <tr key={line.id} className="border-t border-border">
+                    <td className="px-4 py-2">{i + 1}</td>
+                    <td className="px-4 py-2">{line.item?.item_name}</td>
+                    <td className="px-4 py-2 text-right">{line.quantity_ordered} {line.item?.unit_of_measure}</td>
+                    <td className="px-4 py-2 text-right">₹{line.unit_price}</td>
+                    <td className="px-4 py-2 text-right font-medium">₹{(line.quantity_ordered * line.unit_price).toLocaleString('en-IN')}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-brand-light">
+                  <td colSpan={4} className="px-4 py-2 font-bold text-right">Total</td>
+                  <td className="px-4 py-2 font-bold text-right text-brand-primary">
+                    ₹{po.po_lines?.reduce((s: number, l: any) => s + l.quantity_ordered * l.unit_price, 0).toLocaleString('en-IN')}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
+
+const CancelPOModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClose }) => {
+  const queryClient = useQueryClient();
+  const [reason, setReason] = useState('');
+  const mutation = useMutation({
+    mutationFn: () => api.post(`/api/purchase/${po.id}/cancel`, { reason, cancelled_by: 'Purchase Manager' }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] }); onClose(); },
+    onError: (err: any) => alert(err.response?.data?.error || 'Failed to cancel PO')
+  });
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h2 className="font-bold text-text-primary">Cancel PO</h2>
+            <p className="text-text-secondary text-sm">{po.po_number}</p>
+          </div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            This action cannot be undone. The PO will be marked as cancelled.
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Cancellation Reason <span className="text-red-500">*</span></label>
+            <textarea value={reason} onChange={e => setReason(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              rows={3} placeholder="Reason for cancellation..." />
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Keep PO</button>
+            <button onClick={() => mutation.mutate()} disabled={!reason.trim() || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 disabled:opacity-50">
+              {mutation.isPending ? 'Cancelling...' : 'Cancel PO'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AmendPOModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClose }) => {
+  const queryClient = useQueryClient();
+  const [reason, setReason] = useState('');
+  const [expectedDate, setExpectedDate] = useState(po.expected_delivery_date ? new Date(po.expected_delivery_date).toISOString().split('T')[0] : '');
+  const [lines, setLines] = useState(po.po_lines?.map((l: any) => ({
+    item_id: l.item_id,
+    item_name: l.item?.item_name || '',
+    quantity_ordered: l.quantity_ordered,
+    unit_price: l.unit_price
+  })) || []);
+
+  const updateLine = (i: number, field: string, value: any) => {
+    const updated = [...lines];
+    updated[i] = { ...updated[i], [field]: value };
+    setLines(updated);
+  };
+
+  const mutation = useMutation({
+    mutationFn: () => api.post(`/api/purchase/${po.id}/amend`, {
+      amendment_reason: reason,
+      amended_by: 'Purchase Manager',
+      expected_delivery_date: expectedDate,
+      lines: lines.map((l: any) => ({ ...l, quantity_ordered: parseFloat(l.quantity_ordered), unit_price: parseFloat(l.unit_price) }))
+    }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] }); onClose(); },
+    onError: (err: any) => alert(err.response?.data?.error || 'Failed to amend PO')
+  });
+
+  const total = lines.reduce((s: number, l: any) => s + parseFloat(l.quantity_ordered || 0) * parseFloat(l.unit_price || 0), 0);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-screen overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h2 className="font-bold text-text-primary">Amend PO — Rev {po.revision_number + 1}</h2>
+            <p className="text-text-secondary text-sm">{po.po_number} | Current: Rev {po.revision_number}</p>
+          </div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+            Amending will create Rev {po.revision_number + 1}. Previous revision will be archived.
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Amendment Reason <span className="text-red-500">*</span></label>
+            <input value={reason} onChange={e => setReason(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              placeholder="e.g. Quantity revised as per revised requirement" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Expected Delivery Date</label>
+            <input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-2">Line Items</label>
+            <div className="space-y-2">
+              {lines.map((line: any, i: number) => (
+                <div key={i} className="grid grid-cols-3 gap-2 items-center bg-surface p-2 rounded-lg">
+                  <p className="text-sm font-medium text-text-primary col-span-1">{line.item_name}</p>
+                  <div>
+                    <label className="text-xs text-text-secondary">Quantity</label>
+                    <input type="number" value={line.quantity_ordered} onChange={e => updateLine(i, 'quantity_ordered', e.target.value)}
+                      className="w-full px-2 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-text-secondary">Unit Price ₹</label>
+                    <input type="number" value={line.unit_price} onChange={e => updateLine(i, 'unit_price', e.target.value)}
+                      className="w-full px-2 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-right text-sm font-bold text-brand-primary mt-2">
+              Total: ₹{total.toLocaleString('en-IN')}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate()} disabled={!reason.trim() || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50">
+              {mutation.isPending ? 'Amending...' : `Save Rev ${po.revision_number + 1}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Purchase: React.FC = () => {
   const [activeTab, setActiveTab] = useState('po');
   const [showCreatePO, setShowCreatePO] = useState(false);
   const [selectedPO, setSelectedPO] = useState<any>(null);
+  const [viewPOId, setViewPOId] = useState<string | null>(null);
+  const [cancelPO, setCancelPO] = useState<any>(null);
+  const [amendPO, setAmendPO] = useState<any>(null);
 
   const { data: pos, isLoading } = useQuery({
     queryKey: ['purchaseOrders'],
@@ -453,6 +665,9 @@ const Purchase: React.FC = () => {
     <div className="space-y-6">
       {showCreatePO && <CreatePOModal onClose={() => setShowCreatePO(false)} />}
       {selectedPO && <CreateGRNModal po={selectedPO} onClose={() => setSelectedPO(null)} />}
+      {viewPOId && <PODetailModal poId={viewPOId} onClose={() => setViewPOId(null)} />}
+      {cancelPO && <CancelPOModal po={cancelPO} onClose={() => setCancelPO(null)} />}
+      {amendPO && <AmendPOModal po={amendPO} onClose={() => setAmendPO(null)} />}
 
       <div className="flex items-center justify-between">
         <div>
@@ -519,7 +734,7 @@ const Purchase: React.FC = () => {
             <tbody>
               {pos?.map((po: any, i: number) => (
                 <tr key={po.id} className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
-                  <td className="px-4 py-3 font-medium text-brand-primary">{po.po_number}</td>
+                  <td className="px-4 py-3 font-medium text-brand-primary cursor-pointer hover:underline" onClick={() => setViewPOId(po.id)}>{po.po_number} {po.revision_number > 0 && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded ml-1">Rev {po.revision_number}</span>}</td>
                   <td className="px-4 py-3 text-text-primary">{po.supplier?.supplier_name}</td>
                   <td className="px-4 py-3 text-text-secondary text-xs">
                     {new Date(po.po_date).toLocaleDateString('en-IN')}
@@ -555,6 +770,18 @@ const Purchase: React.FC = () => {
                           className="text-xs bg-brand-light text-brand-primary px-2 py-1 rounded hover:bg-blue-100"
                         >
                           + GRN
+                        </button>
+                      )}
+                      {(po.status === 'approved' || po.status === 'sent') && (
+                        <button onClick={() => setAmendPO(po)}
+                          className="text-xs bg-amber-50 text-amber-600 px-2 py-1 rounded hover:bg-amber-100">
+                          Amend
+                        </button>
+                      )}
+                      {po.status !== 'cancelled' && po.status !== 'closed' && (
+                        <button onClick={() => setCancelPO(po)}
+                          className="text-xs bg-red-50 text-red-500 px-2 py-1 rounded hover:bg-red-100">
+                          Cancel
                         </button>
                       )}
                     </div>
