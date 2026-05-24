@@ -34,7 +34,8 @@ export const createPO = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ success: true, data: po });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error('createPO error:', JSON.stringify(error, null, 2));
+    res.status(500).json({ success: false, error: error.message, detail: error.meta || error.code });
   }
 };
 
