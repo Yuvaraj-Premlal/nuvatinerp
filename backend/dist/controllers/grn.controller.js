@@ -8,7 +8,11 @@ const prisma_1 = __importDefault(require("../config/prisma"));
 const createGRN = async (req, res) => {
     try {
         const tenant_id = req.user?.tenant_id;
-        const { grn_number, po_id, supplier_id, received_by, vehicle_number, supplier_dc_number, lines } = req.body;
+        const { po_id, supplier_id, received_by, vehicle_number, supplier_dc_number, lines } = req.body;
+        // Auto-generate GRN number
+        const latest = await prisma_1.default.grnHeader.findFirst({ where: { tenant_id }, orderBy: { created_at: 'desc' } });
+        const lastNum = latest ? parseInt(latest.grn_number.split('-')[2] || '0') : 0;
+        const grn_number = `GRN-${new Date().getFullYear()}-${String(lastNum + 1).padStart(4, '0')}`;
         const grn = await prisma_1.default.grnHeader.create({
             data: {
                 tenant_id, grn_number, po_id, supplier_id, received_by, vehicle_number, supplier_dc_number,

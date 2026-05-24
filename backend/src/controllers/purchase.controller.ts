@@ -185,11 +185,70 @@ export const closePO = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const id = String(req.params.id);
+    const { closed_by, closure_notes, override } = req.body;
+
     const po = await prisma.purchaseOrder.findFirst({ where: { id, tenant_id } });
     if (!po) return res.status(404).json({ success: false, error: 'PO not found' });
     if (po.status !== 'received') return res.status(400).json({ success: false, error: 'Only received POs can be closed' });
-    await prisma.purchaseOrder.updateMany({ where: { id, tenant_id }, data: { status: 'closed' } });
-    res.json({ success: true });
+
+    // Check supplier bill
+    const grns = await prisma.grnHeader.findMany({ where: { po_id: id, tenant_id, is_reversed: false } });
+    const grnIds = grns.map((g: any) => g.id);
+
+    let billStatus = 'no_bill';
+    let billNumber = '';
+
+    if (grnIds.length > 0) {
+      const bill = await prisma.supplierBill.findFirst({
+        where: { grn_id: { in: grnIds }, tenant_id },
+        orderBy: { created_at: 'desc' }
+      });
+      if (bill) {
+        billStatus = bill.status;
+        billNumber = bill.bill_number;
+      }
+    }
+
+    // Block if no bill
+    if (billStatus === 'no_bill') {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot close — no supplier bill exists. Create supplier bill first.',
+        bill_status: billStatus
+      });
+    }
+
+    // If bill unpaid and no override — return info for frontend to show override modal
+    if (billStatus !== 'paid' && !override) {
+      return res.status(402).json({
+        success: false,
+        error: `Bill ${billNumber} is ${billStatus}. Settle payment or provide override reason to close.`,
+        bill_status: billStatus,
+        bill_number: billNumber,
+        requires_override: true
+      });
+    }
+
+    // If override provided — validate reason
+    if (billStatus !== 'paid' && override && !closure_notes?.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Override reason is mandatory when closing with unpaid bill.'
+      });
+    }
+
+    await prisma.purchaseOrder.updateMany({
+      where: { id, tenant_id },
+      data: {
+        status: 'closed',
+        closed_at: new Date(),
+        closed_by: closed_by || 'Purchase Manager',
+        closure_notes: closure_notes || null,
+        bill_status_at_closure: billStatus
+      }
+    });
+
+    res.json({ success: true, message: billStatus === 'paid' ? 'PO closed successfully' : 'PO closed with override' });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
