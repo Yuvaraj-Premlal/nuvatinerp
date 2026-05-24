@@ -35,6 +35,12 @@ const CreatePOModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/suppliers').then(r => r.data.data) });
   const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
+  const { data: stockData } = useQuery({ queryKey: ['stock'], queryFn: () => api.get('/api/stock').then(r => r.data.data) });
+
+  const getStockInfo = (item_id: string) => {
+    if (!item_id || !stockData) return null;
+    return stockData.find((s: any) => s.item_id === item_id) || null;
+  };
 
   const addLine = () => setLines([...lines, { item_id: '', quantity_ordered: '', unit_price: '', unit_of_measure: 'KG' }]);
   const removeLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
@@ -125,6 +131,27 @@ const CreatePOModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       {items?.filter((it: any) => it.item_type === 'raw_material' || it.item_type === 'consumable')
                         .map((it: any) => <option key={it.id} value={it.id}>{it.item_name}</option>)}
                     </select>
+                    {(() => {
+                      const stock = getStockInfo(line.item_id);
+                      if (!stock) return null;
+                      const qty = stock.quantity_on_hand;
+                      const reorder = stock.reorder_point;
+                      const safety = stock.safety_stock;
+                      const isRed = qty <= safety;
+                      const isAmber = qty > safety && qty <= reorder;
+                      const isGreen = qty > reorder;
+                      return (
+                        <div className={`mt-1 px-2 py-1 rounded text-xs flex items-center gap-1 ${isRed ? 'bg-red-50 text-red-600' : isAmber ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'}`}>
+                          <span>{isRed ? '🔴' : isAmber ? '🟡' : '🟢'}</span>
+                          <span>Stock: {qty.toLocaleString('en-IN')} {stock.unit_of_measure}</span>
+                          <span className="text-gray-400 mx-1">|</span>
+                          <span>Reorder: {reorder.toLocaleString('en-IN')}</span>
+                          {isRed && <span className="font-medium ml-1">— Critical</span>}
+                          {isAmber && <span className="font-medium ml-1">— Below Reorder</span>}
+                          {isGreen && <span className="font-medium ml-1">— Adequate</span>}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <input type="number" value={line.quantity_ordered} onChange={e => updateLine(i, 'quantity_ordered', e.target.value)}
                     placeholder="Qty" className="px-2 py-1.5 border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-brand-primary" />
