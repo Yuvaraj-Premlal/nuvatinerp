@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware';
-import { createPO, getPOs, getPOById, updatePOStatus, cancelPO, amendPO, getPORevisions } from '../controllers/purchase.controller';
+import { createPO, getPOs, getPOById, updatePOStatus, cancelPO, amendPO, getPORevisions, closePO } from '../controllers/purchase.controller';
 
 const router = Router();
 
@@ -19,5 +19,6 @@ router.put('/:id/send', authenticate, async (req: any, res: any) => {
 });
 router.post('/:id/cancel', authenticate, cancelPO);
 router.post('/:id/amend', authenticate, amendPO);
+router.post('/:id/close', authenticate, closePO);
 
 export default router;

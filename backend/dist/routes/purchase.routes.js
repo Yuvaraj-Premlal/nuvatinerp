@@ -19,4 +19,5 @@ router.put('/:id/send', auth_middleware_1.authenticate, async (req, res) => {
 });
 router.post('/:id/cancel', auth_middleware_1.authenticate, purchase_controller_1.cancelPO);
 router.post('/:id/amend', auth_middleware_1.authenticate, purchase_controller_1.amendPO);
+router.post('/:id/close', auth_middleware_1.authenticate, purchase_controller_1.closePO);
 exports.default = router;

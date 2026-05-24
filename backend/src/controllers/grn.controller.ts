@@ -40,6 +40,19 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
         }
       });
     }
+    // Auto-update PO status to received if all lines fully received
+    if (po_id) {
+      const po = await prisma.purchaseOrder.findFirst({ where: { id: po_id, tenant_id }, include: { po_lines: true } });
+      if (po) {
+        const allReceived = po.po_lines.every((pol: any) => {
+          const grnLine = lines.find((l: any) => l.item_id === pol.item_id);
+          return grnLine && parseFloat(grnLine.quantity_received) >= pol.quantity_ordered;
+        });
+        if (allReceived) {
+          await prisma.purchaseOrder.updateMany({ where: { id: po_id, tenant_id }, data: { status: 'received' } });
+        }
+      }
+    }
     res.status(201).json({ success: true, data: grn });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });

@@ -180,3 +180,17 @@ export const getPORevisions = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+export const closePO = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const id = String(req.params.id);
+    const po = await prisma.purchaseOrder.findFirst({ where: { id, tenant_id } });
+    if (!po) return res.status(404).json({ success: false, error: 'PO not found' });
+    if (po.status !== 'received') return res.status(400).json({ success: false, error: 'Only received POs can be closed' });
+    await prisma.purchaseOrder.updateMany({ where: { id, tenant_id }, data: { status: 'closed' } });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

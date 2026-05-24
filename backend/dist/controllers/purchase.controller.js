@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPORevisions = exports.amendPO = exports.cancelPO = exports.updatePOStatus = exports.getPOById = exports.getPOs = exports.createPO = void 0;
+exports.closePO = exports.getPORevisions = exports.amendPO = exports.cancelPO = exports.updatePOStatus = exports.getPOById = exports.getPOs = exports.createPO = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const createPO = async (req, res) => {
     try {
@@ -197,3 +197,20 @@ const getPORevisions = async (req, res) => {
     }
 };
 exports.getPORevisions = getPORevisions;
+const closePO = async (req, res) => {
+    try {
+        const tenant_id = req.user?.tenant_id;
+        const id = String(req.params.id);
+        const po = await prisma_1.default.purchaseOrder.findFirst({ where: { id, tenant_id } });
+        if (!po)
+            return res.status(404).json({ success: false, error: 'PO not found' });
+        if (po.status !== 'received')
+            return res.status(400).json({ success: false, error: 'Only received POs can be closed' });
+        await prisma_1.default.purchaseOrder.updateMany({ where: { id, tenant_id }, data: { status: 'closed' } });
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+exports.closePO = closePO;
