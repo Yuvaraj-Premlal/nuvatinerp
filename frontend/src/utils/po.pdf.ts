@@ -85,7 +85,7 @@ export function printPO(po: any, company: any) {
       </div>
 
       <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:8px 12px;margin-bottom:15px;font-size:10px">
-        <strong>Terms:</strong> Payment as per agreed terms. GST extra as applicable. Subject to ${company?.city || 'Puducherry'} jurisdiction.
+        <strong>Payment Terms:</strong> ${po.payment_terms || 'As agreed'}. GST extra as applicable. Subject to ${company?.city || 'Puducherry'} jurisdiction.
       </div>
 
       <div class="footer">
