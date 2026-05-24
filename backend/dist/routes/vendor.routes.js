@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const vendor_controller_1 = require("../controllers/vendor.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.post('/', auth_middleware_1.authenticate, vendor_controller_1.createVendor);
+router.get('/', auth_middleware_1.authenticate, vendor_controller_1.getVendors);
+router.post('/job-work', auth_middleware_1.authenticate, vendor_controller_1.createJobWorkOrder);
+router.post('/job-work-receipt', auth_middleware_1.authenticate, vendor_controller_1.createJobWorkReceipt);
+router.get('/job-work', auth_middleware_1.authenticate, vendor_controller_1.getJobWorkOrders);
+exports.default = router;

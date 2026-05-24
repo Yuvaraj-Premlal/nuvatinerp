@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.bool = exports.num = exports.optStr = exports.str = void 0;
+const str = (val) => String(val ?? '');
+exports.str = str;
+const optStr = (val) => val ? String(val) : undefined;
+exports.optStr = optStr;
+const num = (val) => parseFloat(String(val ?? 0));
+exports.num = num;
+const bool = (val) => val === true || val === 'true';
+exports.bool = bool;

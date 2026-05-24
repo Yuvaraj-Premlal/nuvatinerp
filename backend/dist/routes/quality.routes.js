@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const quality_controller_1 = require("../controllers/quality.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.post('/inspection', auth_middleware_1.authenticate, quality_controller_1.createInspection);
+router.post('/rejection', auth_middleware_1.authenticate, quality_controller_1.logRejection);
+router.get('/inspection/:job_id', auth_middleware_1.authenticate, quality_controller_1.getInspectionsByJob);
+router.get('/rejections', auth_middleware_1.authenticate, quality_controller_1.getRejections);
+exports.default = router;

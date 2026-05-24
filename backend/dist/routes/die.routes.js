@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const die_controller_1 = require("../controllers/die.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.post('/', auth_middleware_1.authenticate, die_controller_1.createDie);
+router.get('/', auth_middleware_1.authenticate, die_controller_1.getDies);
+router.get('/:id', auth_middleware_1.authenticate, die_controller_1.getDieById);
+router.put('/:id', auth_middleware_1.authenticate, die_controller_1.updateDieStatus);
+exports.default = router;

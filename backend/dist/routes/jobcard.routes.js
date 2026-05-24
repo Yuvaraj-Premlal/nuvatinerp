@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const jobcard_controller_1 = require("../controllers/jobcard.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.post('/', auth_middleware_1.authenticate, jobcard_controller_1.createJobCard);
+router.get('/', auth_middleware_1.authenticate, jobcard_controller_1.getJobCards);
+router.get('/:id', auth_middleware_1.authenticate, jobcard_controller_1.getJobCardById);
+router.put('/:id/status', auth_middleware_1.authenticate, jobcard_controller_1.updateJobCardStatus);
+router.post('/:id/shot', auth_middleware_1.authenticate, jobcard_controller_1.logShot);
+router.post('/:id/downtime', auth_middleware_1.authenticate, jobcard_controller_1.logDowntime);
+exports.default = router;

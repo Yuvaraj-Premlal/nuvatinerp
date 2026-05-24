@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const maintenance_controller_1 = require("../controllers/maintenance.controller");
+const router = (0, express_1.Router)();
+router.get('/dashboard', auth_middleware_1.authenticate, maintenance_controller_1.getMaintenanceDashboard);
+router.get('/work-orders', auth_middleware_1.authenticate, maintenance_controller_1.getWorkOrders);
+router.post('/work-orders', auth_middleware_1.authenticate, maintenance_controller_1.createWorkOrder);
+router.put('/work-orders/:id', auth_middleware_1.authenticate, maintenance_controller_1.updateWorkOrder);
+router.post('/work-orders/:wo_id/spare-usage', auth_middleware_1.authenticate, maintenance_controller_1.addSpareUsage);
+router.get('/schedules', auth_middleware_1.authenticate, maintenance_controller_1.getSchedules);
+router.post('/schedules', auth_middleware_1.authenticate, maintenance_controller_1.createSchedule);
+router.get('/spare-parts', auth_middleware_1.authenticate, maintenance_controller_1.getSpareParts);
+router.post('/spare-parts', auth_middleware_1.authenticate, maintenance_controller_1.createSparePart);
+router.get('/mtbf-mttr', auth_middleware_1.authenticate, maintenance_controller_1.getMTBF_MTTR);
+exports.default = router;

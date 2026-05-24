@@ -1,0 +1,9 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const grn_controller_1 = require("../controllers/grn.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.post('/', auth_middleware_1.authenticate, grn_controller_1.createGRN);
+router.get('/', auth_middleware_1.authenticate, grn_controller_1.getGRNs);
+exports.default = router;
