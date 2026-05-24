@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { printPO } from '../../utils/po.pdf';
+import { printGRN } from '../../utils/grn.pdf';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 
@@ -301,6 +302,44 @@ const CreateBillButton: React.FC<{ grnId: string }> = ({ grnId }) => {
   );
 };
 
+const GRNHistorySection: React.FC<{ poId: string }> = ({ poId }) => {
+  const [viewGRNId, setViewGRNId] = useState<string | null>(null);
+  const { data: allGrns } = useQuery({ queryKey: ['grns'], queryFn: () => api.get('/api/grn').then(r => r.data.data) });
+  const poGrns = allGrns?.filter((g: any) => g.po_id === poId) || [];
+
+  if (poGrns.length === 0) return null;
+
+  return (
+    <div>
+      {viewGRNId && <GRNDetailModal grnId={viewGRNId} onClose={() => setViewGRNId(null)} />}
+      <p className="text-sm font-medium text-text-primary mb-2">GRN History ({poGrns.length})</p>
+      <div className="space-y-2">
+        {poGrns.map((g: any) => {
+          const totalAccepted = g.grn_lines?.reduce((s: number, l: any) => s + (l.accepted_qty || l.quantity_received), 0) || 0;
+          const totalRejected = g.grn_lines?.reduce((s: number, l: any) => s + (l.rejected_qty || 0), 0) || 0;
+          return (
+            <div key={g.id} className={`border rounded-lg p-3 text-xs cursor-pointer hover:bg-surface ${g.is_reversed ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}
+              onClick={() => setViewGRNId(g.id)}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-brand-primary">{g.grn_number}</span>
+                  {g.is_reversed && <span className="bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Reversed</span>}
+                </div>
+                <span className="text-text-secondary">{new Date(g.received_date).toLocaleDateString('en-IN')}</span>
+              </div>
+              <div className="flex gap-4 mt-1">
+                <span className="text-green-600">✓ Accepted: {totalAccepted}</span>
+                {totalRejected > 0 && <span className="text-red-500">✗ Rejected: {totalRejected}</span>}
+                <span className="text-text-secondary">By: {g.received_by || '—'}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const PODetailModal: React.FC<{ poId: string; onClose: () => void }> = ({ poId, onClose }) => {
   const { data: company } = useQuery({ queryKey: ['companyConfig'], queryFn: () => api.get('/api/finance/config').then(r => r.data.data) });
   const { data: po, isLoading } = useQuery({ queryKey: ['po', poId], queryFn: () => api.get(`/api/purchase/${poId}`).then(r => r.data.data) });
@@ -359,6 +398,7 @@ const PODetailModal: React.FC<{ poId: string; onClose: () => void }> = ({ poId, 
                 </div>
               </div>
             )}
+            <GRNHistorySection poId={poId} />
           </div>
         ) : null}
       </div>
@@ -475,6 +515,105 @@ const AmendPOModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClose 
   );
 };
 
+const GRNDetailModal: React.FC<{ grnId: string; onClose: () => void }> = ({ grnId, onClose }) => {
+  const queryClient = useQueryClient();
+  const { data: company } = useQuery({ queryKey: ['companyConfig'], queryFn: () => api.get('/api/finance/config').then(r => r.data.data) });
+  const { data: grnData, isLoading } = useQuery({ queryKey: ['grn', grnId], queryFn: () => api.get(`/api/grn/${grnId}`).then(r => r.data.data) });
+
+  const billMutation = useMutation({
+    mutationFn: () => api.post(`/api/finance/bills/from-grn/${grnId}`, {}),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['grn', grnId] }); alert('Supplier bill created successfully'); },
+    onError: (err: any) => alert(err.response?.data?.error || 'Failed to create bill')
+  });
+
+  const subtotal = grnData?.grn_lines?.reduce((s: number, l: any) => s + (l.accepted_qty || l.quantity_received) * (l.unit_price || 0), 0) || 0;
+  const gst = subtotal * 0.18;
+  const total = subtotal + gst;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-3xl max-h-screen overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h2 className="font-bold text-text-primary">{grnData?.grn_number}</h2>
+            <p className="text-text-secondary text-sm">
+              Against PO: <span className="text-brand-primary font-medium">{grnData?.po?.po_number || '—'}</span>
+              {grnData?.is_reversed && <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Reversed</span>}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {grnData && !grnData.is_reversed && (
+              <>
+                <button onClick={() => printGRN(grnData, company)} className="text-xs bg-brand-light text-brand-primary px-3 py-1.5 rounded-lg hover:bg-blue-100">🖨 Print GRN</button>
+                {!grnData.bill && <button onClick={() => billMutation.mutate()} disabled={billMutation.isPending} className="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg hover:bg-green-100 disabled:opacity-50">{billMutation.isPending ? '...' : '+ Create Bill'}</button>}
+              </>
+            )}
+            <button onClick={onClose} className="text-text-secondary hover:text-text-primary text-xl">✕</button>
+          </div>
+        </div>
+        {isLoading ? <div className="p-8 text-center text-brand-primary animate-pulse">Loading...</div> : grnData ? (
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-4 gap-3 text-sm">
+              <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Received Date</p><p className="font-medium">{new Date(grnData.received_date).toLocaleDateString('en-IN')}</p></div>
+              <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Vehicle</p><p className="font-medium">{grnData.vehicle_number || '—'}</p></div>
+              <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Received By</p><p className="font-medium">{grnData.received_by || '—'}</p></div>
+              <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Supplier</p><p className="font-medium">{grnData.po?.supplier?.supplier_name || '—'}</p></div>
+            </div>
+
+            <table className="w-full text-sm">
+              <thead><tr className="bg-brand-light">
+                <th className="text-left px-3 py-2 text-brand-primary">#</th>
+                <th className="text-left px-3 py-2 text-brand-primary">Item</th>
+                <th className="text-right px-3 py-2 text-brand-primary">Received</th>
+                <th className="text-right px-3 py-2 text-green-600">Accepted</th>
+                <th className="text-right px-3 py-2 text-red-500">Rejected</th>
+                <th className="text-right px-3 py-2 text-brand-primary">Unit Price</th>
+                <th className="text-right px-3 py-2 text-brand-primary">Amount</th>
+              </tr></thead>
+              <tbody>
+                {grnData.grn_lines?.map((line: any, i: number) => (
+                  <tr key={line.id} className="border-t border-border">
+                    <td className="px-3 py-2">{i + 1}</td>
+                    <td className="px-3 py-2">
+                      <p className="font-medium">{line.item?.item_name}</p>
+                      <p className="text-xs text-text-secondary">{line.item?.item_code}</p>
+                      {line.rejection_reason && <p className="text-xs text-red-500 mt-0.5">Reason: {line.rejection_reason}</p>}
+                    </td>
+                    <td className="px-3 py-2 text-right">{line.quantity_received} {line.item?.unit_of_measure}</td>
+                    <td className="px-3 py-2 text-right text-green-600 font-medium">{line.accepted_qty || line.quantity_received}</td>
+                    <td className="px-3 py-2 text-right text-red-500 font-medium">{line.rejected_qty || 0}</td>
+                    <td className="px-3 py-2 text-right">₹{line.unit_price || 0}</td>
+                    <td className="px-3 py-2 text-right font-medium">₹{((line.accepted_qty || line.quantity_received) * (line.unit_price || 0)).toLocaleString('en-IN')}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-surface"><td colSpan={6} className="px-3 py-2 text-right font-medium">Subtotal</td><td className="px-3 py-2 text-right font-bold">₹{subtotal.toLocaleString('en-IN')}</td></tr>
+                <tr className="bg-surface"><td colSpan={6} className="px-3 py-2 text-right text-text-secondary">GST (18%)</td><td className="px-3 py-2 text-right text-text-secondary">₹{gst.toLocaleString('en-IN', {maximumFractionDigits:0})}</td></tr>
+                <tr className="bg-brand-light"><td colSpan={6} className="px-3 py-2 text-right font-bold text-brand-primary">Total</td><td className="px-3 py-2 text-right font-bold text-brand-primary">₹{total.toLocaleString('en-IN', {maximumFractionDigits:0})}</td></tr>
+              </tfoot>
+            </table>
+
+            {grnData.bill && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+                <p className="font-medium text-green-700">Supplier Bill Created</p>
+                <p className="text-green-600 text-xs mt-1">Bill: {grnData.bill.bill_number} | Amount: ₹{grnData.bill.total_amount?.toLocaleString('en-IN')} | Status: {grnData.bill.status}</p>
+              </div>
+            )}
+
+            {grnData.is_reversed && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
+                <p className="font-medium text-red-700">GRN Reversed</p>
+                <p className="text-red-600 text-xs mt-1">Reason: {grnData.reversal_reason} | Date: {grnData.reversed_at ? new Date(grnData.reversed_at).toLocaleDateString('en-IN') : '—'}</p>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
 const ReverseGRNModal: React.FC<{ grn: any; onClose: () => void }> = ({ grn, onClose }) => {
   const queryClient = useQueryClient();
   const [reason, setReason] = useState('');
@@ -522,6 +661,7 @@ const Purchase: React.FC = () => {
   const [cancelPO, setCancelPO] = useState<any>(null);
   const [amendPO, setAmendPO] = useState<any>(null);
   const [reverseGRN, setReverseGRN] = useState<any>(null);
+  const [viewGRNId, setViewGRNId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: pos, isLoading } = useQuery({
@@ -579,6 +719,7 @@ const Purchase: React.FC = () => {
       {cancelPO && <CancelPOModal po={cancelPO} onClose={() => setCancelPO(null)} />}
       {amendPO && <AmendPOModal po={amendPO} onClose={() => setAmendPO(null)} />}
       {reverseGRN && <ReverseGRNModal grn={reverseGRN} onClose={() => setReverseGRN(null)} />}
+      {viewGRNId && <GRNDetailModal grnId={viewGRNId} onClose={() => setViewGRNId(null)} />}
 
       <div className="flex items-center justify-between">
         <div>
@@ -687,10 +828,10 @@ const Purchase: React.FC = () => {
                           <button onClick={() => api.put(`/api/purchase/${po.id}/approve`, {}).then(() => queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] }))}
                             className="text-xs bg-green-50 text-green-600 px-2 py-1 rounded hover:bg-green-100">Approve</button>
                         )}
-                        {(po.status === 'approved' || po.status === 'sent') && (
+                        {(po.status === 'approved' || po.status === 'sent' || po.status === 'partial_received') && (
                           <>
                             <button onClick={() => setSelectedPO(po)} className="text-xs bg-brand-light text-brand-primary px-2 py-1 rounded hover:bg-blue-100">+ GRN</button>
-                            <button onClick={() => setAmendPO(po)} className="text-xs bg-amber-50 text-amber-600 px-2 py-1 rounded hover:bg-amber-100">Amend</button>
+                            {(po.status === 'approved' || po.status === 'sent') && <button onClick={() => setAmendPO(po)} className="text-xs bg-amber-50 text-amber-600 px-2 py-1 rounded hover:bg-amber-100">Amend</button>}
                           </>
                         )}
                         {po.status === 'received' && (
@@ -717,6 +858,7 @@ const Purchase: React.FC = () => {
             <thead>
               <tr className="bg-brand-light">
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">GRN Number</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">PO Number</th>
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Received Date</th>
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Items</th>
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Received By</th>
@@ -727,10 +869,11 @@ const Purchase: React.FC = () => {
             <tbody>
               {grns?.map((grn: any, i: number) => (
                 <tr key={grn.id} className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
-                  <td className="px-4 py-3 font-medium text-brand-primary">
+                  <td className="px-4 py-3 font-medium text-brand-primary cursor-pointer hover:underline" onClick={() => setViewGRNId(grn.id)}>
                     {grn.grn_number}
                     {(grn as any).is_reversed && <span className="ml-1 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Reversed</span>}
                   </td>
+                  <td className="px-4 py-3 text-brand-primary text-xs font-medium">{grn.po?.po_number || '—'}</td>
                   <td className="px-4 py-3 text-text-secondary text-xs">{new Date(grn.received_date).toLocaleDateString('en-IN')}</td>
                   <td className="px-4 py-3 text-xs">
                     {grn.grn_lines?.map((gl: any) => (

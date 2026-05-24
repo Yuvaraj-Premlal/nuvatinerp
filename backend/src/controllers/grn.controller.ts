@@ -27,7 +27,6 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
       include: { grn_lines: true }
     });
 
-    // Update stock ledger — only accepted qty
     for (const line of lines) {
       const acceptedQty = parseFloat(line.accepted_qty || line.quantity_received);
       if (acceptedQty > 0) {
@@ -46,7 +45,6 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
         });
       }
 
-      // Auto-raise SCAR if rejection > 1%
       const receivedQty = parseFloat(line.quantity_received);
       const rejectedQty = parseFloat(line.rejected_qty || 0);
       if (receivedQty > 0 && rejectedQty > 0) {
@@ -70,7 +68,6 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
               status: 'open'
             }
           });
-          // Create CAPA actions
           await prisma.complaintAction.createMany({
             data: [
               { tenant_id, complaint_id: complaint.id, action_type: 'containment', step_number: 1, description: 'Segregate and quarantine rejected material', status: 'pending' },
@@ -84,7 +81,7 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
               tenant_id,
               alert_type: 'supplier_rejection',
               severity: rejectionPercent > 5 ? 'critical' : 'warning',
-              message: `SCAR auto-raised — ${po?.supplier?.supplier_name || 'Supplier'} rejection ${rejectionPercent.toFixed(1)}% in GRN ${grn_number}. Complaint: ${complaint_number}`,
+              message: `SCAR auto-raised — ${(po as any)?.supplier?.supplier_name || 'Supplier'} rejection ${rejectionPercent.toFixed(1)}% in GRN ${grn_number}. Complaint: ${complaint_number}`,
               reference_type: 'complaint',
               reference_id: complaint.id
             }
@@ -93,30 +90,16 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Update PO line quantity_received = sum of all accepted GRN lines for that item/PO
     if (po_id) {
       const po = await prisma.purchaseOrder.findFirst({ where: { id: po_id, tenant_id }, include: { po_lines: true } });
       if (po) {
         for (const pol of po.po_lines) {
-          const allGrnLines = await prisma.grnLine.findMany({
-            where: {
-              item_id: pol.item_id,
-              grn: { po_id: po_id, tenant_id }
-            },
-            include: { grn: true }
-          });
-          // Only count non-reversed GRNs
-          const totalAccepted = allGrnLines
-            .filter((gl: any) => !(gl.grn as any).is_reversed)
-            .reduce((sum: number, gl: any) => sum + (gl.accepted_qty || gl.quantity_received), 0);
-
-          await prisma.purchaseOrderLine.updateMany({
-            where: { id: pol.id },
-            data: { quantity_received: totalAccepted }
-          });
+          const poGrns = await prisma.grnHeader.findMany({ where: { po_id, tenant_id, is_reversed: false } });
+          const poGrnIds = poGrns.map((g: any) => g.id);
+          const allGrnLines = poGrnIds.length > 0 ? await prisma.grnLine.findMany({ where: { grn_id: { in: poGrnIds }, item_id: pol.item_id } }) : [];
+          const totalAccepted = allGrnLines.reduce((sum: number, gl: any) => sum + (gl.accepted_qty || gl.quantity_received), 0);
+          await prisma.purchaseOrderLine.updateMany({ where: { id: pol.id }, data: { quantity_received: totalAccepted } });
         }
-
-        // Refresh PO lines after update
         const updatedPO = await prisma.purchaseOrder.findFirst({ where: { id: po_id, tenant_id }, include: { po_lines: true } });
         if (updatedPO) {
           const allFullyReceived = updatedPO.po_lines.every((pol: any) => pol.quantity_received >= pol.quantity_ordered);
@@ -132,12 +115,54 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
 
     const fullGrn = await prisma.grnHeader.findFirst({
       where: { id: grn.id },
-      include: { grn_lines: { include: { item: true } } }
+      include: {
+        grn_lines: { include: { item: true } },
+        po: { select: { po_number: true, supplier_id: true, supplier: true } }
+      }
     });
 
     res.status(201).json({ success: true, data: fullGrn });
   } catch (error: any) {
     console.error('createGRN error:', error.message, error.meta);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const getGRNs = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const grns = await prisma.grnHeader.findMany({
+      where: { tenant_id },
+      include: {
+        grn_lines: { include: { item: true } },
+        po: { select: { po_number: true, supplier: true } }
+      },
+      orderBy: { created_at: 'desc' }
+    });
+    res.json({ success: true, data: grns });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const getGRNById = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const id = String(req.params.id);
+    const grn = await prisma.grnHeader.findFirst({
+      where: { id, tenant_id },
+      include: {
+        grn_lines: { include: { item: true } },
+        po: { include: { supplier: true, po_lines: true } }
+      }
+    });
+    if (!grn) return res.status(404).json({ success: false, error: 'GRN not found' });
+
+    // Check if bill exists
+    const bill = await prisma.supplierBill.findFirst({ where: { grn_id: id, tenant_id } });
+
+    res.json({ success: true, data: { ...grn, bill } });
+  } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -148,21 +173,15 @@ export const reverseGRN = async (req: AuthRequest, res: Response) => {
     const id = String(req.params.id);
     const { reason } = req.body;
 
-    const grn = await prisma.grnHeader.findFirst({
-      where: { id, tenant_id },
-      include: { grn_lines: true }
-    });
-
+    const grn = await prisma.grnHeader.findFirst({ where: { id, tenant_id }, include: { grn_lines: true } });
     if (!grn) return res.status(404).json({ success: false, error: 'GRN not found' });
     if ((grn as any).is_reversed) return res.status(400).json({ success: false, error: 'GRN already reversed' });
 
-    // Check if supplier bill already created
     const bill = await prisma.supplierBill.findFirst({ where: { grn_id: id, tenant_id } });
     if (bill && bill.status !== 'pending') {
       return res.status(400).json({ success: false, error: 'Cannot reverse — supplier bill already processed' });
     }
 
-    // Reverse stock entries
     for (const line of grn.grn_lines) {
       const acceptedQty = line.accepted_qty || line.quantity_received;
       if (acceptedQty > 0) {
@@ -179,55 +198,31 @@ export const reverseGRN = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Mark GRN as reversed
     await prisma.grnHeader.updateMany({
       where: { id, tenant_id },
       data: { is_reversed: true, reversal_reason: reason, reversed_at: new Date() } as any
     });
 
-    // Delete pending bill if exists
     if (bill) {
       await prisma.supplierBillLine.deleteMany({ where: { bill_id: bill.id } });
       await prisma.supplierBill.delete({ where: { id: bill.id } });
     }
 
-    // Recalculate PO line quantity_received
     if (grn.po_id) {
       const po = await prisma.purchaseOrder.findFirst({ where: { id: grn.po_id, tenant_id }, include: { po_lines: true } });
       if (po) {
         for (const pol of po.po_lines) {
-          const allGrnLines = await prisma.grnLine.findMany({
-            where: { item_id: pol.item_id, grn: { po_id: grn.po_id, tenant_id } },
-            include: { grn: true }
-          });
-          const totalAccepted = allGrnLines
-            .filter((gl: any) => !(gl.grn as any).is_reversed)
-            .reduce((sum: number, gl: any) => sum + (gl.accepted_qty || gl.quantity_received), 0);
+          const poGrns2 = await prisma.grnHeader.findMany({ where: { po_id: grn.po_id, tenant_id, is_reversed: false } });
+          const poGrnIds2 = poGrns2.map((g: any) => g.id);
+          const allGrnLines2 = poGrnIds2.length > 0 ? await prisma.grnLine.findMany({ where: { grn_id: { in: poGrnIds2 }, item_id: pol.item_id } }) : [];
+          const totalAccepted = allGrnLines2.reduce((sum: number, gl: any) => sum + (gl.accepted_qty || gl.quantity_received), 0);
           await prisma.purchaseOrderLine.updateMany({ where: { id: pol.id }, data: { quantity_received: totalAccepted } });
         }
-        // Revert PO status
-        await prisma.purchaseOrder.updateMany({
-          where: { id: grn.po_id, tenant_id },
-          data: { status: 'approved' }
-        });
+        await prisma.purchaseOrder.updateMany({ where: { id: grn.po_id, tenant_id }, data: { status: 'approved' } });
       }
     }
 
     res.json({ success: true, message: 'GRN reversed successfully' });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-export const getGRNs = async (req: AuthRequest, res: Response) => {
-  try {
-    const tenant_id = req.user?.tenant_id as string;
-    const grns = await prisma.grnHeader.findMany({
-      where: { tenant_id },
-      include: { grn_lines: { include: { item: true } } },
-      orderBy: { created_at: 'desc' }
-    });
-    res.json({ success: true, data: grns });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
