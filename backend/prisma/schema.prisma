@@ -321,6 +321,13 @@ model PurchaseOrder {
   supplier               SupplierMaster     @relation(fields: [supplier_id], references: [id])
   po_lines               PurchaseOrderLine[]
   grn_headers            GrnHeader[]
+  revision_number        Int       @default(0)
+  is_latest_revision     Boolean   @default(true)
+  parent_po_id           String?
+  cancellation_reason    String?
+  cancelled_at           DateTime?
+  cancelled_by           String?
+  amendment_reason       String?
 
   @@unique([tenant_id, po_number])
   @@map("purchase_order")
