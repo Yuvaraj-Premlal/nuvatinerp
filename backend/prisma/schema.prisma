@@ -330,7 +330,7 @@ model PurchaseOrder {
   cancelled_by           String?
   amendment_reason       String?
 
-  @@unique([tenant_id, po_number])
+  @@unique([tenant_id, po_number, revision_number])
   @@map("purchase_order")
 }
 
