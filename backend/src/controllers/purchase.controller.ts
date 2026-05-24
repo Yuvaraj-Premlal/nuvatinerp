@@ -43,7 +43,7 @@ export const getPOs = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const pos = await prisma.purchaseOrder.findMany({
-      where: { tenant_id, is_latest_revision: true },
+      where: { tenant_id },
       include: { po_lines: { include: { item: true } }, supplier: true },
       orderBy: { created_at: 'desc' }
     });
