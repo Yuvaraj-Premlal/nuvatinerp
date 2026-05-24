@@ -10,6 +10,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     sent: 'bg-purple-50 text-purple-600',
     partial_received: 'bg-amber-50 text-amber-600',
     received: 'bg-green-50 text-green-600',
+    partial_received: 'bg-amber-50 text-amber-600',
     cancelled: 'bg-red-50 text-red-600',
     closed: 'bg-gray-100 text-gray-500'
   };
@@ -546,14 +547,14 @@ const Purchase: React.FC = () => {
   const summary = {
     total: latestPos.length,
     pending: latestPos.filter((p: any) => p.status === 'draft').length,
-    active: latestPos.filter((p: any) => p.status === 'approved' || p.status === 'sent').length,
+    active: latestPos.filter((p: any) => p.status === 'approved' || p.status === 'sent' || p.status === 'partial_received').length,
     received: latestPos.filter((p: any) => p.status === 'received').length,
     cancelled: latestPos.filter((p: any) => p.status === 'cancelled').length,
     closed: latestPos.filter((p: any) => p.status === 'closed').length,
   };
 
   const filteredPos = latestPos.filter((p: any) => {
-    if (poSubTab === 'active') return p.status === 'approved' || p.status === 'sent';
+    if (poSubTab === 'active') return p.status === 'approved' || p.status === 'sent' || p.status === 'partial_received';
     if (poSubTab === 'pending') return p.status === 'draft';
     if (poSubTab === 'received') return p.status === 'received';
     if (poSubTab === 'cancelled') return p.status === 'cancelled';
