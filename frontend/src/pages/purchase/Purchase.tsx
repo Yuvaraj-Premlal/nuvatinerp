@@ -311,7 +311,6 @@ const GRNHistorySection: React.FC<{ poId: string }> = ({ poId }) => {
   return (
     <div>
       {viewGRNId && <GRNDetailModal grnId={viewGRNId} onClose={() => setViewGRNId(null)} />}
-      {closePOModal && <ClosePOModal po={closePOModal} onClose={() => setClosePOModal(null)} />}
       <p className="text-sm font-medium text-text-primary mb-2">GRN History ({poGrns.length})</p>
       <div className="space-y-2">
         {poGrns.map((g: any) => {
