@@ -10,7 +10,6 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     sent: 'bg-purple-50 text-purple-600',
     partial_received: 'bg-amber-50 text-amber-600',
     received: 'bg-green-50 text-green-600',
-    partial_received: 'bg-amber-50 text-amber-600',
     cancelled: 'bg-red-50 text-red-600',
     closed: 'bg-gray-100 text-gray-500'
   };
