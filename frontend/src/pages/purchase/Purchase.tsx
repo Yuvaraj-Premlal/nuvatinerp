@@ -201,6 +201,7 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
       pending_qty: l.quantity_ordered - (l.quantity_received || 0),
       quantity_received: String(Math.max(0, l.quantity_ordered - (l.quantity_received || 0))),
       quantity_rejected: '0',
+      batch_number: '',
       rejection_reason: '',
       unit_price: l.unit_price
     })) || []
@@ -316,6 +317,12 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
                         <input type="number" value={line.quantity_rejected} onChange={e => updateLine(i, 'quantity_rejected', e.target.value)}
                           className="w-full px-2 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary mt-0.5" />
                       </div>
+                    </div>
+                    <div className="mt-2">
+                      <label className="text-xs text-text-secondary font-medium">Batch Number <span className="text-text-secondary text-xs font-normal">(supplier's batch/heat no.)</span></label>
+                      <input type="text" value={line.batch_number || ''} onChange={e => updateLine(i, 'batch_number', e.target.value)}
+                        className="w-full px-2 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary mt-0.5"
+                        placeholder="e.g. HT-2026-001, BAT-001..." />
                     </div>
                     {parseFloat(line.quantity_rejected||'0') > 0 && (
                       <div className="mt-2">
