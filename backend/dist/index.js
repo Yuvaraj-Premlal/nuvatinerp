@@ -39,6 +39,7 @@ const reports_routes_1 = __importDefault(require("./routes/reports.routes"));
 const costing_routes_1 = __importDefault(require("./routes/costing.routes"));
 const owner_routes_1 = __importDefault(require("./routes/owner.routes"));
 const quarantine_routes_1 = __importDefault(require("./routes/quarantine.routes"));
+const batch_routes_1 = __importDefault(require("./routes/batch.routes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 8080;
@@ -83,6 +84,7 @@ app.use('/api/reports', reports_routes_1.default);
 app.use('/api/costing', costing_routes_1.default);
 app.use('/api/owner', owner_routes_1.default);
 app.use('/api/quarantine', quarantine_routes_1.default);
+app.use('/api/batch', batch_routes_1.default);
 // TOC Scheduler — 6 AM and 2 PM daily
 node_cron_1.default.schedule('0 6 * * *', () => { console.log('[CRON] 6 AM TOC run'); (0, toc_scheduler_1.runTOCForAllTenants)().catch(console.error); });
 node_cron_1.default.schedule('0 14 * * *', () => { console.log('[CRON] 2 PM TOC run'); (0, toc_scheduler_1.runTOCForAllTenants)().catch(console.error); });
