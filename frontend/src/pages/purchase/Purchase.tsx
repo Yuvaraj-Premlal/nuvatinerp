@@ -210,7 +210,7 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
         const received = parseFloat(l.quantity_received);
         const rejected = parseFloat(l.quantity_rejected || 0);
         const accepted = received - rejected;
-        return { ...l, quantity_received: received, quantity_rejected: rejected, accepted_qty: accepted, unit_price: parseFloat(l.unit_price) };
+        return { item_id: l.item_id, unit_price: parseFloat(l.unit_price), batch_number: l.batch_number, lot_number: l.lot_number, rejection_reason: l.rejection_reason, quantity_received: received, quantity_rejected: rejected, accepted_qty: accepted };
       })
     });
   };
