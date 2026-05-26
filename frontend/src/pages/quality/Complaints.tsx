@@ -240,7 +240,11 @@ const ComplaintDetail: React.FC<{ complaint: any; onClose: () => void }> = ({ co
             {data?.description && (
               <div className="bg-surface rounded-lg p-4">
                 <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-1">Description</p>
-                <p className="text-sm text-text-primary">{data.description}</p>
+                <div className="text-sm text-text-primary whitespace-pre-line">
+                  {data.description?.split('\n').map((line: string, i: number) => (
+                    <p key={i} className={`${line.startsWith('•') ? 'ml-2 mt-1' : i === 0 ? 'font-medium' : 'mt-2'}`}>{line}</p>
+                  ))}
+                </div>
                 {data.part_number && <p className="text-xs text-text-secondary mt-2">Part: {data.part_number} {data.quantity_affected ? `| Qty affected: ${data.quantity_affected}` : ''}</p>}
               </div>
             )}
