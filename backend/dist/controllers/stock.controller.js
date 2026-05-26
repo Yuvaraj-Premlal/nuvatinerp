@@ -116,6 +116,7 @@ const getStockMovements = async (req, res) => {
                 unit_cost: m.unit_cost,
                 reference_display,
                 reference_number,
+                reference_id: m.reference_id,
                 batch_number: m.batch_number,
                 lot_number: m.lot_number,
                 transacted_at: m.transacted_at,

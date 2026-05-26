@@ -121,9 +121,79 @@ const IssueMaterialModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
+const GRNDetailContent: React.FC<{ grnId: string }> = ({ grnId }) => {
+  const { data: grnData, isLoading } = useQuery({
+    queryKey: ['grn', grnId],
+    queryFn: () => api.get(`/api/grn/${grnId}`).then(r => r.data.data)
+  });
+
+  if (isLoading) return <div className="p-8 text-center text-brand-primary animate-pulse">Loading...</div>;
+  if (!grnData) return <div className="p-8 text-center text-text-secondary">GRN not found</div>;
+
+  const subtotal = grnData.grn_lines?.reduce((s: number, l: any) => s + (l.accepted_qty || l.quantity_received) * (l.unit_price || 0), 0) || 0;
+
+  return (
+    <div className="p-5 space-y-4">
+      <div className="grid grid-cols-4 gap-3 text-sm">
+        <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">PO Number</p><p className="font-medium text-brand-primary">{grnData.po?.po_number || '—'}</p></div>
+        <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Received Date</p><p className="font-medium">{new Date(grnData.received_date).toLocaleDateString('en-IN')}</p></div>
+        <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Supplier</p><p className="font-medium">{grnData.po?.supplier?.supplier_name || '—'}</p></div>
+        <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Vehicle</p><p className="font-medium">{grnData.vehicle_number || '—'}</p></div>
+      </div>
+
+      {grnData.is_reversed && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          <p className="font-medium">GRN Reversed</p>
+          <p className="text-xs mt-1">Reason: {grnData.reversal_reason}</p>
+        </div>
+      )}
+
+      <table className="w-full text-sm">
+        <thead><tr className="bg-brand-light">
+          <th className="text-left px-3 py-2 text-brand-primary">#</th>
+          <th className="text-left px-3 py-2 text-brand-primary">Item</th>
+          <th className="text-right px-3 py-2 text-brand-primary">Received</th>
+          <th className="text-right px-3 py-2 text-green-600">Accepted</th>
+          <th className="text-right px-3 py-2 text-red-500">Rejected</th>
+          <th className="text-right px-3 py-2 text-brand-primary">Unit Price</th>
+          <th className="text-right px-3 py-2 text-brand-primary">Amount</th>
+          <th className="text-left px-3 py-2 text-brand-primary">Batch</th>
+        </tr></thead>
+        <tbody>
+          {grnData.grn_lines?.map((line: any, i: number) => (
+            <tr key={line.id} className="border-t border-border">
+              <td className="px-3 py-2">{i + 1}</td>
+              <td className="px-3 py-2">
+                <p className="font-medium">{line.item?.item_name}</p>
+                <p className="text-xs text-text-secondary">{line.item?.item_code}</p>
+                {line.rejection_reason && <p className="text-xs text-red-500 mt-0.5">Reason: {line.rejection_reason}</p>}
+              </td>
+              <td className="px-3 py-2 text-right">{line.quantity_received} {line.item?.unit_of_measure}</td>
+              <td className="px-3 py-2 text-right text-green-600 font-medium">{line.accepted_qty || line.quantity_received}</td>
+              <td className="px-3 py-2 text-right text-red-500 font-medium">{line.rejected_qty || 0}</td>
+              <td className="px-3 py-2 text-right">₹{line.unit_price || 0}</td>
+              <td className="px-3 py-2 text-right font-medium">₹{((line.accepted_qty || line.quantity_received) * (line.unit_price || 0)).toLocaleString('en-IN')}</td>
+              <td className="px-3 py-2 text-xs text-text-secondary">{line.batch_number || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="bg-brand-light">
+            <td colSpan={6} className="px-3 py-2 text-right font-bold">Total</td>
+            <td className="px-3 py-2 text-right font-bold text-brand-primary">₹{subtotal.toLocaleString('en-IN')}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+};
+
 const Stores: React.FC = () => {
   const [activeTab, setActiveTab] = useState('stock');
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [viewGRNId, setViewGRNId] = useState<string | null>(null);
+  const [viewGRNNumber, setViewGRNNumber] = useState<string>('');
   const [filterItem, setFilterItem] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterFrom, setFilterFrom] = useState('');
@@ -158,6 +228,20 @@ const Stores: React.FC = () => {
   return (
     <div className="space-y-6">
       {showIssueModal && <IssueMaterialModal onClose={() => setShowIssueModal(false)} />}
+      {viewGRNId && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-3xl max-h-screen overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <div>
+                <h2 className="font-bold text-text-primary">{viewGRNNumber}</h2>
+                <p className="text-text-secondary text-sm">Goods Receipt Note</p>
+              </div>
+              <button onClick={() => setViewGRNId(null)} className="text-text-secondary hover:text-text-primary text-xl">✕</button>
+            </div>
+            <GRNDetailContent grnId={viewGRNId} />
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <div>
@@ -322,7 +406,14 @@ const Stores: React.FC = () => {
                     </td>
                     <td className="px-4 py-3"><TransactionBadge type={m.transaction_type} /></td>
                     <td className="px-4 py-3 text-xs">
-                      <p className="font-medium text-brand-primary">{m.reference_number}</p>
+                      {m.transaction_type === 'receipt' || m.transaction_type === 'grn_reversal' ? (
+                        <p className="font-medium text-brand-primary cursor-pointer hover:underline"
+                          onClick={() => { setViewGRNId(m.reference_id); setViewGRNNumber(m.reference_number); }}>
+                          {m.reference_number}
+                        </p>
+                      ) : (
+                        <p className="font-medium text-brand-primary">{m.reference_number}</p>
+                      )}
                       <p className="text-text-secondary">{m.reference_display}</p>
                     </td>
                     <td className={`px-4 py-3 text-right font-bold ${m.quantity > 0 ? 'text-green-600' : 'text-red-500'}`}>
