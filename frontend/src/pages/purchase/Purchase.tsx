@@ -645,6 +645,7 @@ const GRNDetailModal: React.FC<{ grnId: string; onClose: () => void }> = ({ grnI
                 <th className="text-right px-3 py-2 text-red-500">Rejected</th>
                 <th className="text-right px-3 py-2 text-brand-primary">Unit Price</th>
                 <th className="text-right px-3 py-2 text-brand-primary">Amount</th>
+                <th className="text-left px-3 py-2 text-brand-primary">Batch</th>
               </tr></thead>
               <tbody>
                 {grnData.grn_lines?.map((line: any, i: number) => (
@@ -660,13 +661,14 @@ const GRNDetailModal: React.FC<{ grnId: string; onClose: () => void }> = ({ grnI
                     <td className="px-3 py-2 text-right text-red-500 font-medium">{line.rejected_qty || 0}</td>
                     <td className="px-3 py-2 text-right">₹{line.unit_price || 0}</td>
                     <td className="px-3 py-2 text-right font-medium">₹{((line.accepted_qty || line.quantity_received) * (line.unit_price || 0)).toLocaleString('en-IN')}</td>
+                    <td className="px-3 py-2 text-xs text-text-secondary">{line.batch_number || '—'}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-surface"><td colSpan={6} className="px-3 py-2 text-right font-medium">Subtotal</td><td className="px-3 py-2 text-right font-bold">₹{subtotal.toLocaleString('en-IN')}</td></tr>
-                <tr className="bg-surface"><td colSpan={6} className="px-3 py-2 text-right text-text-secondary">GST (18%)</td><td className="px-3 py-2 text-right text-text-secondary">₹{gst.toLocaleString('en-IN', {maximumFractionDigits:0})}</td></tr>
-                <tr className="bg-brand-light"><td colSpan={6} className="px-3 py-2 text-right font-bold text-brand-primary">Total</td><td className="px-3 py-2 text-right font-bold text-brand-primary">₹{total.toLocaleString('en-IN', {maximumFractionDigits:0})}</td></tr>
+                <tr className="bg-surface"><td colSpan={7} className="px-3 py-2 text-right font-medium">Subtotal</td><td className="px-3 py-2 text-right font-bold">₹{subtotal.toLocaleString('en-IN')}</td></tr>
+                <tr className="bg-surface"><td colSpan={7} className="px-3 py-2 text-right text-text-secondary">GST (18%)</td><td className="px-3 py-2 text-right text-text-secondary">₹{gst.toLocaleString('en-IN', {maximumFractionDigits:0})}</td></tr>
+                <tr className="bg-brand-light"><td colSpan={7} className="px-3 py-2 text-right font-bold text-brand-primary">Total</td><td className="px-3 py-2 text-right font-bold text-brand-primary">₹{total.toLocaleString('en-IN', {maximumFractionDigits:0})}</td></tr>
               </tfoot>
             </table>
 
