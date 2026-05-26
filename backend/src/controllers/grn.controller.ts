@@ -6,6 +6,7 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const { po_id, supplier_id, received_by, vehicle_number, supplier_dc_number, lines } = req.body;
+    console.log('GRN lines received:', JSON.stringify(lines));
 
     // Auto-generate GRN number
     const latest = await prisma.grnHeader.findFirst({ where: { tenant_id }, orderBy: { created_at: 'desc' } });
