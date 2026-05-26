@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { printIssueSlip } from '../../utils/issue.slip.pdf';
+import StoresReports from './StoresReports';
 
 const ZoneBadge: React.FC<{ zone: string }> = ({ zone }) => {
   const colors: any = {
@@ -545,7 +546,7 @@ const Stores: React.FC = () => {
       )}
 
       <div className="flex gap-2">
-        {['stock', 'movements', 'quarantine'].map(tab => (
+        {['stock', 'movements', 'quarantine', 'reports'].map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === tab ? 'bg-brand-primary text-white' : 'bg-white text-text-secondary hover:bg-surface border border-border'}`}>
             {tab === 'quarantine' ? `Quarantine ${quarantineSummary?.pending > 0 ? '(' + quarantineSummary.pending + ')' : ''}` : tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -682,6 +683,8 @@ const Stores: React.FC = () => {
           </div>
         </div>
       )}
+      {activeTab === 'reports' && <StoresReports />}
+
       {activeTab === 'quarantine' && (
         <div className="space-y-4">
           {quarantineSummary?.pending > 0 && (

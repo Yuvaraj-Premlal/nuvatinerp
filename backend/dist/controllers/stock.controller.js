@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.issueMaterial = exports.adjustStock = exports.getStockMovements = exports.getStockBalanceByItem = exports.getStockBalance = void 0;
+exports.getStockReports = exports.issueMaterial = exports.adjustStock = exports.getStockMovements = exports.getStockBalanceByItem = exports.getStockBalance = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const getStockBalance = async (req, res) => {
     try {
@@ -230,3 +230,88 @@ const issueMaterial = async (req, res) => {
     }
 };
 exports.issueMaterial = issueMaterial;
+const getStockReports = async (req, res) => {
+    try {
+        const tenant_id = req.user?.tenant_id;
+        const { type, from_date, to_date } = req.query;
+        const ledger = await prisma_1.default.stockLedger.groupBy({
+            by: ['item_id'],
+            where: { tenant_id },
+            _sum: { quantity: true }
+        });
+        const items = await prisma_1.default.itemMaster.findMany({
+            where: { tenant_id, is_active: true },
+            include: { pfep_detail: true, item_suppliers: { include: { supplier: true } } }
+        });
+        const balanceMap = {};
+        ledger.forEach((l) => { balanceMap[l.item_id] = l._sum.quantity || 0; });
+        if (type === 'stock_statement') {
+            const rows = items.map((item) => {
+                const qty = balanceMap[item.id] || 0;
+                const unit_cost = item.material_cost || 0;
+                const reorder = item.pfep_detail?.reorder_point || 0;
+                const safety = item.pfep_detail?.safety_stock || 0;
+                const zone = qty <= 0 ? 'red' : qty <= safety ? 'red' : qty <= reorder ? 'yellow' : 'green';
+                return { item_code: item.item_code, item_name: item.item_name, item_type: item.item_type, unit_of_measure: item.unit_of_measure, storage_location: item.pfep_detail?.storage_location || '—', quantity_on_hand: qty, safety_stock: safety, reorder_point: reorder, unit_cost, total_value: qty * unit_cost, zone };
+            });
+            return res.json({ success: true, data: rows, summary: { grand_total: rows.reduce((s, r) => s + r.total_value, 0), total_items: rows.length } });
+        }
+        if (type === 'reorder') {
+            const rows = items
+                .filter((item) => (balanceMap[item.id] || 0) <= (item.pfep_detail?.reorder_point || 0))
+                .map((item) => {
+                const qty = balanceMap[item.id] || 0;
+                const reorder = item.pfep_detail?.reorder_point || 0;
+                const safety = item.pfep_detail?.safety_stock || 0;
+                return { item_code: item.item_code, item_name: item.item_name, unit_of_measure: item.unit_of_measure, quantity_on_hand: qty, safety_stock: safety, reorder_point: reorder, suggested_order_qty: Math.max(0, reorder * 2 - qty), zone: qty <= safety ? 'red' : 'yellow', supplier: item.item_suppliers?.[0]?.supplier?.supplier_name || '—' };
+            })
+                .sort((a, b) => a.quantity_on_hand - b.quantity_on_hand);
+            return res.json({ success: true, data: rows, summary: { total_items: rows.length, critical: rows.filter((r) => r.zone === 'red').length } });
+        }
+        if (type === 'consumption') {
+            const where = { tenant_id };
+            if (from_date)
+                where.issued_at = { ...where.issued_at, gte: new Date(String(from_date)) };
+            if (to_date)
+                where.issued_at = { ...where.issued_at, lte: new Date(String(to_date) + 'T23:59:59.999Z') };
+            const issues = await prisma_1.default.materialIssue.findMany({ where, include: { item: { select: { item_name: true, item_code: true, unit_of_measure: true, material_cost: true } }, job: { select: { job_number: true } } }, orderBy: { issued_at: 'desc' } });
+            const itemMap = {};
+            issues.forEach((issue) => {
+                const key = issue.item_id;
+                if (!itemMap[key])
+                    itemMap[key] = { item_code: issue.item?.item_code, item_name: issue.item?.item_name, unit_of_measure: issue.item?.unit_of_measure, unit_cost: issue.item?.material_cost || 0, total_issued: 0, total_value: 0, issue_count: 0, jobs: [] };
+                itemMap[key].total_issued += issue.issued_qty;
+                itemMap[key].total_value += issue.issued_qty * (issue.item?.material_cost || 0);
+                itemMap[key].issue_count += 1;
+                itemMap[key].jobs.push({ job_number: issue.job?.job_number || '—', issued_qty: issue.issued_qty, issued_at: issue.issued_at });
+            });
+            const rows = Object.values(itemMap).sort((a, b) => b.total_value - a.total_value);
+            return res.json({ success: true, data: rows, summary: { grand_total: rows.reduce((s, r) => s + r.total_value, 0), total_issues: issues.length, total_items: rows.length } });
+        }
+        if (type === 'abc') {
+            const issues = await prisma_1.default.materialIssue.findMany({ where: { tenant_id }, include: { item: { select: { item_name: true, item_code: true, unit_of_measure: true, material_cost: true } } } });
+            const itemMap = {};
+            issues.forEach((issue) => {
+                const key = issue.item_id;
+                if (!itemMap[key])
+                    itemMap[key] = { item_code: issue.item?.item_code, item_name: issue.item?.item_name, unit_of_measure: issue.item?.unit_of_measure, total_issued: 0, consumption_value: 0 };
+                itemMap[key].total_issued += issue.issued_qty;
+                itemMap[key].consumption_value += issue.issued_qty * (issue.item?.material_cost || 0);
+            });
+            const sorted = Object.values(itemMap).sort((a, b) => b.consumption_value - a.consumption_value);
+            const grand_total = sorted.reduce((s, r) => s + r.consumption_value, 0);
+            let cumulative = 0;
+            const classified = sorted.map((r) => {
+                cumulative += r.consumption_value;
+                const pct = grand_total > 0 ? (cumulative / grand_total) * 100 : 0;
+                return { ...r, cumulative_pct: Math.round(pct * 10) / 10, abc_class: pct <= 70 ? 'A' : pct <= 90 ? 'B' : 'C' };
+            });
+            return res.json({ success: true, data: classified, summary: { grand_total, a_count: classified.filter((r) => r.abc_class === 'A').length, b_count: classified.filter((r) => r.abc_class === 'B').length, c_count: classified.filter((r) => r.abc_class === 'C').length, total_items: classified.length } });
+        }
+        return res.status(400).json({ success: false, error: 'Invalid report type' });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+exports.getStockReports = getStockReports;

@@ -8,5 +8,6 @@ router.get('/', auth_middleware_1.authenticate, stock_controller_1.getStockBalan
 router.get('/movements', auth_middleware_1.authenticate, stock_controller_1.getStockMovements);
 router.post('/issue', auth_middleware_1.authenticate, stock_controller_1.issueMaterial);
 router.post('/adjust', auth_middleware_1.authenticate, stock_controller_1.adjustStock);
+router.get('/reports', auth_middleware_1.authenticate, stock_controller_1.getStockReports);
 router.get('/:item_id', auth_middleware_1.authenticate, stock_controller_1.getStockBalanceByItem);
 exports.default = router;
