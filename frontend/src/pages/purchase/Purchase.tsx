@@ -233,7 +233,8 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
           rejection_reason: l.rejection_reason,
           quantity_received: received,
           quantity_rejected: rejected,
-          accepted_qty: accepted
+          accepted_qty: accepted,
+          batch_number: l.batch_number || null
         };
       })
     });
