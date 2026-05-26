@@ -23,7 +23,7 @@ const createGRN = async (req, res) => {
                         item_id: l.item_id,
                         quantity_received: parseFloat(l.quantity_received),
                         accepted_qty: parseFloat(l.accepted_qty || l.quantity_received),
-                        rejected_qty: parseFloat(l.rejected_qty || 0),
+                        rejected_qty: parseFloat(l.rejected_qty || l.quantity_rejected || 0),
                         rejection_reason: l.rejection_reason,
                         batch_number: l.batch_number,
                         lot_number: l.lot_number,
@@ -51,7 +51,7 @@ const createGRN = async (req, res) => {
                 });
             }
             const receivedQty = parseFloat(line.quantity_received);
-            const rejectedQty = parseFloat(line.rejected_qty || 0);
+            const rejectedQty = parseFloat(line.rejected_qty || line.quantity_rejected || 0);
             if (receivedQty > 0 && rejectedQty > 0) {
                 const rejectionPercent = (rejectedQty / receivedQty) * 100;
                 if (rejectionPercent > 1) {
