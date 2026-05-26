@@ -134,6 +134,68 @@ export const getStockMovements = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const adjustStock = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const { item_id, physical_count, adjustment_reason, adjusted_by } = req.body;
+
+    // Get current stock balance
+    const ledger = await prisma.stockLedger.aggregate({
+      where: { tenant_id, item_id },
+      _sum: { quantity: true }
+    });
+    const currentQty = ledger._sum.quantity || 0;
+    const varianceQty = parseFloat(physical_count) - currentQty;
+
+    if (varianceQty === 0) {
+      return res.status(400).json({ success: false, error: 'No variance — system stock matches physical count' });
+    }
+
+    // Generate adjustment number
+    const adjCount = await prisma.stockLedger.count({ where: { tenant_id, transaction_type: 'adjustment' } });
+    const adj_number = `ADJ-${new Date().getFullYear()}-${String(adjCount + 1).padStart(4, '0')}`;
+
+    const adjustment = await prisma.stockLedger.create({
+      data: {
+        tenant_id,
+        item_id,
+        transaction_type: 'adjustment',
+        quantity: varianceQty,
+        reference_type: 'adjustment',
+        reference_id: adj_number,
+        transacted_by: adjusted_by || 'Storekeeper',
+        adjustment_reason
+      }
+    });
+
+    await prisma.systemAlert.create({
+      data: {
+        tenant_id,
+        alert_type: 'stock_adjustment',
+        severity: Math.abs(varianceQty) > 100 ? 'warning' : 'info',
+        message: `Stock adjustment ${adj_number} — ${varianceQty > 0 ? '+' : ''}${varianceQty} units. Reason: ${adjustment_reason}`,
+        reference_type: 'adjustment',
+        reference_id: adj_number
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        adj_number,
+        item_id,
+        system_qty: currentQty,
+        physical_count: parseFloat(physical_count),
+        variance: varianceQty,
+        adjustment_type: varianceQty > 0 ? 'write_up' : 'write_off',
+        adjustment
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 export const issueMaterial = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;

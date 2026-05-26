@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.issueMaterial = exports.getStockMovements = exports.getStockBalanceByItem = exports.getStockBalance = void 0;
+exports.issueMaterial = exports.adjustStock = exports.getStockMovements = exports.getStockBalanceByItem = exports.getStockBalance = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const getStockBalance = async (req, res) => {
     try {
@@ -144,6 +144,63 @@ const getStockMovements = async (req, res) => {
     }
 };
 exports.getStockMovements = getStockMovements;
+const adjustStock = async (req, res) => {
+    try {
+        const tenant_id = req.user?.tenant_id;
+        const { item_id, physical_count, adjustment_reason, adjusted_by } = req.body;
+        // Get current stock balance
+        const ledger = await prisma_1.default.stockLedger.aggregate({
+            where: { tenant_id, item_id },
+            _sum: { quantity: true }
+        });
+        const currentQty = ledger._sum.quantity || 0;
+        const varianceQty = parseFloat(physical_count) - currentQty;
+        if (varianceQty === 0) {
+            return res.status(400).json({ success: false, error: 'No variance — system stock matches physical count' });
+        }
+        // Generate adjustment number
+        const adjCount = await prisma_1.default.stockLedger.count({ where: { tenant_id, transaction_type: 'adjustment' } });
+        const adj_number = `ADJ-${new Date().getFullYear()}-${String(adjCount + 1).padStart(4, '0')}`;
+        const adjustment = await prisma_1.default.stockLedger.create({
+            data: {
+                tenant_id,
+                item_id,
+                transaction_type: 'adjustment',
+                quantity: varianceQty,
+                reference_type: 'adjustment',
+                reference_id: adj_number,
+                transacted_by: adjusted_by || 'Storekeeper',
+                adjustment_reason
+            }
+        });
+        await prisma_1.default.systemAlert.create({
+            data: {
+                tenant_id,
+                alert_type: 'stock_adjustment',
+                severity: Math.abs(varianceQty) > 100 ? 'warning' : 'info',
+                message: `Stock adjustment ${adj_number} — ${varianceQty > 0 ? '+' : ''}${varianceQty} units. Reason: ${adjustment_reason}`,
+                reference_type: 'adjustment',
+                reference_id: adj_number
+            }
+        });
+        res.status(201).json({
+            success: true,
+            data: {
+                adj_number,
+                item_id,
+                system_qty: currentQty,
+                physical_count: parseFloat(physical_count),
+                variance: varianceQty,
+                adjustment_type: varianceQty > 0 ? 'write_up' : 'write_off',
+                adjustment
+            }
+        });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+exports.adjustStock = adjustStock;
 const issueMaterial = async (req, res) => {
     try {
         const tenant_id = req.user?.tenant_id;

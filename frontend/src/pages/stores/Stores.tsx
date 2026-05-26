@@ -121,6 +121,143 @@ const IssueMaterialModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
+const StockAdjustmentModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    item_id: '',
+    physical_count: '',
+    adjustment_reason: '',
+    adjusted_by: 'Storekeeper'
+  });
+  const [preview, setPreview] = useState<any>(null);
+
+  const { data: stock } = useQuery({ queryKey: ['stock'], queryFn: () => api.get('/api/stock').then(r => r.data.data) });
+  const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
+
+  const selectedStock = stock?.find((s: any) => s.item_id === form.item_id);
+
+  const adjustmentReasons = [
+    'Physical count variance',
+    'Damaged material — write off',
+    'Expired material — write off',
+    'Found stock — write up',
+    'Counting error correction',
+    'Spillage / wastage',
+    'Other'
+  ];
+
+  const handleItemChange = (item_id: string) => {
+    setForm({ ...form, item_id });
+    setPreview(null);
+  };
+
+  const handleCountChange = (physical_count: string) => {
+    setForm({ ...form, physical_count });
+    if (selectedStock && physical_count) {
+      const variance = parseFloat(physical_count) - selectedStock.quantity_on_hand;
+      setPreview({
+        system_qty: selectedStock.quantity_on_hand,
+        physical_count: parseFloat(physical_count),
+        variance,
+        type: variance > 0 ? 'write_up' : variance < 0 ? 'write_off' : 'no_change'
+      });
+    }
+  };
+
+  const mutation = useMutation({
+    mutationFn: (data: any) => api.post('/api/stock/adjust', data),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['stock'] });
+      queryClient.invalidateQueries({ queryKey: ['stockMovements'] });
+      alert(`✓ Adjustment ${res.data.data.adj_number} created. Variance: ${res.data.data.variance > 0 ? '+' : ''}${res.data.data.variance} ${selectedStock?.unit_of_measure}`);
+      onClose();
+    },
+    onError: (err: any) => alert(err.response?.data?.error || 'Failed to adjust stock')
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!preview || preview.type === 'no_change') return;
+    mutation.mutate(form);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h2 className="font-bold text-text-primary">Stock Adjustment</h2>
+            <p className="text-text-secondary text-sm">Physical count entry</p>
+          </div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Item <span className="text-red-500">*</span></label>
+            <select value={form.item_id} onChange={e => handleItemChange(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required>
+              <option value="">Select item...</option>
+              {items?.map((i: any) => <option key={i.id} value={i.id}>{i.item_name} ({i.item_code})</option>)}
+            </select>
+            {selectedStock && (
+              <p className="text-xs text-text-secondary mt-1">System stock: <strong>{selectedStock.quantity_on_hand?.toLocaleString('en-IN')} {selectedStock.unit_of_measure}</strong></p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Physical Count <span className="text-red-500">*</span></label>
+            <input type="number" value={form.physical_count} onChange={e => handleCountChange(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              placeholder="Enter actual counted quantity" required />
+          </div>
+
+          {preview && preview.type !== 'no_change' && (
+            <div className={`rounded-lg p-3 text-sm border ${preview.type === 'write_up' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+              <p className={`font-medium ${preview.type === 'write_up' ? 'text-green-700' : 'text-red-700'}`}>
+                {preview.type === 'write_up' ? '📈 Write Up' : '📉 Write Off'}
+              </p>
+              <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                <div><p className="text-text-secondary">System</p><p className="font-bold">{preview.system_qty?.toLocaleString('en-IN')}</p></div>
+                <div><p className="text-text-secondary">Physical</p><p className="font-bold">{preview.physical_count?.toLocaleString('en-IN')}</p></div>
+                <div><p className="text-text-secondary">Variance</p><p className={`font-bold ${preview.variance > 0 ? 'text-green-600' : 'text-red-600'}`}>{preview.variance > 0 ? '+' : ''}{preview.variance?.toLocaleString('en-IN')}</p></div>
+              </div>
+            </div>
+          )}
+
+          {preview?.type === 'no_change' && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+              ✓ Physical count matches system stock — no adjustment needed
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Reason <span className="text-red-500">*</span></label>
+            <select value={form.adjustment_reason} onChange={e => setForm({ ...form, adjustment_reason: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required>
+              <option value="">Select reason...</option>
+              {adjustmentReasons.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Adjusted By</label>
+            <input value={form.adjusted_by} onChange={e => setForm({ ...form, adjusted_by: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button type="submit" disabled={!preview || preview.type === 'no_change' || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Adjusting...' : 'Confirm Adjustment'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const GRNDetailContent: React.FC<{ grnId: string }> = ({ grnId }) => {
   const { data: grnData, isLoading } = useQuery({
     queryKey: ['grn', grnId],
@@ -192,6 +329,7 @@ const GRNDetailContent: React.FC<{ grnId: string }> = ({ grnId }) => {
 const Stores: React.FC = () => {
   const [activeTab, setActiveTab] = useState('stock');
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [viewGRNId, setViewGRNId] = useState<string | null>(null);
   const [viewGRNNumber, setViewGRNNumber] = useState<string>('');
   const [filterItem, setFilterItem] = useState('');
@@ -228,6 +366,7 @@ const Stores: React.FC = () => {
   return (
     <div className="space-y-6">
       {showIssueModal && <IssueMaterialModal onClose={() => setShowIssueModal(false)} />}
+      {showAdjustModal && <StockAdjustmentModal onClose={() => setShowAdjustModal(false)} />}
       {viewGRNId && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl w-full max-w-3xl max-h-screen overflow-y-auto">
@@ -248,10 +387,16 @@ const Stores: React.FC = () => {
           <h1 className="text-xl font-bold text-text-primary">Stores</h1>
           <p className="text-text-secondary text-sm mt-1">Stock balance and material movements</p>
         </div>
-        <button onClick={() => setShowIssueModal(true)}
-          className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition-colors">
-          + Issue Material
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowAdjustModal(true)}
+            className="bg-white border border-border text-text-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface transition-colors">
+            ⚖ Stock Adjustment
+          </button>
+          <button onClick={() => setShowIssueModal(true)}
+            className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition-colors">
+            + Issue Material
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

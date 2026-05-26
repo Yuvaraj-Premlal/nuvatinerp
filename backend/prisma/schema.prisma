@@ -418,6 +418,7 @@ model StockLedger {
   lot_number       String?
   transacted_at    DateTime   @default(now())
   transacted_by    String?
+  adjustment_reason String?
 
   item             ItemMaster @relation(fields: [item_id], references: [id])
 
