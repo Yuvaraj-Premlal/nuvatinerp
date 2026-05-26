@@ -326,6 +326,158 @@ const GRNDetailContent: React.FC<{ grnId: string }> = ({ grnId }) => {
   );
 };
 
+const DispositionActions: React.FC<{ quarantineId: string }> = ({ quarantineId }) => {
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [disposition, setDisposition] = useState('');
+  const [notes, setNotes] = useState('');
+  const [disposedBy, setDisposedBy] = useState('Storekeeper');
+
+  const dispositionOptions = [
+    { value: 'return_to_supplier', label: '↩ Return to Supplier' },
+    { value: 'scrapped', label: '🗑 Scrap' },
+    { value: 'rework', label: '🔧 Rework' },
+    { value: 'use_as_is', label: '✓ Use As Is (Deviation)' }
+  ];
+
+  const mutation = useMutation({
+    mutationFn: () => api.post(`/api/quarantine/${quarantineId}/dispose`, { disposition, disposed_by: disposedBy, disposition_notes: notes }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['quarantine'] }); queryClient.invalidateQueries({ queryKey: ['stock'] }); setShowForm(false); },
+    onError: (err: any) => alert(err.response?.data?.error || 'Failed to dispose')
+  });
+
+  if (!showForm) return (
+    <button onClick={() => setShowForm(true)} className="text-xs bg-brand-light text-brand-primary px-2 py-1 rounded hover:bg-blue-100">
+      Dispose
+    </button>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-sm">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h3 className="font-bold text-text-primary text-sm">Dispose Quarantine Stock</h3>
+          <button onClick={() => setShowForm(false)} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-4 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-text-primary mb-1">Disposition <span className="text-red-500">*</span></label>
+            <select value={disposition} onChange={e => setDisposition(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+              <option value="">Select...</option>
+              {dispositionOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          {disposition === 'use_as_is' && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-700">
+              ⚠ This will add the rejected qty back to main stock with a deviation note.
+            </div>
+          )}
+          {disposition === 'return_to_supplier' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-xs text-blue-700">
+              ℹ Raise a Debit Note in Finance module against the supplier bill.
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-text-primary mb-1">Notes</label>
+            <input value={notes} onChange={e => setNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              placeholder="Optional notes..." />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-primary mb-1">Disposed By</label>
+            <input value={disposedBy} onChange={e => setDisposedBy(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={() => setShowForm(false)} className="flex-1 px-3 py-2 border border-border rounded-lg text-xs text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate()} disabled={!disposition || mutation.isPending}
+              className="flex-1 px-3 py-2 bg-brand-primary text-white rounded-lg text-xs font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? '...' : 'Confirm'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DispositionActions: React.FC<{ quarantineId: string }> = ({ quarantineId }) => {
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [disposition, setDisposition] = useState('');
+  const [notes, setNotes] = useState('');
+  const [disposedBy, setDisposedBy] = useState('Storekeeper');
+
+  const dispositionOptions = [
+    { value: 'return_to_supplier', label: '↩ Return to Supplier' },
+    { value: 'scrapped', label: '🗑 Scrap' },
+    { value: 'rework', label: '🔧 Rework' },
+    { value: 'use_as_is', label: '✓ Use As Is (Deviation)' }
+  ];
+
+  const mutation = useMutation({
+    mutationFn: () => api.post(`/api/quarantine/${quarantineId}/dispose`, { disposition, disposed_by: disposedBy, disposition_notes: notes }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['quarantine'] }); queryClient.invalidateQueries({ queryKey: ['stock'] }); setShowForm(false); },
+    onError: (err: any) => alert(err.response?.data?.error || 'Failed to dispose')
+  });
+
+  if (!showForm) return (
+    <button onClick={() => setShowForm(true)} className="text-xs bg-brand-light text-brand-primary px-2 py-1 rounded hover:bg-blue-100">
+      Dispose
+    </button>
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-sm">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h3 className="font-bold text-text-primary text-sm">Dispose Quarantine Stock</h3>
+          <button onClick={() => setShowForm(false)} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-4 space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-text-primary mb-1">Disposition <span className="text-red-500">*</span></label>
+            <select value={disposition} onChange={e => setDisposition(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+              <option value="">Select...</option>
+              {dispositionOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          {disposition === 'use_as_is' && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-700">
+              ⚠ This will add the rejected qty back to main stock with a deviation note.
+            </div>
+          )}
+          {disposition === 'return_to_supplier' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-xs text-blue-700">
+              ℹ Raise a Debit Note in Finance module against the supplier bill.
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-text-primary mb-1">Notes</label>
+            <input value={notes} onChange={e => setNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              placeholder="Optional notes..." />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-primary mb-1">Disposed By</label>
+            <input value={disposedBy} onChange={e => setDisposedBy(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={() => setShowForm(false)} className="flex-1 px-3 py-2 border border-border rounded-lg text-xs text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate()} disabled={!disposition || mutation.isPending}
+              className="flex-1 px-3 py-2 bg-brand-primary text-white rounded-lg text-xs font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? '...' : 'Confirm'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Stores: React.FC = () => {
   const [activeTab, setActiveTab] = useState('stock');
   const [showIssueModal, setShowIssueModal] = useState(false);
@@ -346,6 +498,15 @@ const Stores: React.FC = () => {
   const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
 
   const movementsQuery = `${filterItem ? `item_id=${filterItem}&` : ''}${filterType ? `transaction_type=${filterType}&` : ''}${filterFrom ? `from_date=${filterFrom}&` : ''}${filterTo ? `to_date=${filterTo}` : ''}`;
+
+  const { data: quarantineData } = useQuery({
+    queryKey: ['quarantine'],
+    queryFn: () => api.get('/api/quarantine').then(r => r.data),
+    enabled: activeTab === 'quarantine'
+  });
+
+  const quarantine = quarantineData?.data || [];
+  const quarantineSummary = quarantineData?.summary || {};
 
   const { data: movements } = useQuery({
     queryKey: ['stockMovements', filterItem, filterType, filterFrom, filterTo],
@@ -437,10 +598,10 @@ const Stores: React.FC = () => {
       )}
 
       <div className="flex gap-2">
-        {['stock', 'movements'].map(tab => (
+        {['stock', 'movements', 'quarantine'].map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === tab ? 'bg-brand-primary text-white' : 'bg-white text-text-secondary hover:bg-surface border border-border'}`}>
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab === 'quarantine' ? `Quarantine ${quarantineSummary?.pending > 0 ? '(' + quarantineSummary.pending + ')' : ''}` : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
       </div>
@@ -571,6 +732,58 @@ const Stores: React.FC = () => {
               </tbody>
             </table>
             {movements?.length === 0 && <div className="text-center py-12 text-text-secondary">No movements found</div>}
+          </div>
+        </div>
+      )}
+      {activeTab === 'quarantine' && (
+        <div className="space-y-4">
+          {quarantineSummary?.pending > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <p className="font-semibold text-amber-700 text-sm">⚠ {quarantineSummary.pending} items pending disposition — total {quarantineSummary.total_qty?.toLocaleString('en-IN')} units in quarantine</p>
+            </div>
+          )}
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-brand-light">
+                  <th className="text-left px-4 py-3 text-brand-primary font-medium">Item</th>
+                  <th className="text-left px-4 py-3 text-brand-primary font-medium">GRN</th>
+                  <th className="text-right px-4 py-3 text-brand-primary font-medium">Qty</th>
+                  <th className="text-left px-4 py-3 text-brand-primary font-medium">Rejection Reason</th>
+                  <th className="text-center px-4 py-3 text-brand-primary font-medium">Disposition</th>
+                  <th className="text-center px-4 py-3 text-brand-primary font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quarantine.map((q: any, i: number) => (
+                  <tr key={q.id} className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-text-primary">{q.item?.item_name}</p>
+                      <p className="text-text-secondary text-xs">{q.item?.item_code}</p>
+                    </td>
+                    <td className="px-4 py-3 text-brand-primary text-xs font-medium">{q.grn_number}</td>
+                    <td className="px-4 py-3 text-right font-bold text-amber-600">{q.quantity?.toLocaleString('en-IN')} {q.item?.unit_of_measure}</td>
+                    <td className="px-4 py-3 text-text-secondary text-xs">{q.rejection_reason || '—'}</td>
+                    <td className="px-4 py-3 text-center">
+                      {q.disposition === 'pending' ? (
+                        <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full border border-amber-200">Pending</span>
+                      ) : (
+                        <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full border border-green-200 capitalize">{q.disposition?.replace(/_/g, ' ')}</span>
+                      )}
+                      {q.disposition !== 'pending' && q.disposed_at && (
+                        <p className="text-xs text-text-secondary mt-0.5">{new Date(q.disposed_at).toLocaleDateString('en-IN')}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {q.disposition === 'pending' && (
+                        <DispositionActions quarantineId={q.id} />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {quarantine.length === 0 && <div className="text-center py-12 text-text-secondary">No quarantine stock</div>}
           </div>
         </div>
       )}

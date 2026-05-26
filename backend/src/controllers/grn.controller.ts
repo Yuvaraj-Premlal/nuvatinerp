@@ -139,6 +139,26 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Create quarantine stock entries for rejected qty
+    for (const line of lines) {
+      const rejectedQty = parseFloat(line.rejected_qty || line.quantity_rejected || 0);
+      if (rejectedQty > 0) {
+        const poForQuarantine = po_id ? await prisma.purchaseOrder.findFirst({ where: { id: po_id, tenant_id } }) : null;
+        await prisma.quarantineStock.create({
+          data: {
+            tenant_id,
+            item_id: line.item_id,
+            grn_id: grn.id,
+            grn_number,
+            quantity: rejectedQty,
+            rejection_reason: line.rejection_reason || 'Not specified',
+            supplier_id: poForQuarantine?.supplier_id || supplier_id || null,
+            disposition: 'pending'
+          }
+        });
+      }
+    }
+
     if (po_id) {
       const po = await prisma.purchaseOrder.findFirst({ where: { id: po_id, tenant_id }, include: { po_lines: true } });
       if (po) {

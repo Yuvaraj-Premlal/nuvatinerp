@@ -33,6 +33,7 @@ import maintenanceRoutes from './routes/maintenance.routes';
 import reportsRoutes from './routes/reports.routes';
 import costingRoutes from './routes/costing.routes';
 import ownerRoutes from './routes/owner.routes';
+import quarantineRoutes from './routes/quarantine.routes';
 
 dotenv.config();
 
@@ -81,6 +82,7 @@ app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/costing', costingRoutes);
 app.use('/api/owner', ownerRoutes);
+app.use('/api/quarantine', quarantineRoutes);
 
 // TOC Scheduler — 6 AM and 2 PM daily
 cron.schedule('0 6 * * *', () => { console.log('[CRON] 6 AM TOC run'); runTOCForAllTenants().catch(console.error); });

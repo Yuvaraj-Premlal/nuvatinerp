@@ -75,6 +75,7 @@ model ItemMaster {
   material_issues MaterialIssue[]
   so_lines        SalesOrderLine[]
   dispatch_lines  DispatchLine[]
+  quarantine_stock QuarantineStock[]
 
   @@unique([tenant_id, item_code])
   @@map("item_master")
@@ -1368,6 +1369,27 @@ model LoanAccount {
   updated_at        DateTime @updatedAt
 
   @@map("loan_account")
+}
+
+model QuarantineStock {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  item_id           String
+  grn_id            String
+  grn_number        String
+  quantity          Float
+  rejection_reason  String?
+  disposition       String   @default("pending")
+  disposed_at       DateTime?
+  disposed_by       String?
+  disposition_notes String?
+  supplier_id       String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  item              ItemMaster @relation(fields: [item_id], references: [id])
+
+  @@map("quarantine_stock")
 }
 
 model POAmendmentLog {
