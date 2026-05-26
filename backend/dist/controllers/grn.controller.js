@@ -58,13 +58,14 @@ const createGRN = async (req, res) => {
                     const po = po_id ? await prisma_1.default.purchaseOrder.findFirst({ where: { id: po_id, tenant_id }, include: { supplier: true } }) : null;
                     const supplierIdForSCAR = po?.supplier_id || supplier_id;
                     // Check if open SCAR already exists for this supplier + PO
+                    const poNumber = po?.po_number || '';
                     const existingSCAR = await prisma_1.default.complaintHeader.findFirst({
                         where: {
                             tenant_id,
                             complaint_type: 'supplier',
                             supplier_id: supplierIdForSCAR,
                             status: { not: 'closed' },
-                            ...(po_id ? { description: { contains: po_id } } : {})
+                            title: { contains: poNumber }
                         },
                         orderBy: { created_at: 'desc' }
                     });

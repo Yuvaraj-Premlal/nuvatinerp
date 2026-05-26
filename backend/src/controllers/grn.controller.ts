@@ -60,13 +60,14 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
           const supplierIdForSCAR = po?.supplier_id || supplier_id;
 
           // Check if open SCAR already exists for this supplier + PO
+          const poNumber = po?.po_number || '';
           const existingSCAR = await prisma.complaintHeader.findFirst({
             where: {
               tenant_id,
               complaint_type: 'supplier',
               supplier_id: supplierIdForSCAR,
-              status: { not: 'closed' },
-              ...(po_id ? { description: { contains: po_id } } : {})
+              status: { not: 'closed' as string },
+              title: { contains: poNumber }
             },
             orderBy: { created_at: 'desc' }
           });
