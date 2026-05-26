@@ -417,6 +417,17 @@ const PODetailModal: React.FC<{ poId: string; onClose: () => void }> = ({ poId, 
               <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Expected Delivery</p><p className="font-medium">{po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString('en-IN') : '—'}</p></div>
               <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Payment Terms</p><p className="font-medium">{po.payment_terms || '—'}</p></div>
             </div>
+            {po.short_closed && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm">
+                <p className="font-medium text-orange-700">⚠ Short Closed</p>
+                <div className="grid grid-cols-3 gap-3 mt-2 text-xs">
+                  <div><p className="text-text-secondary">Balance Written Off</p><p className="font-bold text-orange-600">{po.short_closed_qty} units</p></div>
+                  <div><p className="text-text-secondary">Closed By</p><p className="font-medium">{po.closed_by || '—'}</p></div>
+                  <div><p className="text-text-secondary">Closed On</p><p className="font-medium">{po.closed_at ? new Date(po.closed_at).toLocaleDateString('en-IN') : '—'}</p></div>
+                </div>
+                <p className="text-xs text-orange-600 mt-2"><strong>Reason:</strong> {po.short_close_reason}</p>
+              </div>
+            )}
             <table className="w-full text-sm">
               <thead><tr className="bg-brand-light">
                 <th className="text-left px-4 py-2 text-brand-primary">#</th>
@@ -1091,6 +1102,7 @@ const Purchase: React.FC = () => {
                     <td className="px-4 py-3 font-medium text-brand-primary cursor-pointer hover:underline" onClick={() => setViewPOId(po.id)}>
                       {po.po_number}
                       {po.revision_number > 0 && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded ml-1">Rev {po.revision_number}</span>}
+                      {po.short_closed && <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded ml-1">Short Closed — {po.short_closed_qty} written off</span>}
                     </td>
                     <td className="px-4 py-3 text-text-primary">{po.supplier?.supplier_name}</td>
                     <td className="px-4 py-3 text-text-secondary text-xs">{new Date(po.po_date).toLocaleDateString('en-IN')}</td>
