@@ -192,25 +192,48 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
     vehicle_number: '',
     received_by: 'Storekeeper',
     lines: po.po_lines?.map((l: any) => ({
-      po_line_id: l.id, item_id: l.item_id, item_name: l.item?.item_name || '',
-      quantity_ordered: l.quantity_ordered, quantity_received: '', quantity_rejected: '0', unit_price: l.unit_price
+      po_line_id: l.id,
+      item_id: l.item_id,
+      item_name: l.item?.item_name || '',
+      unit_of_measure: l.item?.unit_of_measure || '',
+      quantity_ordered: l.quantity_ordered,
+      already_received: l.quantity_received || 0,
+      pending_qty: l.quantity_ordered - (l.quantity_received || 0),
+      quantity_received: String(Math.max(0, l.quantity_ordered - (l.quantity_received || 0))),
+      quantity_rejected: '0',
+      rejection_reason: '',
+      unit_price: l.unit_price
     })) || []
   });
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/api/grn', data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['grns'] }); queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] }); queryClient.invalidateQueries({ queryKey: ['stock'] }); onClose(); }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['grns'] });
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['stock'] });
+      onClose();
+    }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     mutation.mutate({
-      ...form, po_id: po.id, received_date: new Date(form.received_date).toISOString(),
+      ...form,
+      po_id: po.id,
+      received_date: new Date(form.received_date).toISOString(),
       lines: form.lines.map((l: any) => {
         const received = parseFloat(l.quantity_received);
         const rejected = parseFloat(l.quantity_rejected || 0);
-        const accepted = received - rejected;
-        return { item_id: l.item_id, unit_price: parseFloat(l.unit_price), batch_number: l.batch_number, lot_number: l.lot_number, rejection_reason: l.rejection_reason, quantity_received: received, quantity_rejected: rejected, accepted_qty: accepted };
+        const accepted = Math.max(0, received - rejected);
+        return {
+          item_id: l.item_id,
+          unit_price: parseFloat(l.unit_price),
+          rejection_reason: l.rejection_reason,
+          quantity_received: received,
+          quantity_rejected: rejected,
+          accepted_qty: accepted
+        };
       })
     });
   };
@@ -232,8 +255,7 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">GRN Number</label>
-              <input value="Auto-generated on save" disabled
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-surface text-text-secondary" />
+              <input value="Auto-generated on save" disabled className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-surface text-text-secondary" />
             </div>
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">Received Date</label>
@@ -256,29 +278,53 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
           {form.lines.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-text-primary mb-2">Items Received</label>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {form.lines.map((line: any, i: number) => (
-                  <div key={i} className="bg-surface p-3 rounded-lg">
-                    <p className="text-sm font-medium text-text-primary mb-2">{line.item_name}</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div><label className="text-xs text-text-secondary">Ordered</label><p className="text-sm font-bold text-text-primary">{line.quantity_ordered}</p></div>
-                      <div>
-                        <label className="text-xs text-text-secondary">Received</label>
-                        <input type="number" value={line.quantity_received} onChange={e => updateLine(i, 'quantity_received', e.target.value)}
-                          className="w-full px-2 py-1 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary" required />
+                  <div key={i} className="bg-surface p-3 rounded-lg border border-border">
+                    <p className="text-sm font-medium text-text-primary mb-3">{line.item_name}</p>
+                    <div className="grid grid-cols-4 gap-2 mb-3">
+                      <div className="bg-white rounded p-2">
+                        <p className="text-xs text-text-secondary">PO Ordered</p>
+                        <p className="text-sm font-bold text-text-primary">{line.quantity_ordered} {line.unit_of_measure}</p>
                       </div>
-                      <div>
-                        <label className="text-xs text-text-secondary">Rejected</label>
-                        <input type="number" value={line.quantity_rejected} onChange={e => updateLine(i, 'quantity_rejected', e.target.value)}
-                          className="w-full px-2 py-1 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary" />
+                      <div className="bg-amber-50 rounded p-2">
+                        <p className="text-xs text-text-secondary">Already Received</p>
+                        <p className="text-sm font-bold text-amber-600">{line.already_received} {line.unit_of_measure}</p>
                       </div>
-                      <div>
-                        <label className="text-xs text-text-secondary">Accepted (auto)</label>
-                        <p className={`text-sm font-bold ${parseFloat(line.quantity_received||'0') - parseFloat(line.quantity_rejected||'0') < parseFloat(line.quantity_received||'0') ? 'text-amber-600' : 'text-green-600'}`}>
-                          {parseFloat(line.quantity_received||'0') - parseFloat(line.quantity_rejected||'0')} {line.item?.unit_of_measure || ''}
+                      <div className="bg-blue-50 rounded p-2">
+                        <p className="text-xs text-text-secondary">Pending</p>
+                        <p className="text-sm font-bold text-blue-600">{line.pending_qty} {line.unit_of_measure}</p>
+                      </div>
+                      <div className="bg-green-50 rounded p-2">
+                        <p className="text-xs text-text-secondary">Accepted (auto)</p>
+                        <p className={`text-sm font-bold ${parseFloat(line.quantity_rejected||'0') > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                          {Math.max(0, parseFloat(line.quantity_received||'0') - parseFloat(line.quantity_rejected||'0'))} {line.unit_of_measure}
                         </p>
                       </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-text-secondary font-medium">Receiving Now <span className="text-red-500">*</span></label>
+                        <input type="number" value={line.quantity_received} onChange={e => updateLine(i, 'quantity_received', e.target.value)}
+                          className={`w-full px-2 py-1.5 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary mt-0.5 ${parseFloat(line.quantity_received||'0') > line.pending_qty ? 'border-amber-400 bg-amber-50' : 'border-border'}`} required />
+                        {parseFloat(line.quantity_received||'0') > line.pending_qty && (
+                          <p className="text-xs text-amber-600 mt-0.5">⚠ Exceeds pending qty ({line.pending_qty})</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="text-xs text-text-secondary font-medium">Rejected</label>
+                        <input type="number" value={line.quantity_rejected} onChange={e => updateLine(i, 'quantity_rejected', e.target.value)}
+                          className="w-full px-2 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary mt-0.5" />
+                      </div>
+                    </div>
+                    {parseFloat(line.quantity_rejected||'0') > 0 && (
+                      <div className="mt-2">
+                        <label className="text-xs text-text-secondary font-medium">Rejection Reason <span className="text-red-500">*</span></label>
+                        <input type="text" value={line.rejection_reason || ''} onChange={e => updateLine(i, 'rejection_reason', e.target.value)}
+                          className="w-full px-2 py-1.5 border border-red-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-red-400 mt-0.5"
+                          placeholder="e.g. Surface contamination, dimensional deviation..." />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -296,6 +342,7 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
     </div>
   );
 };
+
 
 const CreateBillButton: React.FC<{ grnId: string }> = ({ grnId }) => {
   const queryClient = useQueryClient();

@@ -56,41 +56,78 @@ const createGRN = async (req, res) => {
                 const rejectionPercent = (rejectedQty / receivedQty) * 100;
                 if (rejectionPercent > 1) {
                     const po = po_id ? await prisma_1.default.purchaseOrder.findFirst({ where: { id: po_id, tenant_id }, include: { supplier: true } }) : null;
-                    const count = await prisma_1.default.complaintHeader.count({ where: { tenant_id } });
-                    const complaint_number = `CMP-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
-                    const complaint = await prisma_1.default.complaintHeader.create({
-                        data: {
+                    const supplierIdForSCAR = po?.supplier_id || supplier_id;
+                    // Check if open SCAR already exists for this supplier + PO
+                    const existingSCAR = await prisma_1.default.complaintHeader.findFirst({
+                        where: {
                             tenant_id,
-                            complaint_number,
                             complaint_type: 'supplier',
-                            severity: rejectionPercent > 5 ? 'critical' : 'major',
-                            title: `Supplier rejection — GRN ${grn_number}`,
-                            description: `Rejection of ${rejectedQty} units (${rejectionPercent.toFixed(1)}%) received in GRN ${grn_number}. Reason: ${line.rejection_reason || 'Not specified'}`,
-                            supplier_id: po?.supplier_id || supplier_id,
-                            grn_id: grn.id,
-                            quantity_affected: rejectedQty,
-                            due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-                            status: 'open'
-                        }
+                            supplier_id: supplierIdForSCAR,
+                            status: { not: 'closed' },
+                            ...(po_id ? { description: { contains: po_id } } : {})
+                        },
+                        orderBy: { created_at: 'desc' }
                     });
-                    await prisma_1.default.complaintAction.createMany({
-                        data: [
-                            { tenant_id, complaint_id: complaint.id, action_type: 'containment', step_number: 1, description: 'Segregate and quarantine rejected material', status: 'pending' },
-                            { tenant_id, complaint_id: complaint.id, action_type: 'rca', step_number: 2, description: 'Root cause analysis — identify why material was rejected', status: 'pending' },
-                            { tenant_id, complaint_id: complaint.id, action_type: 'capa', step_number: 3, description: 'Corrective action — supplier to submit SCAR response', status: 'pending' },
-                            { tenant_id, complaint_id: complaint.id, action_type: 'verify', step_number: 4, description: 'Verify effectiveness of corrective action on next delivery', status: 'pending' }
-                        ]
-                    });
-                    await prisma_1.default.systemAlert.create({
-                        data: {
-                            tenant_id,
-                            alert_type: 'supplier_rejection',
-                            severity: rejectionPercent > 5 ? 'critical' : 'warning',
-                            message: `SCAR auto-raised — ${po?.supplier?.supplier_name || 'Supplier'} rejection ${rejectionPercent.toFixed(1)}% in GRN ${grn_number}. Complaint: ${complaint_number}`,
-                            reference_type: 'complaint',
-                            reference_id: complaint.id
-                        }
-                    });
+                    if (existingSCAR) {
+                        // Update existing SCAR with new rejection details
+                        await prisma_1.default.complaintHeader.updateMany({
+                            where: { id: existingSCAR.id },
+                            data: {
+                                quantity_affected: (existingSCAR.quantity_affected || 0) + rejectedQty,
+                                description: existingSCAR.description + `
+Additional rejection in GRN ${grn_number}: ${rejectedQty} units (${rejectionPercent.toFixed(1)}%)`,
+                                severity: rejectionPercent > 5 ? 'critical' : existingSCAR.severity
+                            }
+                        });
+                        await prisma_1.default.systemAlert.create({
+                            data: {
+                                tenant_id,
+                                alert_type: 'supplier_rejection',
+                                severity: 'warning',
+                                message: `Additional rejection — GRN ${grn_number}: ${rejectedQty} units (${rejectionPercent.toFixed(1)}%). Added to existing SCAR ${existingSCAR.complaint_number}`,
+                                reference_type: 'complaint',
+                                reference_id: existingSCAR.id
+                            }
+                        });
+                    }
+                    else {
+                        // Create new SCAR
+                        const count = await prisma_1.default.complaintHeader.count({ where: { tenant_id } });
+                        const complaint_number = `CMP-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+                        const complaint = await prisma_1.default.complaintHeader.create({
+                            data: {
+                                tenant_id,
+                                complaint_number,
+                                complaint_type: 'supplier',
+                                severity: rejectionPercent > 5 ? 'critical' : 'major',
+                                title: `Supplier rejection — GRN ${grn_number}`,
+                                description: `Rejection of ${rejectedQty} units (${rejectionPercent.toFixed(1)}%) in GRN ${grn_number} against PO ${po_id}. Reason: ${line.rejection_reason || 'Not specified'}`,
+                                supplier_id: supplierIdForSCAR,
+                                grn_id: grn.id,
+                                quantity_affected: rejectedQty,
+                                due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+                                status: 'open'
+                            }
+                        });
+                        await prisma_1.default.complaintAction.createMany({
+                            data: [
+                                { tenant_id, complaint_id: complaint.id, action_type: 'containment', step_number: 1, description: 'Segregate and quarantine rejected material', status: 'pending' },
+                                { tenant_id, complaint_id: complaint.id, action_type: 'rca', step_number: 2, description: 'Root cause analysis — identify why material was rejected', status: 'pending' },
+                                { tenant_id, complaint_id: complaint.id, action_type: 'capa', step_number: 3, description: 'Corrective action — supplier to submit SCAR response', status: 'pending' },
+                                { tenant_id, complaint_id: complaint.id, action_type: 'verify', step_number: 4, description: 'Verify effectiveness of corrective action on next delivery', status: 'pending' }
+                            ]
+                        });
+                        await prisma_1.default.systemAlert.create({
+                            data: {
+                                tenant_id,
+                                alert_type: 'supplier_rejection',
+                                severity: rejectionPercent > 5 ? 'critical' : 'warning',
+                                message: `SCAR auto-raised — ${po?.supplier?.supplier_name || 'Supplier'} rejection ${rejectionPercent.toFixed(1)}% in GRN ${grn_number}. Complaint: ${complaint_number}`,
+                                reference_type: 'complaint',
+                                reference_id: complaint.id
+                            }
+                        });
+                    }
                 }
             }
         }
