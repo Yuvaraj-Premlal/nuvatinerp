@@ -206,7 +206,12 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
     e.preventDefault();
     mutation.mutate({
       ...form, po_id: po.id, received_date: new Date(form.received_date).toISOString(),
-      lines: form.lines.map((l: any) => ({ ...l, quantity_received: parseFloat(l.quantity_received), quantity_rejected: parseFloat(l.quantity_rejected), unit_price: parseFloat(l.unit_price) }))
+      lines: form.lines.map((l: any) => {
+        const received = parseFloat(l.quantity_received);
+        const rejected = parseFloat(l.quantity_rejected || 0);
+        const accepted = received - rejected;
+        return { ...l, quantity_received: received, quantity_rejected: rejected, accepted_qty: accepted, unit_price: parseFloat(l.unit_price) };
+      })
     });
   };
 
@@ -266,6 +271,12 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
                         <label className="text-xs text-text-secondary">Rejected</label>
                         <input type="number" value={line.quantity_rejected} onChange={e => updateLine(i, 'quantity_rejected', e.target.value)}
                           className="w-full px-2 py-1 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-text-secondary">Accepted (auto)</label>
+                        <p className={`text-sm font-bold ${parseFloat(line.quantity_received||'0') - parseFloat(line.quantity_rejected||'0') < parseFloat(line.quantity_received||'0') ? 'text-amber-600' : 'text-green-600'}`}>
+                          {parseFloat(line.quantity_received||'0') - parseFloat(line.quantity_rejected||'0')} {line.item?.unit_of_measure || ''}
+                        </p>
                       </div>
                     </div>
                   </div>
