@@ -200,24 +200,28 @@ export const issueMaterial = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const { job_id, item_id, planned_qty, issued_qty, issued_by } = req.body;
-
+    const count = await prisma.materialIssue.count({ where: { tenant_id } });
+    const slip_number = `MIS-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
     const issue = await prisma.materialIssue.create({
       data: { tenant_id, job_id, item_id, planned_qty, issued_qty, issued_by }
     });
-
     await prisma.stockLedger.create({
       data: {
-        tenant_id,
-        item_id,
+        tenant_id, item_id,
         transaction_type: 'issue',
         quantity: -issued_qty,
         reference_type: 'job_card',
-        reference_id: job_id
+        reference_id: job_id,
+        transacted_by: issued_by
       }
     });
-
-    res.status(201).json({ success: true, data: issue });
+    const item = await prisma.itemMaster.findUnique({ where: { id: item_id } });
+    const jobCard = job_id ? await prisma.jobCard.findUnique({ where: { id: job_id } }) : null;
+    const company = await prisma.companyConfig.findUnique({ where: { tenant_id } });
+    res.status(201).json({ success: true, data: { ...issue, slip_number, item, job_card: jobCard, company } });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+

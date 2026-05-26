@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
+import { printIssueSlip } from '../../utils/issue.slip.pdf';
 
 const ZoneBadge: React.FC<{ zone: string }> = ({ zone }) => {
   const colors: any = {
@@ -48,9 +49,15 @@ const IssueMaterialModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const selectedItemStock = stock?.find((s: any) => s.item_id === form.item_id);
 
+  const [lastIssue, setLastIssue] = useState<any>(null);
+
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/api/stock/issue', data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['stock'] }); queryClient.invalidateQueries({ queryKey: ['stockMovements'] }); onClose(); }
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['stock'] });
+      queryClient.invalidateQueries({ queryKey: ['stockMovements'] });
+      setLastIssue(res.data.data);
+    }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -109,12 +116,27 @@ const IssueMaterialModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
           </div>
           {mutation.isError && <p className="text-red-500 text-sm">Failed to issue material</p>}
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
-              {mutation.isPending ? 'Issuing...' : 'Issue Material'}
-            </button>
-          </div>
+          {lastIssue ? (
+            <div className="space-y-3">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+                <p className="font-medium text-green-700">✓ Material issued successfully</p>
+                <p className="text-green-600 text-xs mt-1">Slip: {lastIssue.slip_number} | Qty: {lastIssue.issued_qty} {lastIssue.item?.unit_of_measure}</p>
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Close</button>
+                <button type="button" onClick={() => printIssueSlip(lastIssue)} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark">
+                  🖨 Print Issue Slip
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+              <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+                {mutation.isPending ? 'Issuing...' : 'Issue Material'}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>
