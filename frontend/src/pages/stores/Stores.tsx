@@ -15,6 +15,23 @@ const ZoneBadge: React.FC<{ zone: string }> = ({ zone }) => {
   );
 };
 
+const TransactionBadge: React.FC<{ type: string }> = ({ type }) => {
+  const colors: any = {
+    receipt: 'bg-green-50 text-green-600',
+    issue: 'bg-red-50 text-red-600',
+    dispatch: 'bg-blue-50 text-blue-600',
+    grn_reversal: 'bg-amber-50 text-amber-600',
+    adjustment: 'bg-purple-50 text-purple-600',
+    sent_to_vendor: 'bg-orange-50 text-orange-600',
+    received_from_vendor: 'bg-teal-50 text-teal-600'
+  };
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors[type] || 'bg-gray-50 text-gray-500'}`}>
+      {type?.replace(/_/g, ' ')}
+    </span>
+  );
+};
+
 const IssueMaterialModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
@@ -25,31 +42,20 @@ const IssueMaterialModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     issued_by: 'Storekeeper'
   });
 
-  const { data: jobs } = useQuery({
-    queryKey: ['jobcards'],
-    queryFn: () => api.get('/api/jobcards').then(r => r.data.data)
-  });
+  const { data: jobs } = useQuery({ queryKey: ['jobcards'], queryFn: () => api.get('/api/jobcards').then(r => r.data.data) });
+  const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
+  const { data: stock } = useQuery({ queryKey: ['stock'], queryFn: () => api.get('/api/stock').then(r => r.data.data) });
 
-  const { data: items } = useQuery({
-    queryKey: ['items'],
-    queryFn: () => api.get('/api/items').then(r => r.data.data)
-  });
+  const selectedItemStock = stock?.find((s: any) => s.item_id === form.item_id);
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/api/stock/issue', data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['stock'] });
-      onClose();
-    }
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['stock'] }); queryClient.invalidateQueries({ queryKey: ['stockMovements'] }); onClose(); }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutation.mutate({
-      ...form,
-      planned_qty: parseFloat(form.planned_qty),
-      issued_qty: parseFloat(form.issued_qty)
-    });
+    mutation.mutate({ ...form, planned_qty: parseFloat(form.planned_qty), issued_qty: parseFloat(form.issued_qty) });
   };
 
   return (
@@ -62,68 +68,49 @@ const IssueMaterialModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1">Job Card</label>
-            <select
-              value={form.job_id}
-              onChange={e => setForm({ ...form, job_id: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-              required
-            >
+            <select value={form.job_id} onChange={e => setForm({ ...form, job_id: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required>
               <option value="">Select job...</option>
-              {jobs?.map((j: any) => (
-                <option key={j.id} value={j.id}>{j.job_number}</option>
-              ))}
+              {jobs?.map((j: any) => <option key={j.id} value={j.id}>{j.job_number}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1">Material</label>
-            <select
-              value={form.item_id}
-              onChange={e => setForm({ ...form, item_id: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-              required
-            >
+            <select value={form.item_id} onChange={e => setForm({ ...form, item_id: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required>
               <option value="">Select item...</option>
               {items?.filter((i: any) => i.item_type === 'raw_material' || i.item_type === 'consumable')
-                .map((i: any) => (
-                  <option key={i.id} value={i.id}>{i.item_name} ({i.item_code})</option>
-                ))}
+                .map((i: any) => <option key={i.id} value={i.id}>{i.item_name} ({i.item_code})</option>)}
             </select>
+            {selectedItemStock && (
+              <p className={`text-xs mt-1 ${selectedItemStock.zone === 'red' ? 'text-red-500' : selectedItemStock.zone === 'yellow' ? 'text-amber-500' : 'text-green-600'}`}>
+                Available: {selectedItemStock.quantity_on_hand?.toLocaleString('en-IN')} {selectedItemStock.unit_of_measure}
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">Planned Qty</label>
-              <input
-                type="number"
-                value={form.planned_qty}
-                onChange={e => setForm({ ...form, planned_qty: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-                required
-              />
+              <input type="number" value={form.planned_qty} onChange={e => setForm({ ...form, planned_qty: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">Issued Qty</label>
-              <input
-                type="number"
-                value={form.issued_qty}
-                onChange={e => setForm({ ...form, issued_qty: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-                required
-              />
+              <input type="number" value={form.issued_qty} onChange={e => setForm({ ...form, issued_qty: e.target.value })}
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary ${selectedItemStock && parseFloat(form.issued_qty) > selectedItemStock.quantity_on_hand ? 'border-red-400 bg-red-50' : 'border-border'}`} required />
+              {selectedItemStock && parseFloat(form.issued_qty) > selectedItemStock.quantity_on_hand && (
+                <p className="text-xs text-red-500 mt-0.5">⚠ Exceeds available stock</p>
+              )}
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1">Issued By</label>
-            <input
-              value={form.issued_by}
-              onChange={e => setForm({ ...form, issued_by: e.target.value })}
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-            />
+            <input value={form.issued_by} onChange={e => setForm({ ...form, issued_by: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
           </div>
           {mutation.isError && <p className="text-red-500 text-sm">Failed to issue material</p>}
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">
-              Cancel
-            </button>
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
             <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Issuing...' : 'Issue Material'}
             </button>
@@ -137,6 +124,10 @@ const IssueMaterialModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 const Stores: React.FC = () => {
   const [activeTab, setActiveTab] = useState('stock');
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [filterItem, setFilterItem] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterFrom, setFilterFrom] = useState('');
+  const [filterTo, setFilterTo] = useState('');
 
   const { data: stock, isLoading } = useQuery({
     queryKey: ['stock'],
@@ -144,14 +135,19 @@ const Stores: React.FC = () => {
     refetchInterval: 60000
   });
 
+  const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
+
+  const movementsQuery = `${filterItem ? `item_id=${filterItem}&` : ''}${filterType ? `transaction_type=${filterType}&` : ''}${filterFrom ? `from_date=${filterFrom}&` : ''}${filterTo ? `to_date=${filterTo}` : ''}`;
+
   const { data: movements } = useQuery({
-    queryKey: ['stockMovements'],
-    queryFn: () => api.get('/api/stock/movements').then(r => r.data.data),
+    queryKey: ['stockMovements', filterItem, filterType, filterFrom, filterTo],
+    queryFn: () => api.get(`/api/stock/movements?${movementsQuery}`).then(r => r.data.data),
     enabled: activeTab === 'movements'
   });
 
   const redItems = stock?.filter((s: any) => s.zone === 'red') || [];
   const yellowItems = stock?.filter((s: any) => s.zone === 'yellow') || [];
+  const totalValue = stock?.reduce((s: number, item: any) => s + (item.quantity_on_hand * (item.unit_cost || 0)), 0) || 0;
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-64">
@@ -168,10 +164,8 @@ const Stores: React.FC = () => {
           <h1 className="text-xl font-bold text-text-primary">Stores</h1>
           <p className="text-text-secondary text-sm mt-1">Stock balance and material movements</p>
         </div>
-        <button
-          onClick={() => setShowIssueModal(true)}
-          className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition-colors"
-        >
+        <button onClick={() => setShowIssueModal(true)}
+          className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition-colors">
           + Issue Material
         </button>
       </div>
@@ -184,9 +178,7 @@ const Stores: React.FC = () => {
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-green-400">
           <p className="text-text-secondary text-xs uppercase tracking-wider">Healthy</p>
-          <p className="text-3xl font-bold text-green-500 mt-1">
-            {stock?.filter((s: any) => s.zone === 'green').length || 0}
-          </p>
+          <p className="text-3xl font-bold text-green-500 mt-1">{stock?.filter((s: any) => s.zone === 'green').length || 0}</p>
           <p className="text-text-secondary text-xs mt-1">Green zone</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-amber-400">
@@ -203,12 +195,12 @@ const Stores: React.FC = () => {
 
       {redItems.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <h3 className="font-semibold text-red-700 mb-2 text-sm">⚠ Critical Stock — Action Required</h3>
+          <h3 className="font-semibold text-red-700 mb-2 text-sm">⚠ Critical Stock — Immediate Action Required</h3>
           <div className="space-y-1">
             {redItems.map((item: any) => (
               <div key={item.item_id} className="flex justify-between text-sm">
-                <span className="text-red-600">{item.item_name}</span>
-                <span className="font-bold text-red-700">{item.quantity_on_hand} {item.unit_of_measure}</span>
+                <span className="text-red-600">{item.item_name} <span className="text-red-400 text-xs">({item.item_code})</span></span>
+                <span className="font-bold text-red-700">{item.quantity_on_hand?.toLocaleString('en-IN')} {item.unit_of_measure} — below safety stock of {item.safety_stock?.toLocaleString('en-IN')}</span>
               </div>
             ))}
           </div>
@@ -216,16 +208,9 @@ const Stores: React.FC = () => {
       )}
 
       <div className="flex gap-2">
-        {['stock', 'movements'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === tab
-                ? 'bg-brand-primary text-white'
-                : 'bg-white text-text-secondary hover:bg-surface border border-border'
-            }`}
-          >
+        {['stock', 'movements'].map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === tab ? 'bg-brand-primary text-white' : 'bg-white text-text-secondary hover:bg-surface border border-border'}`}>
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
@@ -237,6 +222,7 @@ const Stores: React.FC = () => {
             <thead>
               <tr className="bg-brand-light">
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Item</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Type</th>
                 <th className="text-left px-4 py-3 text-brand-primary font-medium">Location</th>
                 <th className="text-right px-4 py-3 text-brand-primary font-medium">On Hand</th>
                 <th className="text-right px-4 py-3 text-brand-primary font-medium">Safety Stock</th>
@@ -246,75 +232,110 @@ const Stores: React.FC = () => {
             </thead>
             <tbody>
               {stock?.map((item: any, i: number) => (
-                <tr key={item.item_id} className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
+                <tr key={item.item_id} className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'} ${item.zone === 'red' ? 'bg-red-50' : ''}`}>
                   <td className="px-4 py-3">
                     <p className="font-medium text-text-primary">{item.item_name}</p>
                     <p className="text-text-secondary text-xs">{item.item_code}</p>
                   </td>
+                  <td className="px-4 py-3 text-text-secondary text-xs capitalize">{item.item_type?.replace('_', ' ')}</td>
                   <td className="px-4 py-3 text-text-secondary text-xs">{item.storage_location || '—'}</td>
                   <td className="px-4 py-3 text-right">
-                    <span className={`font-bold ${
-                      item.zone === 'red' ? 'text-red-500' :
-                      item.zone === 'yellow' ? 'text-amber-500' : 'text-green-600'
-                    }`}>
-                      {item.quantity_on_hand?.toLocaleString()} {item.unit_of_measure}
+                    <span className={`font-bold ${item.zone === 'red' ? 'text-red-500' : item.zone === 'yellow' ? 'text-amber-500' : 'text-green-600'}`}>
+                      {item.quantity_on_hand?.toLocaleString('en-IN')} {item.unit_of_measure}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-text-secondary text-xs">
-                    {item.safety_stock?.toLocaleString() || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-right text-text-secondary text-xs">
-                    {item.reorder_point?.toLocaleString() || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <ZoneBadge zone={item.zone} />
-                  </td>
+                  <td className="px-4 py-3 text-right text-text-secondary text-xs">{item.safety_stock?.toLocaleString('en-IN') || '—'}</td>
+                  <td className="px-4 py-3 text-right text-text-secondary text-xs">{item.reorder_point?.toLocaleString('en-IN') || '—'}</td>
+                  <td className="px-4 py-3 text-center"><ZoneBadge zone={item.zone} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {stock?.length === 0 && <div className="text-center py-12 text-text-secondary">No stock data found</div>}
         </div>
       )}
 
       {activeTab === 'movements' && (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-brand-light">
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Date</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Item</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Type</th>
-                <th className="text-right px-4 py-3 text-brand-primary font-medium">Quantity</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Reference</th>
-              </tr>
-            </thead>
-            <tbody>
-              {movements?.map((m: any, i: number) => (
-                <tr key={m.id} className={`border-t border-border ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
-                  <td className="px-4 py-3 text-text-secondary text-xs">
-                    {new Date(m.created_at).toLocaleDateString('en-IN')}
-                  </td>
-                  <td className="px-4 py-3 text-text-primary text-xs">{m.item_id}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      m.transaction_type === 'receipt' ? 'bg-green-50 text-green-600' :
-                      m.transaction_type === 'issue' ? 'bg-red-50 text-red-600' :
-                      'bg-gray-50 text-gray-500'
-                    }`}>
-                      {m.transaction_type}
-                    </span>
-                  </td>
-                  <td className={`px-4 py-3 text-right font-bold ${m.quantity > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                    {m.quantity > 0 ? '+' : ''}{m.quantity}
-                  </td>
-                  <td className="px-4 py-3 text-text-secondary text-xs">{m.reference_type} — {m.reference_id?.slice(0, 8)}</td>
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Filter by Item</label>
+                <select value={filterItem} onChange={e => setFilterItem(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+                  <option value="">All Items</option>
+                  {items?.map((i: any) => <option key={i.id} value={i.id}>{i.item_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Transaction Type</label>
+                <select value={filterType} onChange={e => setFilterType(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+                  <option value="">All Types</option>
+                  <option value="receipt">Receipt</option>
+                  <option value="issue">Issue</option>
+                  <option value="dispatch">Dispatch</option>
+                  <option value="grn_reversal">GRN Reversal</option>
+                  <option value="adjustment">Adjustment</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">From Date</label>
+                <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">To Date</label>
+                <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+              </div>
+            </div>
+            {(filterItem || filterType || filterFrom || filterTo) && (
+              <button onClick={() => { setFilterItem(''); setFilterType(''); setFilterFrom(''); setFilterTo(''); }}
+                className="mt-2 text-xs text-brand-primary hover:text-brand-dark">Clear filters</button>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-brand-light">
+                  <th className="text-left px-4 py-3 text-brand-primary font-medium">Date & Time</th>
+                  <th className="text-left px-4 py-3 text-brand-primary font-medium">Item</th>
+                  <th className="text-left px-4 py-3 text-brand-primary font-medium">Type</th>
+                  <th className="text-left px-4 py-3 text-brand-primary font-medium">Reference</th>
+                  <th className="text-right px-4 py-3 text-brand-primary font-medium">Quantity</th>
+                  {filterItem && <th className="text-right px-4 py-3 text-brand-primary font-medium">Balance</th>}
+                  <th className="text-left px-4 py-3 text-brand-primary font-medium">Batch</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {movements?.length === 0 && (
-            <div className="text-center py-12 text-text-secondary">No movements found</div>
-          )}
+              </thead>
+              <tbody>
+                {movements?.map((m: any, i: number) => (
+                  <tr key={m.id} className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
+                    <td className="px-4 py-3 text-text-secondary text-xs">
+                      <p>{new Date(m.transacted_at).toLocaleDateString('en-IN')}</p>
+                      <p>{new Date(m.transacted_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-text-primary text-xs">{m.item_name}</p>
+                      <p className="text-text-secondary text-xs">{m.item_code}</p>
+                    </td>
+                    <td className="px-4 py-3"><TransactionBadge type={m.transaction_type} /></td>
+                    <td className="px-4 py-3 text-xs">
+                      <p className="font-medium text-brand-primary">{m.reference_number}</p>
+                      <p className="text-text-secondary">{m.reference_display}</p>
+                    </td>
+                    <td className={`px-4 py-3 text-right font-bold ${m.quantity > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      {m.quantity > 0 ? '+' : ''}{m.quantity?.toLocaleString('en-IN')} {m.unit_of_measure}
+                    </td>
+                    {filterItem && <td className="px-4 py-3 text-right text-text-secondary text-xs font-medium">{m.running_balance?.toLocaleString('en-IN')}</td>}
+                    <td className="px-4 py-3 text-text-secondary text-xs">{m.batch_number || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {movements?.length === 0 && <div className="text-center py-12 text-text-secondary">No movements found</div>}
+          </div>
         </div>
       )}
     </div>

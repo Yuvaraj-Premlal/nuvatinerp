@@ -54,12 +54,80 @@ export const getStockBalanceByItem = async (req: AuthRequest, res: Response) => 
 export const getStockMovements = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
+    const { item_id, from_date, to_date, transaction_type } = req.query;
+
+    const where: any = { tenant_id };
+    if (item_id) where.item_id = String(item_id);
+    if (transaction_type) where.transaction_type = String(transaction_type);
+    if (from_date || to_date) {
+      where.transacted_at = {};
+      if (from_date) where.transacted_at.gte = new Date(String(from_date));
+      if (to_date) where.transacted_at.lte = new Date(String(to_date) + 'T23:59:59.999Z');
+    }
+
     const movements = await prisma.stockLedger.findMany({
-      where: { tenant_id },
+      where,
+      include: { item: { select: { item_name: true, item_code: true, unit_of_measure: true } } },
       orderBy: { transacted_at: 'desc' },
-      take: 100
+      take: 200
     });
-    res.json({ success: true, data: movements });
+
+    // Resolve reference numbers
+    const enriched = await Promise.all(movements.map(async (m: any) => {
+      let reference_number = m.reference_id?.slice(0, 8) || '—';
+      let reference_display = m.reference_type || '—';
+
+      if (m.reference_type === 'grn' && m.reference_id) {
+        const grn = await prisma.grnHeader.findFirst({ where: { id: m.reference_id }, select: { grn_number: true } });
+        if (grn) reference_number = grn.grn_number;
+        reference_display = 'GRN';
+      } else if (m.reference_type === 'job_card' && m.reference_id) {
+        const jc = await prisma.jobCard.findFirst({ where: { id: m.reference_id }, select: { job_number: true } });
+        if (jc) reference_number = jc.job_number;
+        reference_display = 'Job Card';
+      } else if (m.reference_type === 'dispatch' && m.reference_id) {
+        const d = await prisma.dispatchHeader.findFirst({ where: { id: m.reference_id }, select: { dispatch_number: true } });
+        if (d) reference_number = d.dispatch_number;
+        reference_display = 'Dispatch';
+      } else if (m.reference_type === 'grn_reversal') {
+        reference_display = 'GRN Reversal';
+        reference_number = '—';
+      }
+
+      return {
+        id: m.id,
+        item_id: m.item_id,
+        item_name: m.item?.item_name || '—',
+        item_code: m.item?.item_code || '—',
+        unit_of_measure: m.item?.unit_of_measure || '',
+        transaction_type: m.transaction_type,
+        quantity: m.quantity,
+        unit_cost: m.unit_cost,
+        reference_display,
+        reference_number,
+        batch_number: m.batch_number,
+        lot_number: m.lot_number,
+        transacted_at: m.transacted_at,
+        transacted_by: m.transacted_by
+      };
+    }));
+
+    // Calculate running balance per item if filtering by single item
+    if (item_id) {
+      const allMovements = await prisma.stockLedger.findMany({
+        where: { tenant_id, item_id: String(item_id) },
+        orderBy: { transacted_at: 'asc' }
+      });
+      let runningBalance = 0;
+      const balanceMap: any = {};
+      allMovements.forEach((m: any) => {
+        runningBalance += m.quantity;
+        balanceMap[m.id] = Math.round(runningBalance * 1000) / 1000;
+      });
+      enriched.forEach((m: any) => { m.running_balance = balanceMap[m.id]; });
+    }
+
+    res.json({ success: true, data: enriched });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
