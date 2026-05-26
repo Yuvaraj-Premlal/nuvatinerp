@@ -77,8 +77,7 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
               where: { id: existingSCAR.id },
               data: {
                 quantity_affected: (existingSCAR.quantity_affected || 0) + rejectedQty,
-                description: existingSCAR.description + `
-Additional rejection in GRN ${grn_number}: ${rejectedQty} units (${rejectionPercent.toFixed(1)}%)`,
+                description: existingSCAR.description + `\n• ${grn_number} | ${new Date().toLocaleDateString('en-IN')} | Rejected: ${rejectedQty} units (${rejectionPercent.toFixed(1)}%) | Reason: ${line.rejection_reason || 'Not specified'}`,
                 severity: rejectionPercent > 5 ? 'critical' : existingSCAR.severity
               }
             });
@@ -96,14 +95,19 @@ Additional rejection in GRN ${grn_number}: ${rejectedQty} units (${rejectionPerc
             // Create new SCAR
             const count = await prisma.complaintHeader.count({ where: { tenant_id } });
             const complaint_number = `CMP-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+            const poNumber = po?.po_number || po_id;
+            const supplierName = (po as any)?.supplier?.supplier_name || 'Supplier';
+            const description = `Supplier Rejection Report — ${poNumber} | ${supplierName}
+
+• ${grn_number} | ${new Date().toLocaleDateString('en-IN')} | Rejected: ${rejectedQty} units (${rejectionPercent.toFixed(1)}%) | Reason: ${line.rejection_reason || 'Not specified'}`;
             const complaint = await prisma.complaintHeader.create({
               data: {
                 tenant_id,
                 complaint_number,
                 complaint_type: 'supplier',
                 severity: rejectionPercent > 5 ? 'critical' : 'major',
-                title: `Supplier rejection — GRN ${grn_number}`,
-                description: `Rejection of ${rejectedQty} units (${rejectionPercent.toFixed(1)}%) in GRN ${grn_number} against PO ${po_id}. Reason: ${line.rejection_reason || 'Not specified'}`,
+                title: `Supplier rejection — ${poNumber} | ${grn_number}`,
+                description,
                 supplier_id: supplierIdForSCAR,
                 grn_id: grn.id,
                 quantity_affected: rejectedQty,

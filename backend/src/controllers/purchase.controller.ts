@@ -164,6 +164,84 @@ export const amendPO = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const shortClosePO = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const id = String(req.params.id);
+    const { closed_by, short_close_reason, override, closure_notes } = req.body;
+
+    const po = await prisma.purchaseOrder.findFirst({
+      where: { id, tenant_id },
+      include: { po_lines: true, supplier: true }
+    });
+    if (!po) return res.status(404).json({ success: false, error: 'PO not found' });
+    if (po.status !== 'partial_received') return res.status(400).json({ success: false, error: 'Short close only allowed on partially received POs' });
+
+    if (!short_close_reason?.trim()) return res.status(400).json({ success: false, error: 'Short close reason is mandatory' });
+
+    // Calculate short closed qty
+    const totalOrdered = po.po_lines.reduce((s: number, l: any) => s + l.quantity_ordered, 0);
+    const totalReceived = po.po_lines.reduce((s: number, l: any) => s + (l.quantity_received || 0), 0);
+    const shortClosedQty = totalOrdered - totalReceived;
+
+    // Check supplier bill
+    const grns = await prisma.grnHeader.findMany({ where: { po_id: id, tenant_id, is_reversed: false } });
+    const grnIds = grns.map((g: any) => g.id);
+    let billStatus = 'no_bill';
+    let billNumber = '';
+    if (grnIds.length > 0) {
+      const bill = await prisma.supplierBill.findFirst({ where: { grn_id: { in: grnIds }, tenant_id }, orderBy: { created_at: 'desc' } });
+      if (bill) { billStatus = bill.status; billNumber = bill.bill_number; }
+    }
+
+    // Block if no bill and goods were received
+    if (billStatus === 'no_bill' && totalReceived > 0) {
+      return res.status(400).json({ success: false, error: 'Cannot short close — no supplier bill exists for received goods. Create supplier bill first.', bill_status: billStatus });
+    }
+
+    // If bill unpaid and no override
+    if (billStatus !== 'paid' && billStatus !== 'no_bill' && !override) {
+      return res.status(402).json({
+        success: false,
+        error: `Bill ${billNumber} is ${billStatus}. Settle payment or provide override reason.`,
+        bill_status: billStatus,
+        bill_number: billNumber,
+        requires_override: true,
+        short_closed_qty: shortClosedQty
+      });
+    }
+
+    await prisma.purchaseOrder.updateMany({
+      where: { id, tenant_id },
+      data: {
+        status: 'closed',
+        short_closed: true,
+        short_closed_qty: shortClosedQty,
+        short_close_reason,
+        closed_at: new Date(),
+        closed_by: closed_by || 'Purchase Manager',
+        closure_notes: closure_notes || null,
+        bill_status_at_closure: billStatus
+      }
+    });
+
+    await prisma.systemAlert.create({
+      data: {
+        tenant_id,
+        alert_type: 'po_short_closed',
+        severity: 'warning',
+        message: `PO ${po.po_number} short closed — ${shortClosedQty} units balance written off. Reason: ${short_close_reason}`,
+        reference_type: 'purchase_order',
+        reference_id: id
+      }
+    });
+
+    res.json({ success: true, message: `PO short closed. ${shortClosedQty} units written off.`, short_closed_qty: shortClosedQty });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 export const getPORevisions = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;

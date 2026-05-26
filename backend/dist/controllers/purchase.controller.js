@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.closePO = exports.getPORevisions = exports.amendPO = exports.cancelPO = exports.updatePOStatus = exports.getPOById = exports.getPOs = exports.createPO = void 0;
+exports.closePO = exports.getPORevisions = exports.shortClosePO = exports.amendPO = exports.cancelPO = exports.updatePOStatus = exports.getPOById = exports.getPOs = exports.createPO = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const createPO = async (req, res) => {
     try {
@@ -178,6 +178,82 @@ const amendPO = async (req, res) => {
     }
 };
 exports.amendPO = amendPO;
+const shortClosePO = async (req, res) => {
+    try {
+        const tenant_id = req.user?.tenant_id;
+        const id = String(req.params.id);
+        const { closed_by, short_close_reason, override, closure_notes } = req.body;
+        const po = await prisma_1.default.purchaseOrder.findFirst({
+            where: { id, tenant_id },
+            include: { po_lines: true, supplier: true }
+        });
+        if (!po)
+            return res.status(404).json({ success: false, error: 'PO not found' });
+        if (po.status !== 'partial_received')
+            return res.status(400).json({ success: false, error: 'Short close only allowed on partially received POs' });
+        if (!short_close_reason?.trim())
+            return res.status(400).json({ success: false, error: 'Short close reason is mandatory' });
+        // Calculate short closed qty
+        const totalOrdered = po.po_lines.reduce((s, l) => s + l.quantity_ordered, 0);
+        const totalReceived = po.po_lines.reduce((s, l) => s + (l.quantity_received || 0), 0);
+        const shortClosedQty = totalOrdered - totalReceived;
+        // Check supplier bill
+        const grns = await prisma_1.default.grnHeader.findMany({ where: { po_id: id, tenant_id, is_reversed: false } });
+        const grnIds = grns.map((g) => g.id);
+        let billStatus = 'no_bill';
+        let billNumber = '';
+        if (grnIds.length > 0) {
+            const bill = await prisma_1.default.supplierBill.findFirst({ where: { grn_id: { in: grnIds }, tenant_id }, orderBy: { created_at: 'desc' } });
+            if (bill) {
+                billStatus = bill.status;
+                billNumber = bill.bill_number;
+            }
+        }
+        // Block if no bill and goods were received
+        if (billStatus === 'no_bill' && totalReceived > 0) {
+            return res.status(400).json({ success: false, error: 'Cannot short close — no supplier bill exists for received goods. Create supplier bill first.', bill_status: billStatus });
+        }
+        // If bill unpaid and no override
+        if (billStatus !== 'paid' && billStatus !== 'no_bill' && !override) {
+            return res.status(402).json({
+                success: false,
+                error: `Bill ${billNumber} is ${billStatus}. Settle payment or provide override reason.`,
+                bill_status: billStatus,
+                bill_number: billNumber,
+                requires_override: true,
+                short_closed_qty: shortClosedQty
+            });
+        }
+        await prisma_1.default.purchaseOrder.updateMany({
+            where: { id, tenant_id },
+            data: {
+                status: 'closed',
+                short_closed: true,
+                short_closed_qty: shortClosedQty,
+                short_close_reason,
+                closed_at: new Date(),
+                closed_by: closed_by || 'Purchase Manager',
+                closure_notes: closure_notes || null,
+                bill_status_at_closure: billStatus
+            }
+        });
+        await prisma_1.default.systemAlert.create({
+            data: {
+                tenant_id,
+                alert_type: 'po_short_closed',
+                severity: 'warning',
+                message: `PO ${po.po_number} short closed — ${shortClosedQty} units balance written off. Reason: ${short_close_reason}`,
+                reference_type: 'purchase_order',
+                reference_id: id
+            }
+        });
+        res.json({ success: true, message: `PO short closed. ${shortClosedQty} units written off.`, short_closed_qty: shortClosedQty });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+exports.shortClosePO = shortClosePO;
 const getPORevisions = async (req, res) => {
     try {
         const tenant_id = req.user?.tenant_id;

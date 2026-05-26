@@ -671,6 +671,125 @@ const GRNDetailModal: React.FC<{ grnId: string; onClose: () => void }> = ({ grnI
   );
 };
 
+const ShortClosePOModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClose }) => {
+  const queryClient = useQueryClient();
+  const [step, setStep] = useState<'form' | 'override'>('form');
+  const [reason, setReason] = useState('');
+  const [closedBy, setClosedBy] = useState('Purchase Manager');
+  const [billInfo, setBillInfo] = useState<any>(null);
+  const [overrideReason, setOverrideReason] = useState('');
+
+  const totalOrdered = po.po_lines?.reduce((s: number, l: any) => s + l.quantity_ordered, 0) || 0;
+  const totalReceived = po.po_lines?.reduce((s: number, l: any) => s + (l.quantity_received || 0), 0) || 0;
+  const balanceQty = totalOrdered - totalReceived;
+
+  const shortCloseReasons = [
+    'Supplier unable to deliver remaining qty',
+    'Production plan changed — balance not required',
+    'Material quality issues — supplier cannot replace',
+    'Price dispute — renegotiating fresh PO',
+    'Alternate supplier arranged for balance',
+    'Other'
+  ];
+
+  const mutation = useMutation({
+    mutationFn: (data: any) => api.post(`/api/purchase/${po.id}/short-close`, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] }); onClose(); },
+    onError: (err: any) => {
+      const data = err.response?.data;
+      if (data?.requires_override) { setBillInfo(data); setStep('override'); }
+      else alert(data?.error || 'Failed to short close PO');
+    }
+  });
+
+  const overrideOptions = [
+    'Adjusted against debit note',
+    'Quality dispute — amount withheld',
+    'Partial payment accepted by supplier',
+    'Other'
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Short Close PO</h2><p className="text-text-secondary text-sm">{po.po_number}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          {step === 'form' && (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-surface rounded-lg p-3 text-center">
+                  <p className="text-xs text-text-secondary">Ordered</p>
+                  <p className="text-lg font-bold text-text-primary">{totalOrdered}</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-text-secondary">Received</p>
+                  <p className="text-lg font-bold text-green-600">{totalReceived}</p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-text-secondary">Writing Off</p>
+                  <p className="text-lg font-bold text-red-600">{balanceQty}</p>
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+                <p className="font-medium">⚠ {balanceQty} units balance will be written off permanently.</p>
+                <p className="mt-1">This cannot be undone. Ensure you have arranged alternate supply if needed.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">Reason for Short Close <span className="text-red-500">*</span></label>
+                <select value={reason} onChange={e => setReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 mb-2">
+                  <option value="">Select reason...</option>
+                  {shortCloseReasons.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">Closed By</label>
+                <input value={closedBy} onChange={e => setClosedBy(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+                <button onClick={() => mutation.mutate({ short_close_reason: reason, closed_by: closedBy })}
+                  disabled={!reason || mutation.isPending}
+                  className="flex-1 px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50">
+                  {mutation.isPending ? 'Processing...' : 'Short Close PO'}
+                </button>
+              </div>
+            </>
+          )}
+          {step === 'override' && billInfo && (
+            <>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+                <p className="font-medium">Bill Payment Pending</p>
+                <p className="mt-1">{billInfo.bill_number} — status: <strong>{billInfo.bill_status}</strong></p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">Override Reason <span className="text-red-500">*</span></label>
+                <select value={overrideReason} onChange={e => setOverrideReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                  <option value="">Select reason...</option>
+                  {overrideOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+                <button onClick={() => mutation.mutate({ short_close_reason: reason, closed_by: closedBy, override: true, closure_notes: overrideReason })}
+                  disabled={!overrideReason || mutation.isPending}
+                  className="flex-1 px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 disabled:opacity-50">
+                  {mutation.isPending ? 'Processing...' : 'Short Close with Override'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ClosePOModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClose }) => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<'checking' | 'normal' | 'override' | 'no_bill'>('checking');
@@ -839,6 +958,7 @@ const Purchase: React.FC = () => {
   const [reverseGRN, setReverseGRN] = useState<any>(null);
   const [viewGRNId, setViewGRNId] = useState<string | null>(null);
   const [closePOModal, setClosePOModal] = useState<any>(null);
+  const [shortClosePOModal, setShortClosePOModal] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: pos, isLoading } = useQuery({
@@ -894,6 +1014,7 @@ const Purchase: React.FC = () => {
       {reverseGRN && <ReverseGRNModal grn={reverseGRN} onClose={() => setReverseGRN(null)} />}
       {viewGRNId && <GRNDetailModal grnId={viewGRNId} onClose={() => setViewGRNId(null)} />}
       {closePOModal && <ClosePOModal po={closePOModal} onClose={() => setClosePOModal(null)} />}
+      {shortClosePOModal && <ShortClosePOModal po={shortClosePOModal} onClose={() => setShortClosePOModal(null)} />}
 
       <div className="flex items-center justify-between">
         <div>
@@ -1005,8 +1126,11 @@ const Purchase: React.FC = () => {
                         {(po.status === 'approved' || po.status === 'sent' || po.status === 'partial_received') && (
                           <>
                             <button onClick={() => setSelectedPO(po)} className="text-xs bg-brand-light text-brand-primary px-2 py-1 rounded hover:bg-blue-100">+ GRN</button>
-                            {(po.status === 'approved' || po.status === 'sent') && <button onClick={() => setAmendPO(po)} className="text-xs bg-amber-50 text-amber-600 px-2 py-1 rounded hover:bg-amber-100">Amend</button>}
+                            <button onClick={() => setAmendPO(po)} className="text-xs bg-amber-50 text-amber-600 px-2 py-1 rounded hover:bg-amber-100">Amend</button>
                           </>
+                        )}
+                        {po.status === 'partial_received' && (
+                          <button onClick={() => setShortClosePOModal(po)} className="text-xs bg-orange-50 text-orange-600 px-2 py-1 rounded hover:bg-orange-100">Short Close</button>
                         )}
                         {po.status === 'received' && (
                           <button onClick={() => setClosePOModal(po)}

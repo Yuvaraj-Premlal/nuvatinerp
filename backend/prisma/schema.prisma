@@ -333,6 +333,9 @@ model PurchaseOrder {
   closed_by              String?
   closure_notes          String?
   bill_status_at_closure String?
+  short_closed           Boolean   @default(false)
+  short_closed_qty       Float?
+  short_close_reason     String?
 
   @@unique([tenant_id, po_number, revision_number])
   @@map("purchase_order")
