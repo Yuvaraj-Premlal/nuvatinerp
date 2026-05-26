@@ -958,6 +958,56 @@ const ReverseGRNModal: React.FC<{ grn: any; onClose: () => void }> = ({ grn, onC
   );
 };
 
+const DeliveryStatusBadge: React.FC<{ po: any }> = ({ po }) => {
+  if (!po.expected_delivery_date) return null;
+  if (po.status === 'received' || po.status === 'closed' || po.status === 'cancelled') return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expected = new Date(po.expected_delivery_date);
+  expected.setHours(0, 0, 0, 0);
+  const diffDays = Math.floor((expected.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  const totalOrdered = po.po_lines?.reduce((s: number, l: any) => s + l.quantity_ordered, 0) || 0;
+  const totalReceived = po.po_lines?.reduce((s: number, l: any) => s + (l.quantity_received || 0), 0) || 0;
+  const pendingQty = totalOrdered - totalReceived;
+  const isPartial = totalReceived > 0 && totalReceived < totalOrdered;
+
+  if (diffDays < 0) {
+    const daysLate = Math.abs(diffDays);
+    if (isPartial) return (
+      <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full ml-1">
+        🟡 {daysLate}d late — {pendingQty} pending
+      </span>
+    );
+    return (
+      <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full ml-1">
+        🔴 {daysLate}d overdue
+      </span>
+    );
+  }
+  if (diffDays === 0) return (
+    <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full ml-1">
+      🟠 Due today
+    </span>
+  );
+  if (diffDays === 1) return (
+    <span className="text-xs bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full ml-1">
+      🟡 Due tomorrow
+    </span>
+  );
+  if (diffDays <= 3) return (
+    <span className="text-xs bg-amber-50 text-amber-500 px-1.5 py-0.5 rounded-full ml-1">
+      🟡 {diffDays}d remaining
+    </span>
+  );
+  return (
+    <span className="text-xs bg-green-50 text-green-600 px-1.5 py-0.5 rounded-full ml-1">
+      🟢 {diffDays}d remaining
+    </span>
+  );
+};
+
 const Purchase: React.FC = () => {
   const [activeTab, setActiveTab] = useState('active');
   const [poSubTab, setPoSubTab] = useState('active');
@@ -987,10 +1037,17 @@ const Purchase: React.FC = () => {
   // Only show latest revisions
   const latestPos = pos?.filter((p: any) => p.is_latest_revision) || [];
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const summary = {
     total: latestPos.length,
     pending: latestPos.filter((p: any) => p.status === 'draft').length,
     active: latestPos.filter((p: any) => p.status === 'approved' || p.status === 'sent' || p.status === 'partial_received').length,
+    overdue: latestPos.filter((p: any) => {
+      if (!p.expected_delivery_date) return false;
+      if (p.status === 'received' || p.status === 'closed' || p.status === 'cancelled') return false;
+      return new Date(p.expected_delivery_date) < today;
+    }).length,
     received: latestPos.filter((p: any) => p.status === 'received').length,
     cancelled: latestPos.filter((p: any) => p.status === 'cancelled').length,
     closed: latestPos.filter((p: any) => p.status === 'closed').length,
@@ -1060,6 +1117,12 @@ const Purchase: React.FC = () => {
           <p className="text-text-secondary text-xs uppercase tracking-wider">Closed</p>
           <p className="text-2xl font-bold text-gray-500 mt-1">{summary.closed}</p>
         </div>
+        {summary.overdue > 0 && (
+          <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-red-500">
+            <p className="text-text-secondary text-xs uppercase tracking-wider">Overdue</p>
+            <p className="text-2xl font-bold text-red-500 mt-1">{summary.overdue}</p>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-2">
@@ -1106,7 +1169,10 @@ const Purchase: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 text-text-primary">{po.supplier?.supplier_name}</td>
                     <td className="px-4 py-3 text-text-secondary text-xs">{new Date(po.po_date).toLocaleDateString('en-IN')}</td>
-                    <td className="px-4 py-3 text-text-secondary text-xs">{po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString('en-IN') : '—'}</td>
+                    <td className="px-4 py-3 text-text-secondary text-xs">
+                      {po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString('en-IN') : '—'}
+                      <DeliveryStatusBadge po={po} />
+                    </td>
                     <td className="px-4 py-3 text-text-secondary text-xs">{po.payment_terms || '—'}</td>
                     <td className="px-4 py-3 text-center">
                       <StatusBadge status={po.status} />
