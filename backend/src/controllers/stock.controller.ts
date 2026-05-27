@@ -199,11 +199,11 @@ export const adjustStock = async (req: AuthRequest, res: Response) => {
 export const issueMaterial = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
-    const { job_id, item_id, planned_qty, issued_qty, issued_by } = req.body;
+    const { job_id, item_id, planned_qty, issued_qty, issued_by, batch_number, grn_id, fifo_override, override_reason, override_request_id } = req.body;
     const count = await prisma.materialIssue.count({ where: { tenant_id } });
     const slip_number = `MIS-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
     const issue = await prisma.materialIssue.create({
-      data: { tenant_id, job_id, item_id, planned_qty, issued_qty, issued_by }
+      data: { tenant_id, job_id, item_id, planned_qty, issued_qty, issued_by, batch_number, grn_id, fifo_override: fifo_override || false, override_reason, override_request_id }
     });
     await prisma.stockLedger.create({
       data: {
@@ -212,9 +212,17 @@ export const issueMaterial = async (req: AuthRequest, res: Response) => {
         quantity: -issued_qty,
         reference_type: 'job_card',
         reference_id: job_id,
-        transacted_by: issued_by
+        transacted_by: issued_by,
+        batch_number
       }
     });
+    // If override request exists, mark it as used
+    if (override_request_id) {
+      await prisma.fifoOverrideRequest.updateMany({
+        where: { id: override_request_id, tenant_id },
+        data: { status: 'used' }
+      });
+    }
     const item = await prisma.itemMaster.findUnique({ where: { id: item_id } });
     const jobCard = job_id ? await prisma.jobCard.findUnique({ where: { id: job_id } }) : null;
     const company = await prisma.companyConfig.findUnique({ where: { tenant_id } });
@@ -307,6 +315,174 @@ export const getStockReports = async (req: AuthRequest, res: Response) => {
     }
 
     return res.status(400).json({ success: false, error: 'Invalid report type' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const getAvailableBatches = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const { item_id } = req.query;
+    if (!item_id) return res.status(400).json({ success: false, error: 'item_id required' });
+
+    // Get all GRN lines for this item with batch numbers, ordered by received date (FIFO)
+    const grnLines = await prisma.grnLine.findMany({
+      where: { tenant_id, item_id: String(item_id), batch_number: { not: null } },
+      include: {
+        grn: { include: { po: { select: { po_number: true } } } },
+        item: { select: { item_name: true, item_code: true, unit_of_measure: true } }
+      },
+      orderBy: { grn: { received_date: 'asc' } }
+    });
+
+    // For each GRN line, calculate remaining balance
+    const batches = await Promise.all(grnLines.map(async (line: any) => {
+      // Total issued from this batch
+      const issued = await prisma.stockLedger.aggregate({
+        where: { tenant_id, item_id: String(item_id), batch_number: line.batch_number, transaction_type: 'issue' },
+        _sum: { quantity: true }
+      });
+      const issuedQty = Math.abs(issued._sum.quantity || 0);
+      const acceptedQty = line.accepted_qty || line.quantity_received;
+      const remaining = acceptedQty - issuedQty;
+
+      // Get supplier name
+      let supplier_name = '—';
+      if (line.grn?.supplier_id) {
+        const supplier = await prisma.supplierMaster.findUnique({
+          where: { id: line.grn.supplier_id },
+          select: { supplier_name: true }
+        });
+        supplier_name = supplier?.supplier_name || '—';
+      }
+
+      return {
+        grn_id: line.grn_id,
+        grn_number: line.grn?.grn_number,
+        grn_line_id: line.id,
+        batch_number: line.batch_number,
+        lot_number: line.lot_number,
+        received_date: line.grn?.received_date,
+        po_number: line.grn?.po?.po_number || '—',
+        supplier_name,
+        accepted_qty: acceptedQty,
+        issued_qty: issuedQty,
+        remaining_qty: Math.max(0, remaining),
+        unit_of_measure: line.item?.unit_of_measure
+      };
+    }));
+
+    // Filter out exhausted batches and sort oldest first
+    const available = batches
+      .filter((b: any) => b.remaining_qty > 0)
+      .sort((a: any, b: any) => new Date(a.received_date).getTime() - new Date(b.received_date).getTime());
+
+    // Mark first as FIFO recommended
+    if (available.length > 0) (available[0] as any).fifo_recommended = true;
+
+    res.json({ success: true, data: available });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const requestFifoOverride = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const { item_id, requested_grn_id, available_grn_id, reason, requested_by } = req.body;
+
+    const expires_at = new Date(Date.now() + 60 * 60 * 1000); // 60 minutes
+
+    const overrideRequest = await prisma.fifoOverrideRequest.create({
+      data: { tenant_id: String(tenant_id), item_id: String(item_id), requested_grn_id: String(requested_grn_id), available_grn_id: String(available_grn_id), reason: String(reason), requested_by: String(requested_by || ''), expires_at, status: 'pending' }
+    });
+
+    // Get item name for alert
+    const item = await prisma.itemMaster.findUnique({ where: { id: item_id }, select: { item_name: true } });
+    const availableGrn = await prisma.grnHeader.findUnique({ where: { id: available_grn_id }, select: { grn_number: true } });
+    const requestedGrn = await prisma.grnHeader.findUnique({ where: { id: requested_grn_id }, select: { grn_number: true } });
+
+    // Notify owner via system alert
+    await prisma.systemAlert.create({
+      data: {
+        tenant_id,
+        alert_type: 'fifo_override_request',
+        severity: 'warning',
+        message: `FIFO Override Request — ${item?.item_name}: ${requested_by} wants to issue from ${requestedGrn?.grn_number} while ${availableGrn?.grn_number} is available. Reason: ${reason}. Expires in 60 minutes.`,
+        reference_type: 'fifo_override',
+        reference_id: overrideRequest.id
+      }
+    });
+
+    res.status(201).json({ success: true, data: overrideRequest });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const approveFifoOverride = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const { id } = req.params;
+    const { action, approved_by, rejection_note } = req.body; // action: 'approve' | 'reject'
+
+    const overrideRequest = await prisma.fifoOverrideRequest.findFirst({ where: { id: String(id), tenant_id: String(tenant_id) } });
+    if (!overrideRequest) return res.status(404).json({ success: false, error: 'Override request not found' });
+    if (overrideRequest.status !== 'pending') return res.status(400).json({ success: false, error: 'Request already actioned' });
+
+    const now = new Date();
+    if (now > overrideRequest.expires_at) {
+      await prisma.fifoOverrideRequest.updateMany({ where: { id: String(id) }, data: { status: 'expired' } });
+      return res.status(400).json({ success: false, error: 'Override request has expired' });
+    }
+
+    const updated = await prisma.fifoOverrideRequest.update({
+      where: { id: String(id) },
+      data: {
+        status: action === 'approve' ? 'approved' : 'rejected',
+        approved_by,
+        approved_at: now,
+        rejection_note: action === 'reject' ? rejection_note : null
+      }
+    });
+
+    // Resolve the system alert
+    await prisma.systemAlert.updateMany({
+      where: { tenant_id: String(tenant_id), reference_type: 'fifo_override', reference_id: String(id) },
+      data: { is_resolved: true, resolved_at: now, resolved_by: approved_by }
+    });
+
+    res.json({ success: true, data: updated });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const getPendingFifoOverrides = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+
+    // Auto-expire old requests first
+    await prisma.fifoOverrideRequest.updateMany({
+      where: { tenant_id, status: 'pending', expires_at: { lt: new Date() } },
+      data: { status: 'expired' }
+    });
+
+    const overrides = await prisma.fifoOverrideRequest.findMany({
+      where: { tenant_id: String(tenant_id), status: 'pending' },
+      include: { item: { select: { item_name: true, item_code: true } } },
+      orderBy: { created_at: 'desc' }
+    });
+
+    // Enrich with GRN numbers
+    const enriched = await Promise.all((overrides as any[]).map(async (o: any) => {
+      const availableGrn = await prisma.grnHeader.findUnique({ where: { id: o.available_grn_id }, select: { grn_number: true, received_date: true } });
+      const requestedGrn = await prisma.grnHeader.findUnique({ where: { id: o.requested_grn_id }, select: { grn_number: true, received_date: true } });
+      return { ...o, available_grn: availableGrn, requested_grn: requestedGrn };
+    }));
+
+    res.json({ success: true, data: enriched });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }

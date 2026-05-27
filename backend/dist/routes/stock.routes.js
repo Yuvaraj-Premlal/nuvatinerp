@@ -9,5 +9,9 @@ router.get('/movements', auth_middleware_1.authenticate, stock_controller_1.getS
 router.post('/issue', auth_middleware_1.authenticate, stock_controller_1.issueMaterial);
 router.post('/adjust', auth_middleware_1.authenticate, stock_controller_1.adjustStock);
 router.get('/reports', auth_middleware_1.authenticate, stock_controller_1.getStockReports);
+router.get('/available-batches', auth_middleware_1.authenticate, stock_controller_1.getAvailableBatches);
+router.get('/fifo-overrides', auth_middleware_1.authenticate, stock_controller_1.getPendingFifoOverrides);
+router.post('/fifo-override-request', auth_middleware_1.authenticate, stock_controller_1.requestFifoOverride);
+router.post('/fifo-override-approve/:id', auth_middleware_1.authenticate, stock_controller_1.approveFifoOverride);
 router.get('/:item_id', auth_middleware_1.authenticate, stock_controller_1.getStockBalanceByItem);
 exports.default = router;
