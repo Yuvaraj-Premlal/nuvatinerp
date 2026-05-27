@@ -26,9 +26,10 @@ export const getBatches = async (req: AuthRequest, res: Response) => {
       const key = `${line.batch_number}__${line.item_id}`;
       if (!batchMap[key]) {
         let supplier_name = '—';
-        if (line.grn?.supplier_id) {
+        const supplierId = line.grn?.supplier_id || line.grn?.po?.supplier_id;
+        if (supplierId) {
           const supplier = await prisma.supplierMaster.findUnique({
-            where: { id: line.grn.supplier_id },
+            where: { id: supplierId },
             select: { supplier_name: true }
           });
           supplier_name = supplier?.supplier_name || '—';
@@ -79,9 +80,11 @@ export const getBatchTrace = async (req: AuthRequest, res: Response) => {
 
     const enrichedGrnLines = await Promise.all((grnLines as any[]).map(async (line: any) => {
       let supplier_name = '—';
-      if (line.grn?.supplier_id) {
+      // Try direct supplier_id first, then via PO
+      const supplierId = line.grn?.supplier_id || line.grn?.po?.supplier_id;
+      if (supplierId) {
         const supplier = await prisma.supplierMaster.findUnique({
-          where: { id: line.grn.supplier_id },
+          where: { id: supplierId },
           select: { supplier_name: true }
         });
         supplier_name = supplier?.supplier_name || '—';
@@ -103,6 +106,8 @@ export const getBatchTrace = async (req: AuthRequest, res: Response) => {
       } else if (m.reference_type === 'job_card' && m.reference_id) {
         const jc = await prisma.jobCard.findFirst({ where: { id: m.reference_id }, select: { job_number: true } });
         if (jc) reference_number = jc.job_number;
+      } else if (m.reference_type === 'quarantine') {
+        reference_number = 'Quarantine';
       }
       return { ...m, reference_number };
     }));
@@ -118,7 +123,7 @@ export const getBatchTrace = async (req: AuthRequest, res: Response) => {
           where: { tenant_id, job_id: { in: Array.from(batchIssueJobIds) as string[] } },
           include: {
             item: { select: { item_name: true, item_code: true, unit_of_measure: true } },
-            job: { select: { job_number: true, part_name: true, quantity: true } }
+            job: { select: { job_number: true, planned_quantity: true } }
           }
         })
       : [];

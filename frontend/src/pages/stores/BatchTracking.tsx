@@ -7,14 +7,16 @@ const fmt = (n: number) => n?.toLocaleString('en-IN', { maximumFractionDigits: 2
 const BatchTraceModal: React.FC<{ batchNumber: string; onClose: () => void }> = ({ batchNumber, onClose }) => {
   const { data, isLoading } = useQuery({
     queryKey: ['batchTrace', batchNumber],
-    queryFn: () => api.get(`/api/batch/${encodeURIComponent(batchNumber)}`).then(r => r.data.data)
+    queryFn: () => api.get(`/api/batch/${encodeURIComponent(batchNumber)}`).then(r => r.data.data),
+    staleTime: 0
   });
 
   const txColor: any = {
     receipt: 'bg-green-100 text-green-700 border-green-200',
     issue: 'bg-red-100 text-red-700 border-red-200',
     adjustment: 'bg-purple-100 text-purple-700 border-purple-200',
-    grn_reversal: 'bg-amber-100 text-amber-700 border-amber-200'
+    grn_reversal: 'bg-amber-100 text-amber-700 border-amber-200',
+    quarantine: 'bg-orange-100 text-orange-700 border-orange-200'
   };
 
   return (
@@ -83,7 +85,7 @@ const BatchTraceModal: React.FC<{ batchNumber: string; onClose: () => void }> = 
                       <div className={`flex-1 rounded-lg p-3 border text-sm ${txColor[m.transaction_type] || 'bg-gray-50 border-gray-200'}`}>
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-medium capitalize">{m.transaction_type === 'issue' ? '🔧 Issued to Job' : '⚖ Stock Adjustment'} — {m.reference_number}</p>
+                            <p className="font-medium capitalize">{m.transaction_type === 'issue' ? '🔧 Issued to Job' : m.transaction_type === 'quarantine' ? '⚠ Moved to Quarantine' : '⚖ Stock Adjustment'} — {m.reference_number}</p>
                             <p className="text-xs mt-0.5">By: {m.transacted_by || '—'}</p>
                           </div>
                           <div className="text-right">
@@ -128,7 +130,7 @@ const BatchTracking: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['batches', search],
     queryFn: () => api.get(`/api/batch${search ? `?search=${search}` : ''}`).then(r => r.data.data),
-    staleTime: 30000
+    staleTime: 0
   });
 
   const batches = data || [];
