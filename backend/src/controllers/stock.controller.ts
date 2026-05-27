@@ -535,3 +535,41 @@ export const getPendingFifoOverrides = async (req: AuthRequest, res: Response) =
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+export const getIssueHistory = async (req: AuthRequest, res: Response) => {
+  try {
+    const tenant_id = req.user?.tenant_id as string;
+    const { job_id, item_id, from_date, to_date } = req.query;
+
+    const where: any = { tenant_id };
+    if (job_id) where.job_id = String(job_id);
+    if (item_id) where.item_id = String(item_id);
+    if (from_date || to_date) {
+      where.issued_at = {};
+      if (from_date) where.issued_at.gte = new Date(String(from_date));
+      if (to_date) where.issued_at.lte = new Date(String(to_date) + 'T23:59:59.999Z');
+    }
+
+    const groups = await prisma.materialIssueGroup.findMany({
+      where,
+      include: {
+        item: { select: { item_name: true, item_code: true, unit_of_measure: true } },
+        job: { select: { job_number: true, part_name: true } },
+        lines: {
+          include: {
+            item: { select: { item_name: true, unit_of_measure: true } }
+          }
+        }
+      },
+      orderBy: { issued_at: 'desc' },
+      take: 100
+    });
+
+    // Enrich with company for reprint
+    const company = await prisma.companyConfig.findUnique({ where: { tenant_id } });
+
+    res.json({ success: true, data: groups.map((g: any) => ({ ...g, company })) });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
