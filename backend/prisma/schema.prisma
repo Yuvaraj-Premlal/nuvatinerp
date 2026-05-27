@@ -67,8 +67,9 @@ model ItemMaster {
   tenant          Tenant              @relation(fields: [tenant_id], references: [id])
   pfep_detail     ItemPfepDetail?
   item_suppliers  ItemSupplierMap[]
-  bom_headers     BomHeader[]
-  bom_lines       BomLine[]
+  bom_headers          BomHeader[]
+  bom_lines            BomLine[]
+  fifo_overrides       FifoOverrideRequest[]
   po_lines        PurchaseOrderLine[]
   grn_lines       GrnLine[]
   stock_ledger    StockLedger[]
@@ -504,6 +505,14 @@ model MaterialIssue {
   issued_at    DateTime   @default(now())
   issued_by    String?
   location     String?
+
+  batch_number         String?
+  grn_id               String?
+  fifo_override        Boolean  @default(false)
+  override_reason      String?
+  override_approved_by String?
+  override_approved_at DateTime?
+  override_request_id  String?
 
   job          JobCard    @relation(fields: [job_id], references: [id])
   item         ItemMaster @relation(fields: [item_id], references: [id])
@@ -1405,4 +1414,22 @@ model POAmendmentLog {
   changes_summary   String?
 
   @@map("po_amendment_log")
+}
+
+model FifoOverrideRequest {
+  id                String    @id @default(uuid())
+  tenant_id         String
+  item_id           String
+  requested_grn_id  String
+  available_grn_id  String
+  reason            String
+  status            String    @default("pending")
+  requested_by      String?
+  approved_by       String?
+  approved_at       DateTime?
+  rejection_note    String?
+  expires_at        DateTime
+  created_at        DateTime  @default(now())
+  item              ItemMaster @relation(fields: [item_id], references: [id])
+  @@map("fifo_override_request")
 }
