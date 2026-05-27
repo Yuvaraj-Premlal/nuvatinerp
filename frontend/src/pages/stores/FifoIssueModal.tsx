@@ -72,11 +72,11 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   // When batches load, auto-calculate split
   React.useEffect(() => {
-    if (batches.length > 0 && step === 'split' && splitLines.length === 0) {
+    if (batches.length > 0 && step === 'split') {
       const lines = calculateFifoSplit(parseFloat(form.issued_qty), batches);
       setSplitLines(lines);
     }
-  }, [batches, step]);
+  }, [batches.length, step]);
 
   const updateLineQty = (idx: number, qty: number) => {
     const updated = [...splitLines];
@@ -87,9 +87,13 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const totalSplit = splitLines.reduce((s, l) => s + (parseFloat(l.qty) || 0), 0);
   const splitValid = Math.abs(totalSplit - parseFloat(form.issued_qty)) < 0.001;
 
-  const needsOverride = (line: any) => {
-    const fifoFirst = batches[0];
-    return fifoFirst && line.grn_id !== fifoFirst.grn_id;
+  const needsOverride = (line: any, idx: number) => {
+    // Override only if an older batch (lower index) has available stock but this line skips it
+    if (idx === 0) return false;
+    const olderBatchesWithStock = splitLines.slice(0, idx).some(
+      (older: any) => older.remaining_qty > 0 && (parseFloat(older.qty) || 0) === 0
+    );
+    return olderBatchesWithStock;
   };
 
   const handleRequestOverride = (line: any) => {
@@ -105,11 +109,11 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   const handleIssue = () => {
-    const lines = splitLines.map(l => ({
+    const lines = splitLines.map((l, i) => ({
       batch_number: l.batch_number,
       grn_id: l.grn_id,
       qty: l.qty,
-      fifo_override: needsOverride(l),
+      fifo_override: needsOverride(l, i),
       override_reason: overrideReasonMap[l.grn_id] || null,
       override_request_id: pendingOverrideMap[l.grn_id]?.id || null
     }));
@@ -223,7 +227,7 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
                 <div className="space-y-3">
                   {splitLines.map((line, i) => {
-                    const isOverride = needsOverride(line);
+                    const isOverride = needsOverride(line, i);
                     const hasPendingOverride = !!pendingOverrideMap[line.grn_id];
                     return (
                       <div key={line.grn_id} className={`p-3 rounded-xl border ${isOverride ? 'border-amber-300 bg-amber-50' : 'border-green-300 bg-green-50'}`}>
@@ -280,7 +284,7 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <div className="flex gap-3">
                   <button onClick={() => { setStep('form'); setSplitLines([]); }} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">← Back</button>
                   <button onClick={handleIssue}
-                    disabled={!splitValid || issueMutation.isPending || splitLines.some(l => needsOverride(l) && !overrideReasonMap[l.grn_id])}
+                    disabled={!splitValid || issueMutation.isPending || splitLines.some((l, i) => needsOverride(l, i) && !overrideReasonMap[l.grn_id])}
                     className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
                     {issueMutation.isPending ? 'Issuing...' : `Issue ${splitLines.length} Slip${splitLines.length > 1 ? 's' : ''}`}
                   </button>
