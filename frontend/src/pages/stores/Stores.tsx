@@ -6,6 +6,7 @@ import StoresReports from './StoresReports';
 import BatchTracking from './BatchTracking';
 import FifoIssueModal from './FifoIssueModal';
 import FifoOverrideApprovals from './FifoOverrideApprovals';
+import MoveToQuarantineModal from './MoveToQuarantineModal';
 
 const ZoneBadge: React.FC<{ zone: string }> = ({ zone }) => {
   const colors: any = {
@@ -433,6 +434,7 @@ const Stores: React.FC = () => {
   const [activeTab, setActiveTab] = useState('stock');
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [showQuarantineModal, setShowQuarantineModal] = useState(false);
   const [viewGRNId, setViewGRNId] = useState<string | null>(null);
   const [viewGRNNumber, setViewGRNNumber] = useState<string>('');
   const [filterItem, setFilterItem] = useState('');
@@ -479,6 +481,7 @@ const Stores: React.FC = () => {
     <div className="space-y-6">
       {showIssueModal && <FifoIssueModal onClose={() => setShowIssueModal(false)} />}
       {showAdjustModal && <StockAdjustmentModal onClose={() => setShowAdjustModal(false)} />}
+      {showQuarantineModal && <MoveToQuarantineModal onClose={() => setShowQuarantineModal(false)} />}
       {viewGRNId && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl w-full max-w-3xl max-h-screen overflow-y-auto">
@@ -503,6 +506,10 @@ const Stores: React.FC = () => {
           <button onClick={() => setShowAdjustModal(true)}
             className="bg-white border border-border text-text-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface transition-colors">
             ⚖ Stock Adjustment
+          </button>
+          <button onClick={() => setShowQuarantineModal(true)}
+            className="bg-white border border-amber-400 text-amber-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-50 transition-colors">
+            ⚠ Move to Quarantine
           </button>
           <button onClick={() => setShowIssueModal(true)}
             className="bg-brand-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition-colors">

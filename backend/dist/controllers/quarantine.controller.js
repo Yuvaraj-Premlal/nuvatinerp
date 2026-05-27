@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.disposeQuarantineStock = exports.getQuarantineStock = void 0;
+exports.moveToQuarantine = exports.disposeQuarantineStock = exports.getQuarantineStock = void 0;
 const prisma_1 = __importDefault(require("../config/prisma"));
 const getQuarantineStock = async (req, res) => {
     try {
@@ -113,3 +113,63 @@ const disposeQuarantineStock = async (req, res) => {
     }
 };
 exports.disposeQuarantineStock = disposeQuarantineStock;
+const moveToQuarantine = async (req, res) => {
+    try {
+        const tenant_id = req.user?.tenant_id;
+        const { item_id, batch_number, grn_id, quantity, reason, moved_by } = req.body;
+        if (!item_id || !quantity || !reason) {
+            return res.status(400).json({ success: false, error: 'item_id, quantity and reason are required' });
+        }
+        // Get GRN number for reference
+        let grn_number = '—';
+        if (grn_id) {
+            const grn = await prisma_1.default.grnHeader.findUnique({ where: { id: grn_id }, select: { grn_number: true } });
+            if (grn)
+                grn_number = grn.grn_number;
+        }
+        // Create quarantine record
+        const quarantine = await prisma_1.default.quarantineStock.create({
+            data: {
+                tenant_id,
+                item_id,
+                grn_id: grn_id || null,
+                grn_number,
+                quantity: parseFloat(quantity),
+                rejection_reason: reason,
+                disposition: 'pending',
+                batch_number: batch_number || null,
+                source: 'in_stores_inspection'
+            }
+        });
+        // Deduct from stock ledger
+        await prisma_1.default.stockLedger.create({
+            data: {
+                tenant_id,
+                item_id,
+                transaction_type: 'quarantine',
+                quantity: -parseFloat(quantity),
+                reference_type: 'quarantine',
+                reference_id: quarantine.id,
+                transacted_by: moved_by || 'Storekeeper',
+                batch_number: batch_number || null
+            }
+        });
+        // System alert
+        const item = await prisma_1.default.itemMaster.findUnique({ where: { id: item_id }, select: { item_name: true } });
+        await prisma_1.default.systemAlert.create({
+            data: {
+                tenant_id,
+                alert_type: 'quarantine',
+                severity: 'warning',
+                message: `Stock moved to quarantine — ${item?.item_name} | Batch: ${batch_number || '—'} | Qty: ${quantity} | Reason: ${reason}`,
+                reference_type: 'quarantine',
+                reference_id: quarantine.id
+            }
+        });
+        res.status(201).json({ success: true, data: quarantine });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+exports.moveToQuarantine = moveToQuarantine;

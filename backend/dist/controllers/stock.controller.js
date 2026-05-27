@@ -382,7 +382,13 @@ const getAvailableBatches = async (req, res) => {
             });
             const issuedQty = Math.abs(issued._sum.quantity || 0);
             const acceptedQty = line.accepted_qty || line.quantity_received;
-            const remaining = acceptedQty - issuedQty;
+            // Deduct quarantined qty for this batch
+            const quarantined = await prisma_1.default.stockLedger.aggregate({
+                where: { tenant_id, item_id: String(item_id), batch_number: line.batch_number, transaction_type: 'quarantine' },
+                _sum: { quantity: true }
+            });
+            const quarantinedQty = Math.abs(quarantined._sum.quantity || 0);
+            const remaining = acceptedQty - issuedQty - quarantinedQty;
             // Get supplier name
             let supplier_name = '—';
             if (line.grn?.supplier_id) {

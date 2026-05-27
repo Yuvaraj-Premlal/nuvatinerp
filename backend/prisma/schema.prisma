@@ -1414,6 +1414,8 @@ model QuarantineStock {
   disposed_by       String?
   disposition_notes String?
   supplier_id       String?
+  batch_number      String?
+  source            String   @default("grn_rejection")
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
 

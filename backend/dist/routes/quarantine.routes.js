@@ -6,4 +6,5 @@ const quarantine_controller_1 = require("../controllers/quarantine.controller");
 const router = (0, express_1.Router)();
 router.get('/', auth_middleware_1.authenticate, quarantine_controller_1.getQuarantineStock);
 router.post('/:id/dispose', auth_middleware_1.authenticate, quarantine_controller_1.disposeQuarantineStock);
+router.post('/move', auth_middleware_1.authenticate, quarantine_controller_1.moveToQuarantine);
 exports.default = router;

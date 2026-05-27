@@ -234,7 +234,7 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <div className="flex justify-between items-center mb-2">
                           <div>
                             <p className="font-medium text-sm">{line.batch_number}</p>
-                            <p className="text-xs text-text-secondary">{line.grn_number} | {line.supplier_name} | {new Date(line.received_date).toLocaleDateString('en-IN')}</p>
+                            <p className="text-xs text-text-secondary">{line.grn_number} | {new Date(line.received_date).toLocaleDateString('en-IN')}</p>
                           </div>
                           <div className="flex items-center gap-2">
                             {!isOverride && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">⚡ FIFO</span>}
@@ -243,9 +243,8 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         </div>
                         <div className="flex items-center gap-2">
                           <label className="text-xs text-text-secondary w-16">Qty:</label>
-                          <input type="number" value={line.qty} min={0} max={line.remaining_qty}
-                            onChange={e => updateLineQty(i, parseFloat(e.target.value) || 0)}
-                            className="flex-1 px-2 py-1 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary" />
+                          <input type="number" value={line.qty} readOnly
+                            className="flex-1 px-2 py-1 border border-border rounded text-sm bg-surface text-text-primary cursor-not-allowed" />
                           <span className="text-xs text-text-secondary">/ {fmt(line.remaining_qty)} avail</span>
                         </div>
                         {isOverride && (
