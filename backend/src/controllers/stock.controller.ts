@@ -199,34 +199,74 @@ export const adjustStock = async (req: AuthRequest, res: Response) => {
 export const issueMaterial = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
-    const { job_id, item_id, planned_qty, issued_qty, issued_by, batch_number, grn_id, fifo_override, override_reason, override_request_id } = req.body;
-    const count = await prisma.materialIssue.count({ where: { tenant_id } });
-    const slip_number = `MIS-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
-    const issue = await prisma.materialIssue.create({
-      data: { tenant_id, job_id, item_id, planned_qty, issued_qty, issued_by, batch_number, grn_id, fifo_override: fifo_override || false, override_reason, override_request_id }
+    const { job_id, item_id, planned_qty, issued_qty, issued_by, lines } = req.body;
+    // lines: [{ batch_number, grn_id, qty, fifo_override, override_reason, override_request_id }]
+
+    // Generate group slip number
+    const groupCount = await prisma.materialIssueGroup.count({ where: { tenant_id } });
+    const slip_number = `MIS-${new Date().getFullYear()}-${String(groupCount + 1).padStart(4, '0')}`;
+    const total_issued_qty = lines.reduce((s: number, l: any) => s + parseFloat(l.qty), 0);
+    const is_fifo_override = lines.some((l: any) => l.fifo_override);
+
+    // Create issue group
+    const group = await prisma.materialIssueGroup.create({
+      data: { tenant_id, slip_number, job_id, item_id, planned_qty: parseFloat(planned_qty), total_issued_qty, issued_by, is_fifo_override }
     });
-    await prisma.stockLedger.create({
-      data: {
-        tenant_id, item_id,
-        transaction_type: 'issue',
-        quantity: -issued_qty,
-        reference_type: 'job_card',
-        reference_id: job_id,
-        transacted_by: issued_by,
-        batch_number
-      }
-    });
-    // If override request exists, mark it as used
-    if (override_request_id) {
-      await prisma.fifoOverrideRequest.updateMany({
-        where: { id: override_request_id, tenant_id },
-        data: { status: 'used' }
+
+    // Create individual issue lines and stock ledger entries
+    const issueLines = [];
+    for (const line of lines) {
+      const qty = parseFloat(line.qty);
+      const issue = await prisma.materialIssue.create({
+        data: {
+          tenant_id, job_id, item_id,
+          planned_qty: parseFloat(planned_qty),
+          issued_qty: qty,
+          issued_by,
+          batch_number: line.batch_number || null,
+          grn_id: line.grn_id || null,
+          fifo_override: line.fifo_override || false,
+          override_reason: line.override_reason || null,
+          override_request_id: line.override_request_id || null,
+          group_id: group.id
+        }
       });
+      await prisma.stockLedger.create({
+        data: {
+          tenant_id, item_id,
+          transaction_type: 'issue',
+          quantity: -qty,
+          reference_type: 'job_card',
+          reference_id: job_id,
+          transacted_by: issued_by,
+          batch_number: line.batch_number || null
+        }
+      });
+      if (line.override_request_id) {
+        await prisma.fifoOverrideRequest.updateMany({
+          where: { id: String(line.override_request_id), tenant_id: String(tenant_id) },
+          data: { status: 'used' }
+        });
+      }
+      issueLines.push(issue);
     }
+
     const item = await prisma.itemMaster.findUnique({ where: { id: item_id } });
     const jobCard = job_id ? await prisma.jobCard.findUnique({ where: { id: job_id } }) : null;
     const company = await prisma.companyConfig.findUnique({ where: { tenant_id } });
-    res.status(201).json({ success: true, data: { ...issue, slip_number, item, job_card: jobCard, company } });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        ...group,
+        slip_number,
+        lines: issueLines,
+        item,
+        job_card: jobCard,
+        company,
+        issued_qty: total_issued_qty
+      }
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }

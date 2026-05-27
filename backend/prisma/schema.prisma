@@ -70,6 +70,7 @@ model ItemMaster {
   bom_headers          BomHeader[]
   bom_lines            BomLine[]
   fifo_overrides       FifoOverrideRequest[]
+  issue_groups         MaterialIssueGroup[]
   po_lines        PurchaseOrderLine[]
   grn_lines       GrnLine[]
   stock_ledger    StockLedger[]
@@ -452,6 +453,7 @@ model JobCard {
   shot_logs             ShotLog[]
   downtime_logs         DowntimeLog[]
   material_issues       MaterialIssue[]
+  issue_groups          MaterialIssueGroup[]
   rejection_logs        RejectionLog[]
   job_operations        JobCardOperation[]
 
@@ -494,6 +496,23 @@ model DowntimeLog {
   @@map("downtime_log")
 }
 
+model MaterialIssueGroup {
+  id               String          @id @default(uuid())
+  tenant_id        String
+  slip_number      String
+  job_id           String
+  item_id          String
+  planned_qty      Float?
+  total_issued_qty Float
+  issued_by        String?
+  issued_at        DateTime        @default(now())
+  is_fifo_override Boolean         @default(false)
+  job              JobCard         @relation(fields: [job_id], references: [id])
+  item             ItemMaster      @relation(fields: [item_id], references: [id])
+  lines            MaterialIssue[]
+  @@map("material_issue_group")
+}
+
 model MaterialIssue {
   id           String     @id @default(uuid())
   tenant_id    String
@@ -513,9 +532,11 @@ model MaterialIssue {
   override_approved_by String?
   override_approved_at DateTime?
   override_request_id  String?
+  group_id             String?
 
-  job          JobCard    @relation(fields: [job_id], references: [id])
-  item         ItemMaster @relation(fields: [item_id], references: [id])
+  job          JobCard             @relation(fields: [job_id], references: [id])
+  item         ItemMaster          @relation(fields: [item_id], references: [id])
+  group        MaterialIssueGroup? @relation(fields: [group_id], references: [id])
 
   @@map("material_issue")
 }
