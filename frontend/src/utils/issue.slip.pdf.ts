@@ -5,7 +5,7 @@ export function printIssueSlip(issue: any) {
   const item = issue.item;
   const jobCard = issue.job_card;
   const lines = issue.lines || [];
-  const isMultiBatch = lines.length > 1;
+  const isMultiBatch = lines.length >= 1;
 
   const batchRows = lines.map((line: any, i: number) => `
     <tr>
