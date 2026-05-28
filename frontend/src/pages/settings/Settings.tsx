@@ -728,12 +728,14 @@ const Settings: React.FC = () => {
   const [showDieModal, setShowDieModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showVendorModal, setShowVendorModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/suppliers').then(r => r.data.data) });
   const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
   const { data: dies } = useQuery({ queryKey: ['dies'], queryFn: () => api.get('/api/dies').then(r => r.data.data) });
   const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => api.get('/api/customers').then(r => r.data.data) });
   const { data: vendors } = useQuery({ queryKey: ['vendors'], queryFn: () => api.get('/api/vendors').then(r => r.data.data) });
+  const { data: locations } = useQuery({ queryKey: ['locations'], queryFn: () => api.get('/api/locations').then(r => r.data.data) });
 
   const sections = [
     { id: 'suppliers', label: 'Suppliers' },
@@ -742,7 +744,8 @@ const Settings: React.FC = () => {
     { id: 'customers', label: 'Customers' },
     { id: 'vendors', label: 'Vendors' },
     { id: 'cost', label: 'Cost Config' },
-    { id: 'toc', label: 'TOC Config' }
+    { id: 'toc', label: 'TOC Config' },
+    { id: 'locations', label: 'Locations' }
   ];
 
   return (
@@ -752,6 +755,7 @@ const Settings: React.FC = () => {
       {showDieModal && <AddDieModal onClose={() => setShowDieModal(false)} />}
       {showCustomerModal && <AddCustomerModal onClose={() => setShowCustomerModal(false)} />}
       {showVendorModal && <AddVendorModal onClose={() => setShowVendorModal(false)} />}
+      {showLocationModal && <AddLocationModal onClose={() => setShowLocationModal(false)} />}
 
       <div>
         <h1 className="text-xl font-bold text-text-primary">Settings</h1>
@@ -863,12 +867,82 @@ const Settings: React.FC = () => {
         </div>
       )}
 
+      {activeSection === 'locations' && (
+        <MasterTable
+          title="Storage Locations"
+          data={locations || []}
+          columns={[
+            { key: 'code', label: 'Code' },
+            { key: 'description', label: 'Description' },
+            { key: 'zone', label: 'Zone' },
+            { key: 'is_active', label: 'Active' }
+          ]}
+          onAdd={() => setShowLocationModal(true)}
+        />
+      )}
+
       {activeSection === 'toc' && (
         <div className="bg-white rounded-xl p-5 shadow-sm max-w-lg">
           <h3 className="font-semibold text-text-primary mb-4">TOC Constraint Configuration</h3>
           <TOCConfigSection />
         </div>
       )}
+    </div>
+  );
+};
+
+const AddLocationModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({ code: '', description: '', zone: '' });
+
+  const mutation = useMutation({
+    mutationFn: (data: any) => api.post('/api/locations', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['locations'] });
+      onClose();
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate(form);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h2 className="font-bold text-text-primary">Add Location</h2>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Location Code <span className="text-red-500">*</span></label>
+            <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              placeholder="e.g. A-R1-B1" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Description</label>
+            <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              placeholder="e.g. Zone A, Rack 1, Bin 1" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Zone</label>
+            <input value={form.zone} onChange={e => setForm({ ...form, zone: e.target.value.toUpperCase() })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              placeholder="e.g. A, B, C" />
+          </div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to add location</p>}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Adding...' : 'Add Location'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

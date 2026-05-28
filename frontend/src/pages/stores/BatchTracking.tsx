@@ -65,7 +65,7 @@ const BatchTraceModal: React.FC<{ batchNumber: string; onClose: () => void }> = 
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="font-medium text-green-700 text-sm">📦 GRN Receipt — {line.grn?.grn_number}</p>
-                            <p className="text-xs text-green-600 mt-0.5">Supplier: {line.supplier_name} | PO: {line.grn?.po?.po_number || '—'}</p>
+                            <p className="text-xs text-green-600 mt-0.5">Supplier: {line.supplier_name} | PO: {line.grn?.po?.po_number || '—'} | Location: {line.location || '—'}</p>
                           </div>
                           <p className="text-xs text-text-secondary">{new Date(line.grn?.received_date || line.created_at).toLocaleDateString('en-IN')}</p>
                         </div>
@@ -175,6 +175,7 @@ const BatchTracking: React.FC = () => {
                 <th className="text-right px-4 py-3 text-brand-primary font-medium">Received</th>
                 <th className="text-right px-4 py-3 text-brand-primary font-medium">Accepted</th>
                 <th className="text-right px-4 py-3 text-brand-primary font-medium">Rejected</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Location</th>
                 <th className="text-center px-4 py-3 text-brand-primary font-medium">Trace</th>
               </tr>
             </thead>
@@ -194,6 +195,7 @@ const BatchTracking: React.FC = () => {
                   <td className="px-4 py-3 text-right text-xs">
                     <span className={b.total_rejected > 0 ? 'text-red-500 font-medium' : 'text-text-secondary'}>{fmt(b.total_rejected)}</span>
                   </td>
+                  <td className="px-4 py-3 text-xs text-text-secondary">{b.location || '—'}</td>
                   <td className="px-4 py-3 text-center">
                     <button onClick={() => setSelectedBatch(b.batch_number)}
                       className="text-xs bg-brand-light text-brand-primary px-3 py-1 rounded-lg hover:bg-blue-100 font-medium">

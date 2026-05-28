@@ -398,6 +398,7 @@ model GrnLine {
   batch_number      String?
   lot_number        String?
   unit_price        Float?
+  location          String?
   created_at        DateTime   @default(now())
   updated_at        DateTime   @updatedAt
 
@@ -405,6 +406,18 @@ model GrnLine {
   item              ItemMaster @relation(fields: [item_id], references: [id])
 
   @@map("grn_line")
+}
+
+model LocationMaster {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  code        String
+  description String?
+  zone        String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  @@unique([tenant_id, code])
+  @@map("location_master")
 }
 
 model StockLedger {

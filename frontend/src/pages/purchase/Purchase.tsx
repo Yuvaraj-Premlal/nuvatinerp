@@ -187,6 +187,7 @@ const CreatePOModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClose }) => {
   const queryClient = useQueryClient();
+  const { data: locations } = useQuery({ queryKey: ['locations'], queryFn: () => api.get('/api/locations').then(r => r.data.data) });
   const [form, setForm] = useState({
     received_date: new Date().toISOString().split('T')[0],
     vehicle_number: '',
@@ -202,6 +203,7 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
       quantity_received: String(Math.max(0, l.quantity_ordered - (l.quantity_received || 0))),
       quantity_rejected: '0',
       batch_number: '',
+      location: '',
       rejection_reason: '',
       unit_price: l.unit_price
     })) || []
@@ -234,7 +236,8 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
           quantity_received: received,
           quantity_rejected: rejected,
           accepted_qty: accepted,
-          batch_number: l.batch_number || null
+          batch_number: l.batch_number || null,
+          location: l.location || null
         };
       })
     });
@@ -324,6 +327,16 @@ const CreateGRNModal: React.FC<{ po: any; onClose: () => void }> = ({ po, onClos
                       <input type="text" value={line.batch_number || ''} onChange={e => updateLine(i, 'batch_number', e.target.value)}
                         className="w-full px-2 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary mt-0.5"
                         placeholder="e.g. HT-2026-001, BAT-001..." />
+                    </div>
+                    <div className="mt-2">
+                      <label className="text-xs text-text-secondary font-medium">Storage Location <span className="text-text-secondary text-xs font-normal">(bin/rack where material is kept)</span></label>
+                      <select value={line.location || ''} onChange={e => updateLine(i, 'location', e.target.value)}
+                        className="w-full px-2 py-1.5 border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary mt-0.5">
+                        <option value="">Select location...</option>
+                        {locations?.map((l: any) => (
+                          <option key={l.id} value={l.code}>{l.code} {l.description ? `— ${l.description}` : ''}</option>
+                        ))}
+                      </select>
                     </div>
                     {parseFloat(line.quantity_rejected||'0') > 0 && (
                       <div className="mt-2">
@@ -646,6 +659,7 @@ const GRNDetailModal: React.FC<{ grnId: string; onClose: () => void }> = ({ grnI
                 <th className="text-right px-3 py-2 text-brand-primary">Unit Price</th>
                 <th className="text-right px-3 py-2 text-brand-primary">Amount</th>
                 <th className="text-left px-3 py-2 text-brand-primary">Batch</th>
+                  <th className="text-left px-3 py-2 text-brand-primary">Location</th>
               </tr></thead>
               <tbody>
                 {grnData.grn_lines?.map((line: any, i: number) => (
@@ -662,6 +676,7 @@ const GRNDetailModal: React.FC<{ grnId: string; onClose: () => void }> = ({ grnI
                     <td className="px-3 py-2 text-right">₹{line.unit_price || 0}</td>
                     <td className="px-3 py-2 text-right font-medium">₹{((line.accepted_qty || line.quantity_received) * (line.unit_price || 0)).toLocaleString('en-IN')}</td>
                     <td className="px-3 py-2 text-xs text-text-secondary">{line.batch_number || '—'}</td>
+              <td className="px-3 py-2 text-xs text-text-secondary">{line.location || '—'}</td>
                   </tr>
                 ))}
               </tbody>

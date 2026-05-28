@@ -26,7 +26,8 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
             rejection_reason: l.rejection_reason,
             batch_number: l.batch_number,
             lot_number: l.lot_number,
-            unit_price: parseFloat(l.unit_price || 0)
+            unit_price: parseFloat(l.unit_price || 0),
+            location: l.location || null
           }))
         }
       },
@@ -46,7 +47,8 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
             reference_type: 'grn',
             reference_id: grn.id,
             batch_number: line.batch_number,
-            lot_number: line.lot_number
+            lot_number: line.lot_number,
+            location: line.location || null
           }
         });
       }

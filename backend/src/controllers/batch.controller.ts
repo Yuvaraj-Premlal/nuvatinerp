@@ -36,6 +36,7 @@ export const getBatches = async (req: AuthRequest, res: Response) => {
           supplier_name,
           po_number: line.grn?.po?.po_number || '—',
           grn_number: line.grn?.grn_number,
+          location: line.location || null,
           received_date: line.grn?.received_date || line.created_at,
           total_received: 0,
           total_accepted: 0,
