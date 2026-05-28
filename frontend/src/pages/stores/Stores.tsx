@@ -5,7 +5,6 @@ import { printIssueSlip } from '../../utils/issue.slip.pdf';
 import StoresReports from './StoresReports';
 import BatchTracking from './BatchTracking';
 import FifoIssueModal from './FifoIssueModal';
-import FifoOverrideApprovals from './FifoOverrideApprovals';
 import MoveToQuarantineModal from './MoveToQuarantineModal';
 import IssueHistory from './IssueHistory';
 
@@ -557,7 +556,7 @@ const Stores: React.FC = () => {
       )}
 
       <div className="flex gap-2">
-        {['stock', 'movements', 'quarantine', 'reports', 'batch', 'fifo_approvals', 'issue_history'].map(tab => (
+        {['stock', 'movements', 'quarantine', 'reports', 'batch', 'issue_history'].map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === tab ? 'bg-brand-primary text-white' : 'bg-white text-text-secondary hover:bg-surface border border-border'}`}>
             {tab === 'quarantine' ? `Quarantine ${quarantineSummary?.pending > 0 ? '(' + quarantineSummary.pending + ')' : ''}` : tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -696,7 +695,6 @@ const Stores: React.FC = () => {
       )}
       {activeTab === 'reports' && <StoresReports />}
       {activeTab === 'batch' && <BatchTracking />}
-      {activeTab === 'fifo_approvals' && <FifoOverrideApprovals />}
       {activeTab === 'issue_history' && <IssueHistory />}
 
       {activeTab === 'quarantine' && (
