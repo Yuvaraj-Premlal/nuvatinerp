@@ -8,6 +8,7 @@ import { useAuthStore } from './store/auth.store';
 import Factory from './pages/factory/Factory';
 import PFEP from './pages/pfep/PFEP';
 import Production from './pages/production/Production';
+import Melting from './pages/melting/Melting';
 import Quality from './pages/quality/Quality';
 import Stores from './pages/stores/Stores';
 import Purchase from './pages/purchase/Purchase';
@@ -39,6 +40,7 @@ function App() {
           <Route path="/factory" element={<ProtectedRoute><Factory /></ProtectedRoute>} />
           <Route path="/pfep" element={<ProtectedRoute><PFEP /></ProtectedRoute>} />
           <Route path="/production" element={<ProtectedRoute><Production /></ProtectedRoute>} />
+          <Route path="/melting" element={<ProtectedRoute><Melting /></ProtectedRoute>} />
           <Route path="/quality" element={<ProtectedRoute><Quality /></ProtectedRoute>} />
           <Route path="/stores" element={<ProtectedRoute><Stores /></ProtectedRoute>} />
           <Route path="/purchase" element={<ProtectedRoute><Purchase /></ProtectedRoute>} />

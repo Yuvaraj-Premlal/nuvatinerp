@@ -25,6 +25,9 @@ model Tenant {
   dies               DieMaster[]
   bom_headers        BomHeader[]
   purchase_orders    PurchaseOrder[]
+  furnaces           Furnace[]
+  alloy_grades       AlloyGrade[]
+  melt_records       MeltChargeRecord[]
   job_cards          JobCard[]
   sales_orders       SalesOrder[]
 
@@ -78,6 +81,8 @@ model ItemMaster {
   so_lines        SalesOrderLine[]
   dispatch_lines  DispatchLine[]
   quarantine_stock QuarantineStock[]
+  melt_charge_lines MeltChargeLine[]
+  alloy_spec        ItemAlloySpec?
 
   @@unique([tenant_id, item_code])
   @@map("item_master")
@@ -105,6 +110,38 @@ model ItemPfepDetail {
   item                  ItemMaster @relation(fields: [item_id], references: [id])
 
   @@map("item_pfep_detail")
+}
+
+model ItemAlloySpec {
+  id                String     @id @default(uuid())
+  tenant_id         String
+  item_id           String     @unique
+  standard          String?
+  alloy_system      String?
+  si_min            Float?
+  si_max            Float?
+  cu_min            Float?
+  cu_max            Float?
+  fe_max            Float?
+  mn_max            Float?
+  mg_min            Float?
+  mg_max            Float?
+  ni_max            Float?
+  zn_max            Float?
+  sn_max            Float?
+  ti_max            Float?
+  pb_max            Float?
+  melt_temp_min     Float?
+  melt_temp_max     Float?
+  transfer_temp_min Float?
+  transfer_temp_max Float?
+  pouring_temp_min  Float?
+  pouring_temp_max  Float?
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+  item              ItemMaster       @relation(fields: [item_id], references: [id])
+  melt_records      MeltChargeRecord[]
+  @@map("item_alloy_spec")
 }
 
 model SupplierMaster {
@@ -175,6 +212,14 @@ model MachineMaster {
   constraint_configs    ConstraintConfig[]
   maintenance_wos       MaintenanceWorkOrder[]
   maintenance_schedules MaintenanceSchedule[]
+  melt_records          MeltChargeRecord[] @relation("FurnaceMelts")
+
+  fuel_type             String?
+  capacity_kg           Float?
+  lining_material       String?
+  lining_life_kg        Float?
+  total_kg_melted       Float    @default(0)
+  last_relining_at      DateTime?
 
   @@unique([tenant_id, machine_code])
   @@map("machine_master")
@@ -1471,4 +1516,234 @@ model FifoOverrideRequest {
   created_at        DateTime  @default(now())
   item              ItemMaster @relation(fields: [item_id], references: [id])
   @@map("fifo_override_request")
+}
+
+// ============================================================
+// MELTING MODULE
+// ============================================================
+
+model Furnace {
+  id               String   @id @default(uuid())
+  tenant_id        String
+  furnace_number   String
+  furnace_name     String
+  furnace_type     String
+  fuel_type        String
+  capacity_kg      Float?
+  lining_material  String?
+  lining_life_kg   Float?
+  total_kg_melted  Float    @default(0)
+  last_relining_at DateTime?
+  status           String   @default("active")
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  tenant           Tenant   @relation(fields: [tenant_id], references: [id])
+  @@unique([tenant_id, furnace_number])
+  @@map("furnace")
+}
+
+model AlloyGrade {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  grade_code        String
+  grade_name        String
+  standard          String?
+  alloy_system      String?
+  si_min            Float?
+  si_max            Float?
+  cu_min            Float?
+  cu_max            Float?
+  fe_max            Float?
+  mn_max            Float?
+  mg_min            Float?
+  mg_max            Float?
+  ni_max            Float?
+  zn_max            Float?
+  sn_max            Float?
+  ti_max            Float?
+  pb_max            Float?
+  melt_temp_min     Float?
+  melt_temp_max     Float?
+  transfer_temp_min Float?
+  transfer_temp_max Float?
+  pouring_temp_min  Float?
+  pouring_temp_max  Float?
+  is_active         Boolean  @default(true)
+  created_at        DateTime @default(now())
+  tenant            Tenant   @relation(fields: [tenant_id], references: [id])
+  @@unique([tenant_id, grade_code])
+  @@map("alloy_grade")
+}
+
+model MeltChargeRecord {
+  id                    String   @id @default(uuid())
+  tenant_id             String
+  melt_lot_number       String
+  furnace_id            String
+  alloy_spec_id         String?
+  shift                 String?
+  charge_date           DateTime
+  charging_start_at     DateTime?
+  charging_end_at       DateTime?
+  melting_start_at      DateTime?
+  melting_end_at        DateTime?
+  degassing_start_at    DateTime?
+  degassing_end_at      DateTime?
+  transfer_start_at     DateTime?
+  transfer_end_at       DateTime?
+  ready_at              DateTime?   // when melt is ready for transfer
+  // Holding time = ready_at to transfer_start_at (calculated)
+  // Ladle details
+  ladle_number          String?
+  ladle_preheat_temp    Float?
+  ladle_capacity_kg     Float?
+  // Metal accounting
+  metal_ready_kg        Float?      // metal available after dross removal
+  metal_spillage_kg     Float?      // spillage/ladle residue loss
+  // metal_transferred_kg already exists
+  // Furnace condition
+  lining_condition      String?     // good / fair / poor
+  // Energy
+  energy_consumed       Float?      // kWh or gas units
+  energy_unit           String?     // kWh / m3 / litre
+  // Ambient conditions
+  ambient_temp_c        Float?
+  ambient_humidity_pct  Float?
+  // Crew
+  helper_1_id           String?
+  helper_2_id           String?
+  fresh_ingot_weight    Float    @default(0)
+  return_scrap_weight   Float    @default(0)
+  total_charge_weight   Float    @default(0)
+  flux_type             String?
+  flux_quantity_kg      Float?
+  degassing_method      String?
+  degassing_medium      String?
+  degassing_duration_min Float?
+  dross_weight_kg       Float?
+  metal_transferred_kg  Float?
+  yield_percent         Float?
+  temp_at_melt_complete   Float?
+  temp_at_degassing_start Float?
+  temp_at_degassing_end   Float?
+  temp_at_transfer        Float?
+  temp_instrument         String?
+  chemistry_checked       Boolean  @default(false)
+  chemistry_method        String?
+  si_actual               Float?
+  cu_actual               Float?
+  fe_actual               Float?
+  mn_actual               Float?
+  mg_actual               Float?
+  ni_actual               Float?
+  zn_actual               Float?
+  sn_actual               Float?
+  ti_actual               Float?
+  pb_actual               Float?
+  chemistry_status        String?
+  transfer_to_type        String?
+  transfer_to_id          String?
+  status                  String   @default("charging")
+  operator_id             String?
+  approved_by             String?
+  approved_at             DateTime?
+  rejection_reason        String?
+  notes                   String?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+  tenant                  Tenant           @relation(fields: [tenant_id], references: [id])
+  furnace                 MachineMaster    @relation("FurnaceMelts", fields: [furnace_id], references: [id])
+  alloy_spec              ItemAlloySpec?   @relation(fields: [alloy_spec_id], references: [id])
+  charge_lines            MeltChargeLine[]
+  return_scrap_lines      MeltReturnScrapLine[]
+  temp_readings           MeltTemperatureLog[]
+  chemistry_readings      MeltChemistryLog[]
+  shot_links              MeltShotLink[]
+  @@unique([tenant_id, melt_lot_number])
+  @@map("melt_charge_record")
+}
+
+model MeltChargeLine {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  melt_id         String
+  batch_number    String?
+  grn_id          String?
+  item_id         String
+  weight_charged  Float
+  uom             String   @default("KG")
+  sequence        Int      @default(1)
+  created_at      DateTime @default(now())
+  melt            MeltChargeRecord @relation(fields: [melt_id], references: [id])
+  item            ItemMaster       @relation(fields: [item_id], references: [id])
+  @@map("melt_charge_line")
+}
+
+model MeltReturnScrapLine {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  melt_id         String
+  scrap_type      String
+  alloy_grade     String?
+  weight_kg       Float
+  source_job_id   String?
+  notes           String?
+  created_at      DateTime @default(now())
+  melt            MeltChargeRecord @relation(fields: [melt_id], references: [id])
+  @@map("melt_return_scrap_line")
+}
+
+model MeltTemperatureLog {
+  id               String   @id @default(uuid())
+  tenant_id        String
+  melt_id          String
+  stage            String
+  temperature      Float
+  unit             String   @default("C")
+  instrument_type  String?
+  instrument_id    String?
+  recorded_by      String?
+  recorded_at      DateTime @default(now())
+  is_out_of_spec   Boolean  @default(false)
+  deviation_action String?
+  melt             MeltChargeRecord @relation(fields: [melt_id], references: [id])
+  @@map("melt_temperature_log")
+}
+
+model MeltChemistryLog {
+  id                String   @id @default(uuid())
+  tenant_id         String
+  melt_id           String
+  sample_number     Int      @default(1)
+  method            String
+  instrument_id     String?
+  si                Float?
+  cu                Float?
+  fe                Float?
+  mn                Float?
+  mg                Float?
+  ni                Float?
+  zn                Float?
+  sn                Float?
+  ti                Float?
+  pb                Float?
+  al                Float?
+  status            String
+  corrective_action String?
+  recorded_by       String?
+  recorded_at       DateTime @default(now())
+  melt              MeltChargeRecord @relation(fields: [melt_id], references: [id])
+  @@map("melt_chemistry_log")
+}
+
+model MeltShotLink {
+  id             String   @id @default(uuid())
+  tenant_id      String
+  melt_id        String
+  shot_id        String?
+  metal_used_kg  Float
+  created_at     DateTime @default(now())
+  melt           MeltChargeRecord @relation(fields: [melt_id], references: [id])
+  @@map("melt_shot_link")
 }

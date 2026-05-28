@@ -125,7 +125,11 @@ const AddMachineModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     oee_target_percent: '78',
     power_kw: '',
     operators_required: '2',
-    location: ''
+    location: '',
+    fuel_type: 'gas',
+    capacity_kg: '',
+    lining_material: '',
+    lining_life_kg: ''
   });
 
   const mutation = useMutation({
@@ -144,7 +148,11 @@ const AddMachineModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       rated_cycle_time_sec: form.rated_cycle_time_sec ? parseFloat(form.rated_cycle_time_sec) : null,
       oee_target_percent: parseFloat(form.oee_target_percent),
       power_kw: form.power_kw ? parseFloat(form.power_kw) : null,
-      operators_required: parseInt(form.operators_required)
+      operators_required: parseInt(form.operators_required),
+      fuel_type: form.machine_type === 'furnace' ? form.fuel_type : null,
+      capacity_kg: form.machine_type === 'furnace' && form.capacity_kg ? parseFloat(form.capacity_kg) : null,
+      lining_material: form.machine_type === 'furnace' ? form.lining_material : null,
+      lining_life_kg: form.machine_type === 'furnace' && form.lining_life_kg ? parseFloat(form.lining_life_kg) : null
     });
   };
 
@@ -211,6 +219,35 @@ const AddMachineModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="e.g. Bay 1" />
             </div>
           </div>
+          {form.machine_type === 'furnace' && (
+            <div className="border-t border-border pt-3">
+              <p className="text-sm font-medium text-text-primary mb-2">Furnace Details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-text-secondary mb-1">Fuel Type</label>
+                  <select value={form.fuel_type} onChange={e => setForm({ ...form, fuel_type: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+                    {['gas', 'electric', 'oil', 'induction'].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-text-secondary mb-1">Capacity (KG)</label>
+                  <input type="number" value={form.capacity_kg} onChange={e => setForm({ ...form, capacity_kg: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="e.g. 500" />
+                </div>
+                <div>
+                  <label className="block text-xs text-text-secondary mb-1">Lining Material</label>
+                  <input value={form.lining_material} onChange={e => setForm({ ...form, lining_material: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="e.g. silica" />
+                </div>
+                <div>
+                  <label className="block text-xs text-text-secondary mb-1">Lining Life (KG melted)</label>
+                  <input type="number" value={form.lining_life_kg} onChange={e => setForm({ ...form, lining_life_kg: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="e.g. 500000" />
+                </div>
+              </div>
+            </div>
+          )}
           {mutation.isError && <p className="text-red-500 text-sm">Failed to add machine</p>}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
@@ -729,6 +766,7 @@ const Settings: React.FC = () => {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showAlloySpecModal, setShowAlloySpecModal] = useState(false);
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/suppliers').then(r => r.data.data) });
   const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
@@ -736,6 +774,7 @@ const Settings: React.FC = () => {
   const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => api.get('/api/customers').then(r => r.data.data) });
   const { data: vendors } = useQuery({ queryKey: ['vendors'], queryFn: () => api.get('/api/vendors').then(r => r.data.data) });
   const { data: locations } = useQuery({ queryKey: ['locations'], queryFn: () => api.get('/api/locations').then(r => r.data.data) });
+  const { data: alloySpecs } = useQuery({ queryKey: ['alloyGrades'], queryFn: () => api.get('/api/melt/alloy-grades').then(r => r.data.data) });
 
   const sections = [
     { id: 'suppliers', label: 'Suppliers' },
@@ -745,7 +784,8 @@ const Settings: React.FC = () => {
     { id: 'vendors', label: 'Vendors' },
     { id: 'cost', label: 'Cost Config' },
     { id: 'toc', label: 'TOC Config' },
-    { id: 'locations', label: 'Locations' }
+    { id: 'locations', label: 'Locations' },
+    { id: 'alloy_specs', label: 'Alloy Specs' }
   ];
 
   return (
@@ -756,6 +796,7 @@ const Settings: React.FC = () => {
       {showCustomerModal && <AddCustomerModal onClose={() => setShowCustomerModal(false)} />}
       {showVendorModal && <AddVendorModal onClose={() => setShowVendorModal(false)} />}
       {showLocationModal && <AddLocationModal onClose={() => setShowLocationModal(false)} />}
+      {showAlloySpecModal && <AddAlloySpecModal onClose={() => setShowAlloySpecModal(false)} />}
 
       <div>
         <h1 className="text-xl font-bold text-text-primary">Settings</h1>
@@ -882,6 +923,40 @@ const Settings: React.FC = () => {
         />
       )}
 
+      {activeSection === 'alloy_specs' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-sm font-medium text-text-primary">Alloy Chemistry Specs</p>
+            <button onClick={() => setShowAlloySpecModal(true)} className="text-sm bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add Alloy Spec</button>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead><tr className="bg-brand-light">
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Item</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Standard</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">System</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Melt Temp</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Transfer Temp</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Key Limits</th>
+              </tr></thead>
+              <tbody>
+                {alloySpecs?.map((g: any, i: number) => (
+                  <tr key={g.id} className={`border-t border-border ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
+                    <td className="px-4 py-3"><p className="font-medium text-text-primary">{g.item?.item_code}</p><p className="text-text-secondary text-xs">{g.item?.item_name}</p></td>
+                    <td className="px-4 py-3 text-xs text-text-secondary">{g.standard || '—'}</td>
+                    <td className="px-4 py-3 text-xs text-text-secondary">{g.alloy_system || '—'}</td>
+                    <td className="px-4 py-3 text-xs">{g.melt_temp_min && g.melt_temp_max ? `${g.melt_temp_min}–${g.melt_temp_max}°C` : '—'}</td>
+                    <td className="px-4 py-3 text-xs">{g.transfer_temp_min && g.transfer_temp_max ? `${g.transfer_temp_min}–${g.transfer_temp_max}°C` : '—'}</td>
+                    <td className="px-4 py-3 text-xs text-text-secondary">{['si', 'cu', 'fe'].filter(el => g[`${el}_max`]).map(el => `${el.toUpperCase()} ≤${g[`${el}_max`]}`).join(' | ') || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {(!alloySpecs || alloySpecs.length === 0) && <div className="text-center py-12 text-text-secondary">No alloy specs defined yet</div>}
+          </div>
+        </div>
+      )}
+
       {activeSection === 'toc' && (
         <div className="bg-white rounded-xl p-5 shadow-sm max-w-lg">
           <h3 className="font-semibold text-text-primary mb-4">TOC Constraint Configuration</h3>
@@ -951,6 +1026,85 @@ const AddLocationModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+};
+
+const AddAlloySpecModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const queryClient = useQueryClient();
+  const elements = ['si', 'cu', 'fe', 'mn', 'mg', 'ni', 'zn', 'sn', 'ti', 'pb'];
+  const [form, setForm] = useState<any>({ item_id: '', standard: '', alloy_system: 'Al-Si', melt_temp_min: '', melt_temp_max: '', transfer_temp_min: '', transfer_temp_max: '', pouring_temp_min: '', pouring_temp_max: '' });
+  const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
+  const rawMaterials = items?.filter((i: any) => i.item_type === 'raw_material') || [];
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.post('/api/melt/alloy-grades', d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['alloyGrades'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  const clsXs = "w-full px-2 py-1.5 border border-border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h2 className="font-bold text-text-primary">Add Alloy Spec</h2>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-text-primary mb-1">Raw Material Item <span className="text-red-500">*</span></label>
+              <select value={form.item_id} onChange={e => setForm({ ...form, item_id: e.target.value })} className={cls}>
+                <option value="">Select item...</option>
+                {rawMaterials.map((i: any) => <option key={i.id} value={i.id}>{i.item_code} — {i.item_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Standard</label>
+              <input value={form.standard} onChange={e => setForm({ ...form, standard: e.target.value })} className={cls} placeholder="e.g. JIS H5302" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Alloy System</label>
+            <select value={form.alloy_system} onChange={e => setForm({ ...form, alloy_system: e.target.value })} className={cls}>
+              {['Al-Si', 'Al-Cu', 'Al-Mg', 'Al-Zn', 'Other'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-text-primary mb-2">Chemistry Spec (% by weight) — min / max per element</p>
+            <div className="grid grid-cols-5 gap-2">
+              {elements.map(el => (
+                <div key={el} className="space-y-1">
+                  <p className="text-xs text-text-secondary uppercase font-medium text-center">{el}</p>
+                  <input type="number" step="0.01" className={clsXs} placeholder="min" onChange={e => setForm({ ...form, [`${el}_min`]: parseFloat(e.target.value) })} />
+                  <input type="number" step="0.01" className={clsXs} placeholder="max" onChange={e => setForm({ ...form, [`${el}_max`]: parseFloat(e.target.value) })} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-text-primary mb-2">Temperature Spec (°C)</p>
+            <div className="grid grid-cols-3 gap-3">
+              {[['melt_temp', 'Melt Temp'], ['transfer_temp', 'Transfer Temp'], ['pouring_temp', 'Pouring Temp']].map(([key, label]) => (
+                <div key={key}>
+                  <p className="text-xs text-text-secondary mb-1">{label}</p>
+                  <div className="flex gap-1">
+                    <input type="number" className={clsXs} placeholder="min" onChange={e => setForm({ ...form, [`${key}_min`]: parseFloat(e.target.value) })} />
+                    <input type="number" className={clsXs} placeholder="max" onChange={e => setForm({ ...form, [`${key}_max`]: parseFloat(e.target.value) })} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to add alloy spec</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate(form)} disabled={!form.item_id || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Saving...' : 'Save Alloy Spec'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
