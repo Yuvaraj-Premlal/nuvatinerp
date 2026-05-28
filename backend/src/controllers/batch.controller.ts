@@ -16,7 +16,7 @@ export const getBatches = async (req: AuthRequest, res: Response) => {
       },
       include: {
         item: { select: { item_name: true, item_code: true, unit_of_measure: true } },
-        grn: { include: { po: { select: { po_number: true } } } }
+        grn: { include: { po: { include: { supplier: { select: { supplier_name: true } } } } } }
       },
       orderBy: { created_at: 'desc' }
     });
@@ -25,15 +25,7 @@ export const getBatches = async (req: AuthRequest, res: Response) => {
     for (const line of grnLines as any[]) {
       const key = `${line.batch_number}__${line.item_id}`;
       if (!batchMap[key]) {
-        let supplier_name = '—';
-        const supplierId = line.grn?.supplier_id || line.grn?.po?.supplier_id;
-        if (supplierId) {
-          const supplier = await prisma.supplierMaster.findUnique({
-            where: { id: supplierId },
-            select: { supplier_name: true }
-          });
-          supplier_name = supplier?.supplier_name || '—';
-        }
+        const supplier_name = line.grn?.po?.supplier?.supplier_name || '—';
         batchMap[key] = {
           batch_number: line.batch_number,
           lot_number: line.lot_number,
@@ -74,21 +66,12 @@ export const getBatchTrace = async (req: AuthRequest, res: Response) => {
       where: { tenant_id, batch_number: String(batch_number) },
       include: {
         item: { select: { item_name: true, item_code: true, unit_of_measure: true } },
-        grn: { include: { po: { select: { po_number: true } } } }
+        grn: { include: { po: { include: { supplier: { select: { supplier_name: true } } } } } }
       }
     });
 
     const enrichedGrnLines = await Promise.all((grnLines as any[]).map(async (line: any) => {
-      let supplier_name = '—';
-      // Try direct supplier_id first, then via PO
-      const supplierId = line.grn?.supplier_id || line.grn?.po?.supplier_id;
-      if (supplierId) {
-        const supplier = await prisma.supplierMaster.findUnique({
-          where: { id: supplierId },
-          select: { supplier_name: true }
-        });
-        supplier_name = supplier?.supplier_name || '—';
-      }
+      const supplier_name = line.grn?.po?.supplier?.supplier_name || '—';
       return { ...line, supplier_name };
     }));
 
