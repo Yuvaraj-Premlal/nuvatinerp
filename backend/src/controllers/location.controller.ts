@@ -18,9 +18,9 @@ export const getLocations = async (req: AuthRequest, res: Response) => {
 export const createLocation = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
-    const { code, description, zone } = req.body;
+    const { code, description, zone, type } = req.body;
     const location = await prisma.locationMaster.create({
-      data: { tenant_id, code: code.toUpperCase(), description, zone }
+      data: { tenant_id, code: code.toUpperCase(), description, zone, type: type || "store" }
     });
     res.json({ success: true, data: location });
   } catch (error: any) {

@@ -87,6 +87,7 @@ const BatchTraceModal: React.FC<{ batchNumber: string; onClose: () => void }> = 
                           <div>
                             <p className="font-medium capitalize">{m.transaction_type === 'issue' ? '🔧 Issued to Job' : m.transaction_type === 'quarantine' ? '⚠ Moved to Quarantine' : '⚖ Stock Adjustment'} — {m.reference_number}</p>
                             <p className="text-xs mt-0.5">By: {m.transacted_by || '—'}</p>
+                            {(m.location || m.to_location) && <p className="text-xs text-blue-600 mt-0.5">📍 {m.location ? `From: ${m.location}` : ''}{m.location && m.to_location ? ' → ' : ''}{m.to_location ? `To: ${m.to_location}` : ''}</p>}
                           </div>
                           <div className="text-right">
                             <p className={`font-bold text-sm ${m.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>{m.quantity > 0 ? '+' : ''}{fmt(m.quantity)} {m.item?.unit_of_measure}</p>

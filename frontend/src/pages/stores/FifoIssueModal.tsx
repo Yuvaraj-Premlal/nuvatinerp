@@ -16,13 +16,16 @@ const overrideReasons = [
 const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<'form' | 'split' | 'success'>('form');
-  const [form, setForm] = useState({ job_id: '', item_id: '', planned_qty: '', issued_qty: '', issued_by: 'Storekeeper' });
+  const [form, setForm] = useState({ job_id: '', item_id: '', planned_qty: '', issued_qty: '', issued_by: 'Storekeeper', to_location: '' });
   const [splitLines, setSplitLines] = useState<any[]>([]);
   const [lastIssue, setLastIssue] = useState<any>(null);
   const [overrideReasonMap, setOverrideReasonMap] = useState<Record<string, string>>({});
   const [pendingOverrideMap, setPendingOverrideMap] = useState<Record<string, any>>({});
 
   const { data: jobs } = useQuery({ queryKey: ['jobcards'], queryFn: () => api.get('/api/jobcards').then(r => r.data.data) });
+  const { data: locations } = useQuery({ queryKey: ['locations'], queryFn: () => api.get('/api/locations').then(r => r.data.data), staleTime: 0 });
+  const shopFloorLocations = (locations || []).filter((l: any) => l.type === 'shop_floor');
+  const storeLocations = (locations || []).filter((l: any) => l.type === 'store');
   const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
 
   const { data: batchData, isLoading: batchLoading } = useQuery({
@@ -123,6 +126,7 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       planned_qty: parseFloat(form.planned_qty),
       issued_qty: parseFloat(form.issued_qty),
       issued_by: form.issued_by,
+      to_location: form.to_location || null,
       lines
     });
   };
@@ -178,6 +182,16 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <label className="block text-sm font-medium text-text-primary mb-1">Issued By</label>
               <input value={form.issued_by} onChange={e => setForm({ ...form, issued_by: e.target.value })}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Issue To (Shop Floor Location)</label>
+              <select value={form.to_location} onChange={e => setForm({ ...form, to_location: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+                <option value="">Select work centre / machine...</option>
+                {shopFloorLocations.map((l: any) => (
+                  <option key={l.id} value={l.code}>{l.code} {l.description ? `— ${l.description}` : ''}</option>
+                ))}
+              </select>
             </div>
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
@@ -235,6 +249,7 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                           <div>
                             <p className="font-medium text-sm">{line.batch_number}</p>
                             <p className="text-xs text-text-secondary">{line.grn_number} | {new Date(line.received_date).toLocaleDateString('en-IN')}</p>
+                            {line.location && <p className="text-xs text-blue-600 mt-0.5">📍 Pick from: {line.location}</p>}
                           </div>
                           <div className="flex items-center gap-2">
                             {!isOverride && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">⚡ FIFO</span>}

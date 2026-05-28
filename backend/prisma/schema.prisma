@@ -414,6 +414,7 @@ model LocationMaster {
   code        String
   description String?
   zone        String?
+  type        String   @default("store")
   is_active   Boolean  @default(true)
   created_at  DateTime @default(now())
   @@unique([tenant_id, code])
@@ -430,6 +431,7 @@ model StockLedger {
   reference_type   String?
   reference_id     String?
   location         String?
+  to_location      String?
   batch_number     String?
   lot_number       String?
   transacted_at    DateTime   @default(now())
@@ -537,6 +539,7 @@ model MaterialIssue {
   issued_at    DateTime   @default(now())
   issued_by    String?
   location     String?
+  to_location  String?
 
   batch_number         String?
   grn_id               String?

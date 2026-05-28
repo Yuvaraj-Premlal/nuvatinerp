@@ -120,7 +120,7 @@ const IssueHistory: React.FC = () => {
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium">{g.job?.job_number}</p>
-                      <p className="text-text-secondary text-xs">{g.job?.part_name || '—'}</p>
+                      <p className="text-text-secondary text-xs">{g.job?.job_number || '—'}</p>
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium">{g.item?.item_name}</p>
@@ -154,6 +154,8 @@ const IssueHistory: React.FC = () => {
                             <tr className="text-brand-primary">
                               <th className="text-left py-1">Batch</th>
                               <th className="text-right py-1">Qty Issued</th>
+                              <th className="text-left py-1">From Location</th>
+                              <th className="text-left py-1">To Location</th>
                               <th className="text-left py-1">Override</th>
                             </tr>
                           </thead>
@@ -162,6 +164,8 @@ const IssueHistory: React.FC = () => {
                               <tr key={li} className="border-t border-blue-100">
                                 <td className="py-1 font-medium">{line.batch_number || '—'}</td>
                                 <td className="py-1 text-right">{fmt(line.issued_qty)} {g.item?.unit_of_measure}</td>
+                                <td className="py-1 text-blue-600">{line.location || '—'}</td>
+                                <td className="py-1 text-blue-600">{line.to_location || '—'}</td>
                                 <td className="py-1">
                                   {line.fifo_override
                                     ? <span className="text-amber-600">⚠ {line.override_reason}</span>

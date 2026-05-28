@@ -875,6 +875,7 @@ const Settings: React.FC = () => {
             { key: 'code', label: 'Code' },
             { key: 'description', label: 'Description' },
             { key: 'zone', label: 'Zone' },
+            { key: 'type', label: 'Type' },
             { key: 'is_active', label: 'Active' }
           ]}
           onAdd={() => setShowLocationModal(true)}
@@ -893,7 +894,7 @@ const Settings: React.FC = () => {
 
 const AddLocationModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ code: '', description: '', zone: '' });
+  const [form, setForm] = useState({ code: '', description: '', zone: '', type: 'store' });
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/api/locations', data),
@@ -933,6 +934,14 @@ const AddLocationModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <input value={form.zone} onChange={e => setForm({ ...form, zone: e.target.value.toUpperCase() })}
               className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
               placeholder="e.g. A, B, C" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Type <span className="text-red-500">*</span></label>
+            <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+              <option value="store">Store (Bin / Rack)</option>
+              <option value="shop_floor">Shop Floor (Machine / Work Centre)</option>
+            </select>
           </div>
           {mutation.isError && <p className="text-red-500 text-sm">Failed to add location</p>}
           <div className="flex gap-3 pt-2">

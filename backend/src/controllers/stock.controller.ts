@@ -199,7 +199,7 @@ export const adjustStock = async (req: AuthRequest, res: Response) => {
 export const issueMaterial = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
-    const { job_id, item_id, planned_qty, issued_qty, issued_by, lines } = req.body;
+    const { job_id, item_id, planned_qty, issued_qty, issued_by, to_location, lines } = req.body;
     // lines: [{ batch_number, grn_id, qty, fifo_override, override_reason, override_request_id }]
 
     // Generate group slip number
@@ -217,12 +217,22 @@ export const issueMaterial = async (req: AuthRequest, res: Response) => {
     const issueLines = [];
     for (const line of lines) {
       const qty = parseFloat(line.qty);
+      // Fetch from_location from grn_line batch
+      let from_location: string | null = null;
+      if (line.grn_id && line.batch_number) {
+        const grnLine = await prisma.grnLine.findFirst({
+          where: { grn_id: line.grn_id, batch_number: line.batch_number, tenant_id }
+        });
+        from_location = grnLine?.location || null;
+      }
       const issue = await prisma.materialIssue.create({
         data: {
           tenant_id, job_id, item_id,
           planned_qty: parseFloat(planned_qty),
           issued_qty: qty,
           issued_by,
+          location: from_location,
+          to_location: to_location || null,
           batch_number: line.batch_number || null,
           grn_id: line.grn_id || null,
           fifo_override: line.fifo_override || false,
@@ -239,6 +249,8 @@ export const issueMaterial = async (req: AuthRequest, res: Response) => {
           reference_type: 'job_card',
           reference_id: job_id,
           transacted_by: issued_by,
+          location: from_location,
+          to_location: to_location || null,
           batch_number: line.batch_number || null
         }
       });
@@ -417,6 +429,7 @@ export const getAvailableBatches = async (req: AuthRequest, res: Response) => {
         accepted_qty: acceptedQty,
         issued_qty: issuedQty,
         remaining_qty: Math.max(0, remaining),
+        location: line.location || null,
         unit_of_measure: line.item?.unit_of_measure
       };
     }));
@@ -554,7 +567,7 @@ export const getIssueHistory = async (req: AuthRequest, res: Response) => {
       where,
       include: {
         item: { select: { item_name: true, item_code: true, unit_of_measure: true } },
-        job: { select: { job_number: true, part_name: true } },
+        job: { select: { job_number: true } },
         lines: {
           include: {
             item: { select: { item_name: true, unit_of_measure: true } }
