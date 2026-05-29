@@ -3,19 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 
 const navItems = [
   { path: '/dashboard', icon: '⬡', label: 'Dashboard' },
-  { path: '/factory', icon: '🏭', label: 'Factory' },
-  { path: '/pfep', icon: '📋', label: 'PFEP' },
-  { path: '/production', icon: '⚙️', label: 'Production' },
+  { path: '/pfep', icon: '📐', label: 'PFEP' },
+  { path: '/purchase', icon: '🛒', label: 'Purchase' },
+  { path: '/stores', icon: '📦', label: 'Stores' },
   { path: '/melting', icon: '🔥', label: 'Melting' },
   { path: '/mr', icon: '📋', label: 'Requisitions' },
   { path: '/quality', icon: '✓', label: 'Quality' },
-  { path: '/stores', icon: '📦', label: 'Stores' },
-  { path: '/purchase', icon: '🛒', label: 'Purchase' },
-  { path: '/dispatch', icon: '🚚', label: 'Dispatch' },
-  { path: '/toc', icon: '📊', label: 'TOC' },
-  { path: '/finance', icon: '💰', label: 'Finance' },
-  { path: '/maintenance', icon: '🔧', label: 'Maintenance' },
-  { path: '/reports', icon: '📈', label: 'Reports' },
 ];
 
 const Sidebar: React.FC = () => {
