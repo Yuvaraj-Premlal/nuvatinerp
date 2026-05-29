@@ -29,6 +29,8 @@ model Tenant {
   alloy_grades       AlloyGrade[]
   melt_records       MeltChargeRecord[]
   melt_work_orders   MeltWorkOrder[]
+  material_requisitions MaterialRequisition[]
+  purchase_requisitions PurchaseRequisition[]
   job_cards          JobCard[]
   sales_orders       SalesOrder[]
 
@@ -83,6 +85,8 @@ model ItemMaster {
   dispatch_lines  DispatchLine[]
   quarantine_stock QuarantineStock[]
   melt_charge_lines MeltChargeLine[]
+  mr_lines          MaterialRequisitionLine[]
+  pr_lines          PurchaseRequisitionLine[]
   alloy_spec        ItemAlloySpec?
 
   @@unique([tenant_id, item_code])
@@ -1784,6 +1788,90 @@ model MeltWorkOrder {
   material_issues       MaterialIssue[]
   issue_groups          MaterialIssueGroup[]
   melt_records          MeltChargeRecord[]
+  material_requisitions MaterialRequisition[]
   @@unique([tenant_id, mwo_number])
   @@map("melt_work_order")
+}
+
+
+model MaterialRequisition {
+  id                  String   @id @default(uuid())
+  tenant_id           String
+  mr_number           String
+  raised_by_dept      String
+  raised_by           String
+  required_by_date    DateTime
+  priority            String   @default("normal")
+  requisition_type    String   @default("direct")
+  status              String   @default("draft")
+  notes               String?
+  mwo_id              String?
+  acknowledged_by     String?
+  acknowledged_at     DateTime?
+  fulfilled_at        DateTime?
+  cancelled_by        String?
+  cancelled_at        DateTime?
+  cancellation_reason String?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  tenant              Tenant              @relation(fields: [tenant_id], references: [id])
+  mwo                 MeltWorkOrder?      @relation(fields: [mwo_id], references: [id])
+  lines               MaterialRequisitionLine[]
+  @@unique([tenant_id, mr_number])
+  @@map("material_requisition")
+}
+
+model MaterialRequisitionLine {
+  id                  String   @id @default(uuid())
+  tenant_id           String
+  mr_id               String
+  item_id             String
+  quantity_required   Float
+  quantity_fulfilled  Float    @default(0)
+  unit_of_measure     String
+  notes               String?
+  status              String   @default("open")
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  mr                  MaterialRequisition      @relation(fields: [mr_id], references: [id])
+  item                ItemMaster               @relation(fields: [item_id], references: [id])
+  pr_lines            PurchaseRequisitionLine[]
+  @@map("material_requisition_line")
+}
+
+model PurchaseRequisition {
+  id               String   @id @default(uuid())
+  tenant_id        String
+  pr_number        String
+  raised_by        String
+  required_by_date DateTime
+  priority         String   @default("normal")
+  status           String   @default("open")
+  notes            String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  tenant           Tenant   @relation(fields: [tenant_id], references: [id])
+  lines            PurchaseRequisitionLine[]
+  @@unique([tenant_id, pr_number])
+  @@map("purchase_requisition")
+}
+
+model PurchaseRequisitionLine {
+  id                    String   @id @default(uuid())
+  tenant_id             String
+  pr_id                 String
+  mr_line_id            String?
+  item_id               String
+  quantity_required     Float
+  quantity_on_po        Float    @default(0)
+  unit_of_measure       String
+  preferred_supplier_id String?
+  notes                 String?
+  status                String   @default("open")
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+  pr                    PurchaseRequisition      @relation(fields: [pr_id], references: [id])
+  mr_line               MaterialRequisitionLine? @relation(fields: [mr_line_id], references: [id])
+  item                  ItemMaster               @relation(fields: [item_id], references: [id])
+  @@map("purchase_requisition_line")
 }

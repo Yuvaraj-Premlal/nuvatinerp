@@ -7,6 +7,7 @@ const navItems = [
   { path: '/pfep', icon: '📋', label: 'PFEP' },
   { path: '/production', icon: '⚙️', label: 'Production' },
   { path: '/melting', icon: '🔥', label: 'Melting' },
+  { path: '/mr', icon: '📋', label: 'Requisitions' },
   { path: '/quality', icon: '✓', label: 'Quality' },
   { path: '/stores', icon: '📦', label: 'Stores' },
   { path: '/purchase', icon: '🛒', label: 'Purchase' },
