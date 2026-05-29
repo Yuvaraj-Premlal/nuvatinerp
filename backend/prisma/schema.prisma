@@ -563,14 +563,16 @@ model MaterialIssueGroup {
   id               String          @id @default(uuid())
   tenant_id        String
   slip_number      String
-  job_id           String
+  job_id           String?
+  mwo_id           String?
   item_id          String
   planned_qty      Float?
   total_issued_qty Float
   issued_by        String?
   issued_at        DateTime        @default(now())
   is_fifo_override Boolean         @default(false)
-  job              JobCard         @relation(fields: [job_id], references: [id])
+  job              JobCard?        @relation(fields: [job_id], references: [id])
+  mwo              MeltWorkOrder?  @relation(fields: [mwo_id], references: [id])
   item             ItemMaster      @relation(fields: [item_id], references: [id])
   lines            MaterialIssue[]
   @@map("material_issue_group")
@@ -1780,6 +1782,7 @@ model MeltWorkOrder {
   furnace               MachineMaster    @relation("FurnaceMWOs", fields: [furnace_id], references: [id])
   alloy_spec            ItemAlloySpec?   @relation(fields: [alloy_spec_id], references: [id])
   material_issues       MaterialIssue[]
+  issue_groups          MaterialIssueGroup[]
   melt_records          MeltChargeRecord[]
   @@unique([tenant_id, mwo_number])
   @@map("melt_work_order")
