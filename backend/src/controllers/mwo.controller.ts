@@ -13,7 +13,7 @@ export const getMWOs = async (req: AuthRequest, res: Response) => {
       where,
       include: {
         furnace: { select: { machine_code: true, machine_name: true } },
-        alloy_spec: { include: { item: { select: { item_name: true, item_code: true } } } },
+        alloy_spec: { include: { item: { select: { id: true, item_name: true, item_code: true } } } },
         material_issues: { select: { id: true, issued_qty: true, batch_number: true, location: true } },
         melt_records: { select: { id: true, melt_lot_number: true, status: true } }
       },

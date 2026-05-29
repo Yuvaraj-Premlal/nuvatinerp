@@ -270,23 +270,11 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <div className="text-center py-8 text-brand-primary animate-pulse">Calculating FIFO split...</div>
             ) : batches.length === 0 ? (
               <div className="space-y-4">
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
-                  <p className="font-medium">⚠ No batches found</p>
-                  <p className="text-xs mt-1">Issue will proceed without batch tracking.</p>
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+                  <p className="font-medium">⚠ No stock available</p>
+                  <p className="text-xs mt-1">There are no batches in stock for this item. Raise a Purchase Order and receive material first before issuing.</p>
                 </div>
-                <button onClick={() => issueMutation.mutate({
-                  job_id: purpose === 'production' ? form.job_id : null,
-                  mwo_id: purpose === 'melting' ? form.mwo_id : null,
-                  item_id: form.item_id,
-                  planned_qty: parseFloat(form.planned_qty),
-                  issued_qty: parseFloat(form.issued_qty),
-                  issued_by: form.issued_by,
-                  to_location: form.to_location || null,
-                  lines: [{ qty: parseFloat(form.issued_qty), batch_number: null, grn_id: null, fifo_override: false }]
-                })} disabled={issueMutation.isPending}
-                  className="w-full px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
-                  {issueMutation.isPending ? 'Issuing...' : 'Issue Without Batch'}
-                </button>
+                <button onClick={() => setStep('form')} className="w-full px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">← Go Back</button>
               </div>
             ) : (
               <>
