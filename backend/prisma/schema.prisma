@@ -581,7 +581,7 @@ model MaterialIssueGroup {
 model MaterialIssue {
   id           String     @id @default(uuid())
   tenant_id    String
-  job_id       String
+  job_id       String?
   item_id      String
   planned_qty  Float?
   issued_qty   Float
@@ -602,7 +602,7 @@ model MaterialIssue {
   override_request_id  String?
   group_id             String?
 
-  job          JobCard             @relation(fields: [job_id], references: [id])
+  job          JobCard?            @relation(fields: [job_id], references: [id])
   item         ItemMaster          @relation(fields: [item_id], references: [id])
   group        MaterialIssueGroup? @relation(fields: [group_id], references: [id])
   mwo          MeltWorkOrder?      @relation(fields: [mwo_id], references: [id])
