@@ -199,7 +199,7 @@ export const adjustStock = async (req: AuthRequest, res: Response) => {
 export const issueMaterial = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
-    const { job_id, item_id, planned_qty, issued_qty, issued_by, to_location, lines } = req.body;
+    const { job_id, item_id, planned_qty, issued_qty, issued_by, to_location, mwo_id, lines } = req.body;
     // lines: [{ batch_number, grn_id, qty, fifo_override, override_reason, override_request_id }]
 
     // Generate group slip number
@@ -210,7 +210,7 @@ export const issueMaterial = async (req: AuthRequest, res: Response) => {
 
     // Create issue group
     const group = await prisma.materialIssueGroup.create({
-      data: { tenant_id, slip_number, job_id, item_id, planned_qty: parseFloat(planned_qty), total_issued_qty, issued_by, is_fifo_override }
+      data: { tenant_id, slip_number, job_id: job_id || null, mwo_id: mwo_id || null, item_id, planned_qty: parseFloat(planned_qty || '0'), total_issued_qty, issued_by, is_fifo_override }
     });
 
     // Create individual issue lines and stock ledger entries
@@ -227,8 +227,9 @@ export const issueMaterial = async (req: AuthRequest, res: Response) => {
       }
       const issue = await prisma.materialIssue.create({
         data: {
-          tenant_id, job_id, item_id,
-          planned_qty: parseFloat(planned_qty),
+          tenant_id, job_id: job_id || null, item_id,
+          mwo_id: mwo_id || null,
+          planned_qty: parseFloat(planned_qty || '0'),
           issued_qty: qty,
           issued_by,
           location: from_location,
