@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { printIssueSlip } from '../../utils/issue.slip.pdf';
@@ -15,18 +15,43 @@ const overrideReasons = [
 
 const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<'form' | 'split' | 'success'>('form');
-  const [form, setForm] = useState({ job_id: '', item_id: '', planned_qty: '', issued_qty: '', issued_by: 'Storekeeper', to_location: '' });
+  const [purpose, setPurpose] = useState<'production' | 'melting' | ''>('');
+  const [step, setStep] = useState<'purpose' | 'form' | 'split' | 'success'>('purpose');
+  const [form, setForm] = useState({
+    job_id: '', mwo_id: '', item_id: '',
+    planned_qty: '', issued_qty: '',
+    issued_by: 'Storekeeper', to_location: ''
+  });
   const [splitLines, setSplitLines] = useState<any[]>([]);
   const [lastIssue, setLastIssue] = useState<any>(null);
   const [overrideReasonMap, setOverrideReasonMap] = useState<Record<string, string>>({});
   const [pendingOverrideMap, setPendingOverrideMap] = useState<Record<string, any>>({});
 
   const { data: jobs } = useQuery({ queryKey: ['jobcards'], queryFn: () => api.get('/api/jobcards').then(r => r.data.data) });
+  const { data: mwos } = useQuery({
+    queryKey: ['mwos', 'released'],
+    queryFn: () => api.get('/api/mwo?status=released').then(r => r.data.data),
+    enabled: purpose === 'melting'
+  });
   const { data: locations } = useQuery({ queryKey: ['locations'], queryFn: () => api.get('/api/locations').then(r => r.data.data), staleTime: 0 });
-  const shopFloorLocations = (locations || []).filter((l: any) => l.type === 'shop_floor');
-  const storeLocations = (locations || []).filter((l: any) => l.type === 'store');
   const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
+
+  const shopFloorLocations = (locations || []).filter((l: any) => l.type === 'shop_floor');
+
+  const selectedMWO = mwos?.find((m: any) => m.id === form.mwo_id);
+
+  // Auto-fill from MWO
+  useEffect(() => {
+    if (selectedMWO) {
+      setForm(f => ({
+        ...f,
+        item_id: selectedMWO.alloy_spec?.item?.id || '',
+        planned_qty: String(selectedMWO.planned_fresh_ingot || selectedMWO.planned_charge_weight || ''),
+        issued_qty: String(selectedMWO.planned_fresh_ingot || selectedMWO.planned_charge_weight || ''),
+        to_location: selectedMWO.furnace?.machine_code || ''
+      }));
+    }
+  }, [selectedMWO]);
 
   const { data: batchData, isLoading: batchLoading } = useQuery({
     queryKey: ['availableBatches', form.item_id],
@@ -37,7 +62,6 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const batches: any[] = batchData || [];
   const totalAvailable = batches.reduce((s: number, b: any) => s + b.remaining_qty, 0);
 
-  // Auto-calculate FIFO split when batches load
   const calculateFifoSplit = (issuedQty: number, availBatches: any[]) => {
     let remaining = issuedQty;
     const lines: any[] = [];
@@ -50,11 +74,18 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     return lines;
   };
 
+  useEffect(() => {
+    if (batches.length > 0 && step === 'split') {
+      setSplitLines(calculateFifoSplit(parseFloat(form.issued_qty), batches));
+    }
+  }, [batches.length, step]);
+
   const issueMutation = useMutation({
     mutationFn: (data: any) => api.post('/api/stock/issue', data),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['stock'] });
       queryClient.invalidateQueries({ queryKey: ['stockMovements'] });
+      queryClient.invalidateQueries({ queryKey: ['mwos'] });
       setLastIssue(res.data.data);
       setStep('success');
     },
@@ -68,47 +99,12 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     }
   });
 
-  const handleFormNext = (e: React.FormEvent) => {
-    e.preventDefault();
-    setStep('split');
-  };
-
-  // When batches load, auto-calculate split
-  React.useEffect(() => {
-    if (batches.length > 0 && step === 'split') {
-      const lines = calculateFifoSplit(parseFloat(form.issued_qty), batches);
-      setSplitLines(lines);
-    }
-  }, [batches.length, step]);
-
-  const updateLineQty = (idx: number, qty: number) => {
-    const updated = [...splitLines];
-    updated[idx] = { ...updated[idx], qty };
-    setSplitLines(updated);
-  };
-
   const totalSplit = splitLines.reduce((s, l) => s + (parseFloat(l.qty) || 0), 0);
   const splitValid = Math.abs(totalSplit - parseFloat(form.issued_qty)) < 0.001;
 
   const needsOverride = (line: any, idx: number) => {
-    // Override only if an older batch (lower index) has available stock but this line skips it
     if (idx === 0) return false;
-    const olderBatchesWithStock = splitLines.slice(0, idx).some(
-      (older: any) => older.remaining_qty > 0 && (parseFloat(older.qty) || 0) === 0
-    );
-    return olderBatchesWithStock;
-  };
-
-  const handleRequestOverride = (line: any) => {
-    const reason = overrideReasonMap[line.grn_id];
-    if (!reason) return;
-    overrideMutation.mutate({
-      item_id: form.item_id,
-      requested_grn_id: line.grn_id,
-      available_grn_id: batches[0].grn_id,
-      reason,
-      requested_by: form.issued_by
-    });
+    return splitLines.slice(0, idx).some((older: any) => older.remaining_qty > 0 && (parseFloat(older.qty) || 0) === 0);
   };
 
   const handleIssue = () => {
@@ -121,7 +117,8 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       override_request_id: pendingOverrideMap[l.grn_id]?.id || null
     }));
     issueMutation.mutate({
-      job_id: form.job_id,
+      job_id: purpose === 'production' ? form.job_id : null,
+      mwo_id: purpose === 'melting' ? form.mwo_id : null,
       item_id: form.item_id,
       planned_qty: parseFloat(form.planned_qty),
       issued_qty: parseFloat(form.issued_qty),
@@ -131,6 +128,8 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     });
   };
 
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -138,7 +137,8 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <div>
             <h2 className="font-bold text-text-primary">Issue Material</h2>
             <p className="text-text-secondary text-sm">
-              {step === 'form' && 'Select job and material'}
+              {step === 'purpose' && 'Select issue purpose'}
+              {step === 'form' && (purpose === 'melting' ? 'Issue for melting' : 'Issue for production')}
               {step === 'split' && 'Review FIFO split'}
               {step === 'success' && 'Material issued successfully'}
             </p>
@@ -146,58 +146,121 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
         </div>
 
+        {/* Step 0 — Purpose */}
+        {step === 'purpose' && (
+          <div className="p-5 space-y-4">
+            <p className="text-sm text-text-secondary">What is this material being issued for?</p>
+            <div className="grid grid-cols-2 gap-4">
+              <button onClick={() => { setPurpose('production'); setStep('form'); }}
+                className="border-2 border-border rounded-xl p-5 text-left hover:border-brand-primary hover:bg-brand-light transition-colors">
+                <p className="text-2xl mb-2">⚙️</p>
+                <p className="font-bold text-text-primary">Production</p>
+                <p className="text-text-secondary text-xs mt-1">Issue against a Job Card for a specific part</p>
+              </button>
+              <button onClick={() => { setPurpose('melting'); setStep('form'); }}
+                className="border-2 border-border rounded-xl p-5 text-left hover:border-amber-400 hover:bg-amber-50 transition-colors">
+                <p className="text-2xl mb-2">🔥</p>
+                <p className="font-bold text-text-primary">Melting</p>
+                <p className="text-text-secondary text-xs mt-1">Issue ingots against a Melt Work Order</p>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Step 1 — Form */}
         {step === 'form' && (
-          <form onSubmit={handleFormNext} className="p-5 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Job Card</label>
-              <select value={form.job_id} onChange={e => setForm({ ...form, job_id: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required>
-                <option value="">Select job...</option>
-                {jobs?.map((j: any) => <option key={j.id} value={j.id}>{j.job_number}</option>)}
-              </select>
+          <div className="p-5 space-y-4">
+            {/* Purpose badge */}
+            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${purpose === 'melting' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+              {purpose === 'melting' ? '🔥 Melting Issue' : '⚙️ Production Issue'}
+              <button onClick={() => { setPurpose(''); setStep('purpose'); setForm({ job_id: '', mwo_id: '', item_id: '', planned_qty: '', issued_qty: '', issued_by: 'Storekeeper', to_location: '' }); }} className="ml-1 hover:opacity-70">✕</button>
             </div>
+
+            {purpose === 'production' && (
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">Job Card <span className="text-red-500">*</span></label>
+                <select value={form.job_id} onChange={e => setForm({ ...form, job_id: e.target.value })} className={cls} required>
+                  <option value="">Select job...</option>
+                  {jobs?.map((j: any) => <option key={j.id} value={j.id}>{j.job_number}</option>)}
+                </select>
+              </div>
+            )}
+
+            {purpose === 'melting' && (
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">Melt Work Order <span className="text-red-500">*</span></label>
+                <select value={form.mwo_id} onChange={e => setForm({ ...form, mwo_id: e.target.value })} className={cls} required>
+                  <option value="">Select MWO...</option>
+                  {mwos?.map((m: any) => (
+                    <option key={m.id} value={m.id}>
+                      {m.mwo_number} — {m.furnace?.machine_code} — {m.alloy_spec?.item?.item_code} — {fmt(m.planned_charge_weight)} KG
+                    </option>
+                  ))}
+                </select>
+                {mwos?.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">⚠ No released Melt Work Orders. Ask supervisor to release a MWO first.</p>
+                )}
+                {selectedMWO && (
+                  <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs space-y-1">
+                    <p className="text-amber-700 font-medium">{selectedMWO.mwo_number}</p>
+                    <p className="text-amber-600">Furnace: {selectedMWO.furnace?.machine_code} — {selectedMWO.furnace?.machine_name}</p>
+                    <p className="text-amber-600">Alloy: {selectedMWO.alloy_spec?.item?.item_code} — {selectedMWO.alloy_spec?.item?.item_name}</p>
+                    <p className="text-amber-600">Planned charge: {fmt(selectedMWO.planned_charge_weight)} KG (Fresh: {fmt(selectedMWO.planned_fresh_ingot)} KG)</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Material</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">Material <span className="text-red-500">*</span></label>
               <select value={form.item_id} onChange={e => { setForm({ ...form, item_id: e.target.value }); setSplitLines([]); }}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required>
+                className={cls} required disabled={purpose === 'melting' && !!selectedMWO}>
                 <option value="">Select item...</option>
                 {items?.filter((i: any) => i.item_type === 'raw_material' || i.item_type === 'consumable')
                   .map((i: any) => <option key={i.id} value={i.id}>{i.item_name} ({i.item_code})</option>)}
               </select>
+              {purpose === 'melting' && selectedMWO && <p className="text-xs text-text-secondary mt-0.5">Auto-filled from MWO alloy spec</p>}
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-1">Planned Qty</label>
-                <input type="number" value={form.planned_qty} onChange={e => setForm({ ...form, planned_qty: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required />
+                <input type="number" value={form.planned_qty} onChange={e => setForm({ ...form, planned_qty: e.target.value })} className={cls} required />
               </div>
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-1">Issued Qty</label>
-                <input type="number" value={form.issued_qty} onChange={e => setForm({ ...form, issued_qty: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required />
+                <input type="number" value={form.issued_qty} onChange={e => setForm({ ...form, issued_qty: e.target.value })} className={cls} required />
               </div>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Issued By</label>
-              <input value={form.issued_by} onChange={e => setForm({ ...form, issued_by: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Issue To (Shop Floor Location)</label>
-              <select value={form.to_location} onChange={e => setForm({ ...form, to_location: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
-                <option value="">Select work centre / machine...</option>
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                {purpose === 'melting' ? 'Issue To (Furnace)' : 'Issue To (Shop Floor Location)'}
+              </label>
+              <select value={form.to_location} onChange={e => setForm({ ...form, to_location: e.target.value })} className={cls}
+                disabled={purpose === 'melting' && !!selectedMWO}>
+                <option value="">Select location...</option>
                 {shopFloorLocations.map((l: any) => (
                   <option key={l.id} value={l.code}>{l.code} {l.description ? `— ${l.description}` : ''}</option>
                 ))}
               </select>
+              {purpose === 'melting' && selectedMWO && <p className="text-xs text-text-secondary mt-0.5">Auto-filled from MWO furnace</p>}
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Issued By</label>
+              <input value={form.issued_by} onChange={e => setForm({ ...form, issued_by: e.target.value })} className={cls} />
+            </div>
+
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-              <button type="submit" className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark">Next → Review Split</button>
+              <button onClick={() => { setStep('purpose'); setPurpose(''); }} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">← Back</button>
+              <button onClick={() => setStep('split')}
+                disabled={!form.item_id || !form.issued_qty || (purpose === 'production' && !form.job_id) || (purpose === 'melting' && !form.mwo_id)}
+                className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+                Next → Review Split
+              </button>
             </div>
-          </form>
+          </div>
         )}
 
         {/* Step 2 — FIFO Split */}
@@ -211,8 +274,16 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   <p className="font-medium">⚠ No batches found</p>
                   <p className="text-xs mt-1">Issue will proceed without batch tracking.</p>
                 </div>
-                <button onClick={() => issueMutation.mutate({ job_id: form.job_id, item_id: form.item_id, planned_qty: parseFloat(form.planned_qty), issued_qty: parseFloat(form.issued_qty), issued_by: form.issued_by, lines: [{ qty: parseFloat(form.issued_qty), batch_number: null, grn_id: null, fifo_override: false }] })}
-                  disabled={issueMutation.isPending}
+                <button onClick={() => issueMutation.mutate({
+                  job_id: purpose === 'production' ? form.job_id : null,
+                  mwo_id: purpose === 'melting' ? form.mwo_id : null,
+                  item_id: form.item_id,
+                  planned_qty: parseFloat(form.planned_qty),
+                  issued_qty: parseFloat(form.issued_qty),
+                  issued_by: form.issued_by,
+                  to_location: form.to_location || null,
+                  lines: [{ qty: parseFloat(form.issued_qty), batch_number: null, grn_id: null, fifo_override: false }]
+                })} disabled={issueMutation.isPending}
                   className="w-full px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
                   {issueMutation.isPending ? 'Issuing...' : 'Issue Without Batch'}
                 </button>
@@ -234,9 +305,14 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   </div>
                 </div>
 
+                {purpose === 'melting' && selectedMWO && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+                    <p className="font-medium">🔥 Issuing for {selectedMWO.mwo_number} → {selectedMWO.furnace?.machine_code}</p>
+                  </div>
+                )}
+
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
                   <p className="font-medium">⚡ Auto FIFO Split — {splitLines.length} batch{splitLines.length > 1 ? 'es' : ''}</p>
-                  <p className="mt-0.5">System split qty across batches in FIFO order. You can modify quantities below.</p>
                 </div>
 
                 <div className="space-y-3">
@@ -259,7 +335,7 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <div className="flex items-center gap-2">
                           <label className="text-xs text-text-secondary w-16">Qty:</label>
                           <input type="number" value={line.qty} readOnly
-                            className="flex-1 px-2 py-1 border border-border rounded text-sm bg-surface text-text-primary cursor-not-allowed" />
+                            className="flex-1 px-2 py-1 border border-border rounded text-sm bg-surface cursor-not-allowed" />
                           <span className="text-xs text-text-secondary">/ {fmt(line.remaining_qty)} avail</span>
                         </div>
                         {isOverride && (
@@ -270,15 +346,13 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                               {overrideReasons.map(r => <option key={r} value={r}>{r}</option>)}
                             </select>
                             {!hasPendingOverride ? (
-                              <button onClick={() => handleRequestOverride(line)}
+                              <button onClick={() => overrideMutation.mutate({ item_id: form.item_id, requested_grn_id: line.grn_id, available_grn_id: batches[0].grn_id, reason: overrideReasonMap[line.grn_id], requested_by: form.issued_by })}
                                 disabled={!overrideReasonMap[line.grn_id] || overrideMutation.isPending}
                                 className="w-full px-2 py-1.5 bg-amber-500 text-white rounded text-xs font-medium hover:bg-amber-600 disabled:opacity-50">
-                                Send Override Request to Owner
+                                Send Override Request
                               </button>
                             ) : (
-                              <div className="bg-green-50 border border-green-200 rounded p-2 text-xs text-green-700">
-                                ✓ Override request sent — awaiting approval
-                              </div>
+                              <div className="bg-green-50 border border-green-200 rounded p-2 text-xs text-green-700">✓ Override request sent</div>
                             )}
                           </div>
                         )}
@@ -315,7 +389,7 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <p className="font-medium text-green-700">✓ Material issued successfully</p>
               <p className="text-green-600 text-xs mt-1">Slip: {lastIssue.slip_number} | Total: {lastIssue.total_issued_qty} {lastIssue.item?.unit_of_measure}</p>
               <p className="text-green-600 text-xs mt-0.5">{lastIssue.lines?.length} batch line{lastIssue.lines?.length > 1 ? 's' : ''} issued</p>
-              {lastIssue.is_fifo_override && <p className="text-amber-600 text-xs mt-0.5">⚠ Contains FIFO override</p>}
+              {purpose === 'melting' && selectedMWO && <p className="text-amber-600 text-xs mt-0.5">🔥 Against {selectedMWO.mwo_number} → {selectedMWO.furnace?.machine_code}</p>}
             </div>
             {lastIssue.lines?.length > 1 && (
               <div className="bg-surface rounded-xl p-3">

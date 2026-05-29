@@ -57,8 +57,9 @@ export const getAlloySpecs = async (req: AuthRequest, res: Response) => {
 
 export const createAlloySpec = async (req: AuthRequest, res: Response) => {
   try {
+    const tenant_id = req.user?.tenant_id as string;
     const { item_id, ...data } = req.body;
-    const spec = await prisma.itemAlloySpec.create({ data: { item_id, ...data } });
+    const spec = await prisma.itemAlloySpec.create({ data: { tenant_id, item_id, ...data } });
     res.json({ success: true, data: spec });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };
@@ -171,6 +172,13 @@ export const createMeltRecord = async (req: AuthRequest, res: Response) => {
       }
     });
 
+    // Update MWO status to in_progress
+    if (data.mwo_id) {
+      await prisma.meltWorkOrder.update({
+        where: { id: data.mwo_id },
+        data: { status: 'in_progress' }
+      });
+    }
     // Update furnace total_kg_melted
     await prisma.machineMaster.update({
       where: { id: data.furnace_id },
@@ -203,6 +211,13 @@ export const updateMeltStatus = async (req: AuthRequest, res: Response) => {
       where: { id },
       data: { status, ...data, ...(yield_percent !== undefined ? { yield_percent } : {}) }
     });
+    // Auto-update MWO to completed when melt transferred
+    if (status === 'transferred' && record.mwo_id) {
+      await prisma.meltWorkOrder.update({
+        where: { id: record.mwo_id },
+        data: { status: 'completed' }
+      });
+    }
     res.json({ success: true, data: record });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };

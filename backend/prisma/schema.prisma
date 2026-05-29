@@ -28,6 +28,7 @@ model Tenant {
   furnaces           Furnace[]
   alloy_grades       AlloyGrade[]
   melt_records       MeltChargeRecord[]
+  melt_work_orders   MeltWorkOrder[]
   job_cards          JobCard[]
   sales_orders       SalesOrder[]
 
@@ -141,6 +142,7 @@ model ItemAlloySpec {
   updated_at        DateTime   @updatedAt
   item              ItemMaster       @relation(fields: [item_id], references: [id])
   melt_records      MeltChargeRecord[]
+  melt_work_orders  MeltWorkOrder[]
   @@map("item_alloy_spec")
 }
 
@@ -213,6 +215,7 @@ model MachineMaster {
   maintenance_wos       MaintenanceWorkOrder[]
   maintenance_schedules MaintenanceSchedule[]
   melt_records          MeltChargeRecord[] @relation("FurnaceMelts")
+  melt_work_orders      MeltWorkOrder[]    @relation("FurnaceMWOs")
 
   fuel_type             String?
   capacity_kg           Float?
@@ -585,6 +588,8 @@ model MaterialIssue {
   issued_by    String?
   location     String?
   to_location  String?
+  mwo_id       String?
+  melt_id      String?
 
   batch_number         String?
   grn_id               String?
@@ -598,6 +603,8 @@ model MaterialIssue {
   job          JobCard             @relation(fields: [job_id], references: [id])
   item         ItemMaster          @relation(fields: [item_id], references: [id])
   group        MaterialIssueGroup? @relation(fields: [group_id], references: [id])
+  mwo          MeltWorkOrder?      @relation(fields: [mwo_id], references: [id])
+  melt         MeltChargeRecord?   @relation(fields: [melt_id], references: [id])
 
   @@map("material_issue")
 }
@@ -1582,6 +1589,7 @@ model MeltChargeRecord {
   melt_lot_number       String
   furnace_id            String
   alloy_spec_id         String?
+  mwo_id                String?
   shift                 String?
   charge_date           DateTime
   charging_start_at     DateTime?
@@ -1655,11 +1663,13 @@ model MeltChargeRecord {
   tenant                  Tenant           @relation(fields: [tenant_id], references: [id])
   furnace                 MachineMaster    @relation("FurnaceMelts", fields: [furnace_id], references: [id])
   alloy_spec              ItemAlloySpec?   @relation(fields: [alloy_spec_id], references: [id])
+  mwo                     MeltWorkOrder?   @relation(fields: [mwo_id], references: [id])
   charge_lines            MeltChargeLine[]
   return_scrap_lines      MeltReturnScrapLine[]
   temp_readings           MeltTemperatureLog[]
   chemistry_readings      MeltChemistryLog[]
   shot_links              MeltShotLink[]
+  material_issues         MaterialIssue[]
   @@unique([tenant_id, melt_lot_number])
   @@map("melt_charge_record")
 }
@@ -1746,4 +1756,31 @@ model MeltShotLink {
   created_at     DateTime @default(now())
   melt           MeltChargeRecord @relation(fields: [melt_id], references: [id])
   @@map("melt_shot_link")
+}
+
+model MeltWorkOrder {
+  id                    String   @id @default(uuid())
+  tenant_id             String
+  mwo_number            String
+  furnace_id            String
+  alloy_spec_id         String?
+  planned_charge_weight Float
+  planned_fresh_ingot   Float?
+  planned_return_scrap  Float?
+  shift                 String?
+  planned_date          DateTime
+  released_by           String?
+  released_at           DateTime?
+  notes                 String?
+  status                String   @default("planned")
+  // planned / released / in_progress / completed / cancelled
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+  tenant                Tenant           @relation(fields: [tenant_id], references: [id])
+  furnace               MachineMaster    @relation("FurnaceMWOs", fields: [furnace_id], references: [id])
+  alloy_spec            ItemAlloySpec?   @relation(fields: [alloy_spec_id], references: [id])
+  material_issues       MaterialIssue[]
+  melt_records          MeltChargeRecord[]
+  @@unique([tenant_id, mwo_number])
+  @@map("melt_work_order")
 }

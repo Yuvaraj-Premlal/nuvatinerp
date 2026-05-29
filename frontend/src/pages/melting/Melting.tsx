@@ -36,8 +36,8 @@ const ChemistryBar: React.FC<{ label: string; actual: number; min?: number; max?
 const CreateMeltModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<'basic' | 'charge' | 'scrap'>('basic');
-  const [form, setForm] = useState({
-    furnace_id: '', alloy_grade_id: '', shift: 'A',
+  const [form, setForm] = useState<any>({
+    furnace_id: '', alloy_grade_id: '', mwo_id: '', shift: 'A',
     charge_date: new Date().toISOString().slice(0, 16),
     fresh_ingot_weight: '', operator_id: '',
     lining_condition: 'good', ambient_temp_c: '', ambient_humidity_pct: '',
@@ -49,6 +49,7 @@ const CreateMeltModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [scrapLines, setScrapLines] = useState<any[]>([]);
 
   const { data: furnaces } = useQuery({ queryKey: ['furnaces'], queryFn: () => api.get('/api/melt/furnaces').then(r => r.data.data) });
+  const { data: mwosData } = useQuery({ queryKey: ['mwos', 'released'], queryFn: () => api.get('/api/mwo?status=released').then(r => r.data.data) });
   const { data: alloyGrades } = useQuery({ queryKey: ['alloyGrades'], queryFn: () => api.get('/api/melt/alloy-grades').then(r => r.data.data) });
   const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
   const { data: batches } = useQuery({ queryKey: ['batch'], queryFn: () => api.get('/api/batch').then(r => r.data.data) });
@@ -96,6 +97,20 @@ const CreateMeltModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <div className="p-5 space-y-4">
           {step === 'basic' && (
             <>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-2">
+                <label className="block text-xs font-medium text-amber-700 mb-1">Link to Melt Work Order (recommended)</label>
+                <select value={form.mwo_id} onChange={e => {
+                  const mwo = mwosData?.find((m: any) => m.id === e.target.value);
+                  setForm({ ...form, mwo_id: e.target.value,
+                    furnace_id: mwo?.furnace_id || form.furnace_id,
+                    alloy_grade_id: mwo?.alloy_spec_id || form.alloy_grade_id
+                  });
+                }} className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                  <option value="">No MWO — standalone melt</option>
+                  {mwosData?.map((m: any) => <option key={m.id} value={m.id}>{m.mwo_number} — {m.furnace?.machine_code} — {m.alloy_spec?.item?.item_code} — {fmt(m.planned_charge_weight)} KG</option>)}
+                </select>
+                {form.mwo_id && <p className="text-xs text-amber-600 mt-1">✓ Furnace and alloy auto-filled from MWO</p>}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1">Furnace <span className="text-red-500">*</span></label>
@@ -659,6 +674,7 @@ const FurnacesTab: React.FC = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ furnace_number: '', furnace_name: '', furnace_type: 'melting', fuel_type: 'gas', capacity_kg: '', lining_material: '', lining_life_kg: '' });
   const { data: furnaces } = useQuery({ queryKey: ['furnaces'], queryFn: () => api.get('/api/melt/furnaces').then(r => r.data.data) });
+  const { data: mwosData } = useQuery({ queryKey: ['mwos', 'released'], queryFn: () => api.get('/api/mwo?status=released').then(r => r.data.data) });
   const mutation = useMutation({
     mutationFn: (d: any) => api.post('/api/melt/furnaces', d),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['furnaces'] }); setShowAdd(false); setForm({ furnace_number: '', furnace_name: '', furnace_type: 'melting', fuel_type: 'gas', capacity_kg: '', lining_material: '', lining_life_kg: '' }); }
@@ -840,6 +856,282 @@ const AlloyGradesTab: React.FC = () => {
   );
 };
 
+
+// ── Melt Work Order Tab ───────────────────────────────────
+const MWOTab: React.FC = () => {
+  const queryClient = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
+  const [selectedMWO, setSelectedMWO] = useState<any>(null);
+  const [form, setForm] = useState<any>({ furnace_id: '', alloy_spec_id: '', planned_charge_weight: '', planned_fresh_ingot: '', planned_return_scrap: '', shift: 'A', planned_date: new Date().toISOString().slice(0,16), notes: '' });
+
+  const { data: mwos, isLoading } = useQuery({ queryKey: ['mwos'], queryFn: () => api.get('/api/mwo').then(r => r.data.data), staleTime: 0 });
+  const { data: furnaces } = useQuery({ queryKey: ['furnaces'], queryFn: () => api.get('/api/melt/furnaces').then(r => r.data.data) });
+  const { data: mwosData } = useQuery({ queryKey: ['mwos', 'released'], queryFn: () => api.get('/api/mwo?status=released').then(r => r.data.data) });
+  const { data: alloySpecs } = useQuery({ queryKey: ['alloyGrades'], queryFn: () => api.get('/api/melt/alloy-grades').then(r => r.data.data) });
+
+  const createMutation = useMutation({
+    mutationFn: (d: any) => api.post('/api/mwo', d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['mwos'] }); setShowCreate(false); setForm({ furnace_id: '', alloy_spec_id: '', planned_charge_weight: '', planned_fresh_ingot: '', planned_return_scrap: '', shift: 'A', planned_date: new Date().toISOString().slice(0,16), notes: '' }); }
+  });
+
+  const releaseMutation = useMutation({
+    mutationFn: ({ id, released_by }: any) => api.put(`/api/mwo/${id}/status`, { status: 'released', released_by }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mwos'] })
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: string) => api.put(`/api/mwo/${id}/status`, { status: 'cancelled' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mwos'] })
+  });
+
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+
+  const statusColors: any = {
+    planned: 'bg-blue-50 text-blue-600 border-blue-200',
+    released: 'bg-green-50 text-green-600 border-green-200',
+    in_progress: 'bg-purple-50 text-purple-600 border-purple-200',
+    completed: 'bg-gray-50 text-gray-500 border-gray-200',
+    cancelled: 'bg-red-50 text-red-400 border-red-200'
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <p className="text-sm font-medium text-text-primary">Melt Work Orders</p>
+        <button onClick={() => setShowCreate(!showCreate)} className="text-sm bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ New MWO</button>
+      </div>
+
+      {showCreate && (
+        <div className="bg-white rounded-xl p-5 shadow-sm space-y-4 border border-brand-primary">
+          <p className="font-medium text-text-primary text-sm">New Melt Work Order</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Furnace <span className="text-red-500">*</span></label>
+              <select value={form.furnace_id} onChange={e => setForm({ ...form, furnace_id: e.target.value })} className={cls}>
+                <option value="">Select furnace...</option>
+                {furnaces?.map((f: any) => <option key={f.id} value={f.id}>{f.machine_code} — {f.machine_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Alloy Spec</label>
+              <select value={form.alloy_spec_id} onChange={e => setForm({ ...form, alloy_spec_id: e.target.value })} className={cls}>
+                <option value="">Select alloy...</option>
+                {alloySpecs?.map((g: any) => <option key={g.id} value={g.id}>{g.item?.item_code} — {g.item?.item_name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Planned Charge Weight (KG) <span className="text-red-500">*</span></label>
+              <input type="number" value={form.planned_charge_weight} onChange={e => setForm({ ...form, planned_charge_weight: e.target.value })} className={cls} placeholder="e.g. 500" />
+            </div>
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Fresh Ingot (KG)</label>
+              <input type="number" value={form.planned_fresh_ingot} onChange={e => setForm({ ...form, planned_fresh_ingot: e.target.value })} className={cls} placeholder="e.g. 400" />
+            </div>
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Return Scrap (KG)</label>
+              <input type="number" value={form.planned_return_scrap} onChange={e => setForm({ ...form, planned_return_scrap: e.target.value })} className={cls} placeholder="e.g. 100" />
+            </div>
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Shift</label>
+              <select value={form.shift} onChange={e => setForm({ ...form, shift: e.target.value })} className={cls}>
+                {['A', 'B', 'C', 'Day', 'Night'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Planned Date</label>
+              <input type="datetime-local" value={form.planned_date} onChange={e => setForm({ ...form, planned_date: e.target.value })} className={cls} />
+            </div>
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Notes</label>
+              <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={cls} placeholder="Optional" />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => setShowCreate(false)} className="px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => createMutation.mutate(form)} disabled={!form.furnace_id || !form.planned_charge_weight || createMutation.isPending}
+              className="px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {createMutation.isPending ? 'Creating...' : 'Create MWO'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="text-center py-12 text-brand-primary animate-pulse">Loading...</div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead><tr className="bg-brand-light">
+              <th className="text-left px-4 py-3 text-brand-primary font-medium">MWO No</th>
+              <th className="text-left px-4 py-3 text-brand-primary font-medium">Date / Shift</th>
+              <th className="text-left px-4 py-3 text-brand-primary font-medium">Furnace</th>
+              <th className="text-left px-4 py-3 text-brand-primary font-medium">Alloy</th>
+              <th className="text-right px-4 py-3 text-brand-primary font-medium">Planned (KG)</th>
+              <th className="text-right px-4 py-3 text-brand-primary font-medium">Issued (KG)</th>
+              <th className="text-center px-4 py-3 text-brand-primary font-medium">Status</th>
+              <th className="text-center px-4 py-3 text-brand-primary font-medium">Actions</th>
+            </tr></thead>
+            <tbody>
+              {mwos?.map((m: any, i: number) => {
+                const totalIssued = m.material_issues?.reduce((s: number, mi: any) => s + (mi.issued_qty || 0), 0) || 0;
+                return (
+                  <tr key={m.id} onClick={() => setSelectedMWO(m)} className={`border-t border-border hover:bg-brand-light cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
+                    <td className="px-4 py-3 font-medium text-brand-primary">{m.mwo_number}</td>
+                    <td className="px-4 py-3 text-text-secondary text-xs">
+                      {new Date(m.planned_date).toLocaleDateString('en-IN')}<br />Shift {m.shift}
+                    </td>
+                    <td className="px-4 py-3 text-xs">{m.furnace?.machine_code}</td>
+                    <td className="px-4 py-3 text-xs font-medium">{m.alloy_spec?.item?.item_code || '—'}</td>
+                    <td className="px-4 py-3 text-right text-xs">
+                      <p>{fmt(m.planned_charge_weight)} KG</p>
+                      <p className="text-text-secondary">Fresh: {fmt(m.planned_fresh_ingot || 0)}</p>
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs">
+                      {totalIssued > 0 ? (
+                        <span className="font-medium text-green-600">{fmt(totalIssued)} KG</span>
+                      ) : <span className="text-text-secondary">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${statusColors[m.status] || 'bg-gray-50 text-gray-500'}`}>
+                        {m.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex gap-1 justify-center">
+                        {m.status === 'planned' && (
+                          <button onClick={() => releaseMutation.mutate({ id: m.id, released_by: 'Supervisor' })}
+                            className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded hover:bg-green-100 border border-green-200">
+                            Release
+                          </button>
+                        )}
+                        {m.status === 'planned' && (
+                          <button onClick={() => cancelMutation.mutate(m.id)}
+                            className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100 border border-red-200">
+                            Cancel
+                          </button>
+                        )}
+                        {m.melt_records?.length > 0 && (
+                          <span className="text-xs text-text-secondary">{m.melt_records.length} melt{m.melt_records.length > 1 ? 's' : ''}</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {(!mwos || mwos.length === 0) && <div className="text-center py-12 text-text-secondary">No melt work orders yet</div>}
+        </div>
+      )}
+    {selectedMWO && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-border sticky top-0 bg-white">
+              <div>
+                <h2 className="font-bold text-text-primary">{selectedMWO.mwo_number}</h2>
+                <p className="text-text-secondary text-sm">{selectedMWO.furnace?.machine_code} — {selectedMWO.furnace?.machine_name} | Shift {selectedMWO.shift}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${statusColors[selectedMWO.status] || 'bg-gray-50 text-gray-500'}`}>{selectedMWO.status}</span>
+                <button onClick={() => setSelectedMWO(null)} className="text-text-secondary hover:text-text-primary text-xl">✕</button>
+              </div>
+            </div>
+            <div className="p-5 space-y-5">
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-surface rounded-lg p-3 text-center">
+                  <p className="text-xs text-text-secondary">Planned Charge</p>
+                  <p className="text-xl font-bold text-text-primary mt-1">{fmt(selectedMWO.planned_charge_weight)} <span className="text-xs font-normal">KG</span></p>
+                </div>
+                <div className="bg-surface rounded-lg p-3 text-center">
+                  <p className="text-xs text-text-secondary">Fresh Ingot</p>
+                  <p className="text-xl font-bold text-blue-600 mt-1">{fmt(selectedMWO.planned_fresh_ingot || 0)} <span className="text-xs font-normal">KG</span></p>
+                </div>
+                <div className="bg-surface rounded-lg p-3 text-center">
+                  <p className="text-xs text-text-secondary">Return Scrap</p>
+                  <p className="text-xl font-bold text-amber-600 mt-1">{fmt(selectedMWO.planned_return_scrap || 0)} <span className="text-xs font-normal">KG</span></p>
+                </div>
+              </div>
+
+              {/* Alloy Spec */}
+              {selectedMWO.alloy_spec && (
+                <div>
+                  <p className="text-sm font-medium text-text-primary mb-2">Alloy Specification — {selectedMWO.alloy_spec.item?.item_code}</p>
+                  <div className="bg-surface rounded-lg p-3">
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                      <p><span className="text-text-secondary">Standard:</span> {selectedMWO.alloy_spec.standard || '—'}</p>
+                      <p><span className="text-text-secondary">System:</span> {selectedMWO.alloy_spec.alloy_system || '—'}</p>
+                      <p><span className="text-text-secondary">Melt Temp:</span> {selectedMWO.alloy_spec.melt_temp_min}–{selectedMWO.alloy_spec.melt_temp_max}°C</p>
+                      <p><span className="text-text-secondary">Transfer Temp:</span> {selectedMWO.alloy_spec.transfer_temp_min}–{selectedMWO.alloy_spec.transfer_temp_max}°C</p>
+                    </div>
+                    <div className="grid grid-cols-5 gap-2 text-xs border-t border-border pt-2">
+                      {['si','cu','fe','mn','mg','ni','zn','sn','ti','pb'].filter(el => selectedMWO.alloy_spec[`${el}_max`] || selectedMWO.alloy_spec[`${el}_min`]).map(el => (
+                        <div key={el} className="text-center">
+                          <p className="text-text-secondary uppercase font-medium">{el}</p>
+                          <p className="font-bold text-text-primary">{selectedMWO.alloy_spec[`${el}_min`] || '—'} – {selectedMWO.alloy_spec[`${el}_max`] || '—'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Issued Material */}
+              <div>
+                <p className="text-sm font-medium text-text-primary mb-2">Material Issued</p>
+                {selectedMWO.material_issues?.length > 0 ? (
+                  <table className="w-full text-sm">
+                    <thead><tr className="bg-brand-light">
+                      <th className="text-left px-3 py-2 text-brand-primary text-xs">Batch</th>
+                      <th className="text-left px-3 py-2 text-brand-primary text-xs">From Location</th>
+                      <th className="text-right px-3 py-2 text-brand-primary text-xs">Issued KG</th>
+                    </tr></thead>
+                    <tbody>
+                      {selectedMWO.material_issues.map((mi: any, i: number) => (
+                        <tr key={i} className="border-t border-border">
+                          <td className="px-3 py-2 text-xs font-medium text-brand-primary">{mi.batch_number || '—'}</td>
+                          <td className="px-3 py-2 text-xs text-text-secondary">{mi.location || '—'}</td>
+                          <td className="px-3 py-2 text-xs text-right font-medium">{fmt(mi.issued_qty)} KG</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : <p className="text-text-secondary text-xs">No material issued yet. Issue material from Stores → Issue Material → Melting.</p>}
+              </div>
+
+              {/* Linked Melt Records */}
+              <div>
+                <p className="text-sm font-medium text-text-primary mb-2">Melt Records</p>
+                {selectedMWO.melt_records?.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedMWO.melt_records.map((mr: any) => (
+                      <div key={mr.id} className="flex justify-between items-center bg-surface rounded-lg p-3 text-sm">
+                        <span className="font-medium text-brand-primary">{mr.melt_lot_number}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${mr.status === 'transferred' ? 'bg-teal-50 text-teal-600 border-teal-200' : 'bg-blue-50 text-blue-600 border-blue-200'}`}>{mr.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="text-text-secondary text-xs">No melt records created yet.</p>}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 border-t border-border pt-4">
+                {selectedMWO.status === 'planned' && (
+                  <button onClick={() => { releaseMutation.mutate({ id: selectedMWO.id, released_by: 'Supervisor' }); setSelectedMWO({ ...selectedMWO, status: 'released' }); }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
+                    Release MWO
+                  </button>
+                )}
+                <button onClick={() => setSelectedMWO(null)} className="px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Melting: React.FC = () => {
   const [activeTab, setActiveTab] = useState('records');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -847,6 +1139,8 @@ const Melting: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterFurnace, setFilterFurnace] = useState('');
 
+  const { data: mwos } = useQuery({ queryKey: ['mwos'], queryFn: () => api.get('/api/mwo').then(r => r.data.data), staleTime: 0 });
+  const pendingMWOs = mwos?.filter((m: any) => m.status === 'released').length || 0;
   const { data: records, isLoading } = useQuery({
     queryKey: ['meltRecords', filterStatus, filterFurnace],
     queryFn: () => {
@@ -857,6 +1151,7 @@ const Melting: React.FC = () => {
   });
 
   const { data: furnaces } = useQuery({ queryKey: ['furnaces'], queryFn: () => api.get('/api/melt/furnaces').then(r => r.data.data) });
+  const { data: mwosData } = useQuery({ queryKey: ['mwos', 'released'], queryFn: () => api.get('/api/mwo?status=released').then(r => r.data.data) });
   const active = records?.filter((r: any) => !['closed', 'rejected'].includes(r.status)) || [];
   const totalMetal = records?.filter((r: any) => r.status === 'transferred').reduce((s: number, r: any) => s + (r.metal_transferred_kg || 0), 0) || 0;
   const yieldRecords = records?.filter((r: any) => r.yield_percent) || [];
@@ -896,13 +1191,14 @@ const Melting: React.FC = () => {
         </div>
       </div>
       <div className="flex gap-2">
-        {['records'].map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === tab ? 'bg-brand-primary text-white' : 'bg-white text-text-secondary hover:bg-surface border border-border'}`}>
-            Melt Records
+        {[{id:'mwo',label:`Work Orders${pendingMWOs > 0 ? ' ('+pendingMWOs+')':''}`},{id:'records',label:'Melt Records'}].map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-brand-primary text-white' : 'bg-white text-text-secondary hover:bg-surface border border-border'}`}>
+            {tab.label}
           </button>
         ))}
       </div>
+      {activeTab === 'mwo' && <MWOTab />}
       {activeTab === 'records' && (
         <div className="space-y-4">
           <div className="bg-white rounded-xl p-4 shadow-sm flex gap-3">
