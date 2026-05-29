@@ -39,6 +39,7 @@ import locationRoutes from './routes/location.routes';
 import meltRoutes from './routes/melt.routes';
 import mwoRoutes from './routes/mwo.routes';
 import mrRoutes from './routes/mr.routes';
+import costCentreRoutes from './routes/costcentre.routes';
 
 dotenv.config();
 
@@ -93,6 +94,7 @@ app.use('/api/locations', locationRoutes);
 app.use('/api/melt', meltRoutes);
 app.use('/api/mwo', mwoRoutes);
 app.use('/api', mrRoutes);
+app.use('/api/cost-centres', costCentreRoutes);
 
 // TOC Scheduler — 6 AM and 2 PM daily
 cron.schedule('0 6 * * *', () => { console.log('[CRON] 6 AM TOC run'); runTOCForAllTenants().catch(console.error); });

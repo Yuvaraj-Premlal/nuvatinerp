@@ -31,6 +31,7 @@ model Tenant {
   melt_work_orders   MeltWorkOrder[]
   material_requisitions MaterialRequisition[]
   purchase_requisitions PurchaseRequisition[]
+  cost_centres          CostCentre[]
   job_cards          JobCard[]
   sales_orders       SalesOrder[]
 
@@ -220,6 +221,7 @@ model MachineMaster {
   maintenance_schedules MaintenanceSchedule[]
   melt_records          MeltChargeRecord[] @relation("FurnaceMelts")
   melt_work_orders      MeltWorkOrder[]    @relation("FurnaceMWOs")
+  cost_centres          CostCentre[]
 
   fuel_type             String?
   capacity_kg           Float?
@@ -596,6 +598,7 @@ model MaterialIssue {
   to_location  String?
   mwo_id       String?
   melt_id      String?
+  cost_centre_id String?
 
   batch_number         String?
   grn_id               String?
@@ -611,6 +614,7 @@ model MaterialIssue {
   group        MaterialIssueGroup? @relation(fields: [group_id], references: [id])
   mwo          MeltWorkOrder?      @relation(fields: [mwo_id], references: [id])
   melt         MeltChargeRecord?   @relation(fields: [melt_id], references: [id])
+  cost_centre  CostCentre?         @relation(fields: [cost_centre_id], references: [id])
 
   @@map("material_issue")
 }
@@ -1770,6 +1774,7 @@ model MeltWorkOrder {
   mwo_number            String
   furnace_id            String
   alloy_spec_id         String?
+  cost_centre_id        String?
   planned_charge_weight Float
   planned_fresh_ingot   Float?
   planned_return_scrap  Float?
@@ -1785,6 +1790,7 @@ model MeltWorkOrder {
   tenant                Tenant           @relation(fields: [tenant_id], references: [id])
   furnace               MachineMaster    @relation("FurnaceMWOs", fields: [furnace_id], references: [id])
   alloy_spec            ItemAlloySpec?   @relation(fields: [alloy_spec_id], references: [id])
+  cost_centre           CostCentre?      @relation(fields: [cost_centre_id], references: [id])
   material_issues       MaterialIssue[]
   issue_groups          MaterialIssueGroup[]
   melt_records          MeltChargeRecord[]
@@ -1874,4 +1880,22 @@ model PurchaseRequisitionLine {
   mr_line               MaterialRequisitionLine? @relation(fields: [mr_line_id], references: [id])
   item                  ItemMaster               @relation(fields: [item_id], references: [id])
   @@map("purchase_requisition_line")
+}
+
+model CostCentre {
+  id           String   @id @default(uuid())
+  tenant_id    String
+  code         String
+  name         String
+  type         String
+  machine_id   String?
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  tenant           Tenant         @relation(fields: [tenant_id], references: [id])
+  machine          MachineMaster? @relation(fields: [machine_id], references: [id])
+  melt_work_orders MeltWorkOrder[]
+  material_issues  MaterialIssue[]
+  @@unique([tenant_id, code])
+  @@map("cost_centre")
 }

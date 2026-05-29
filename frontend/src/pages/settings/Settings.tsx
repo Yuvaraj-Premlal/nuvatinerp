@@ -1110,4 +1110,64 @@ const AddAlloySpecModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
+const AddCostCentreModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({ code: '', name: '', type: 'department', machine_id: '' });
+  const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
+  const furnaces = machines?.filter((m: any) => m.machine_type === 'furnace') || [];
+  const allMachines = machines || [];
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.post('/api/cost-centres', d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['costCentres'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h2 className="font-bold text-text-primary">Add Cost Centre</h2>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">Code <span className="text-red-500">*</span></label>
+            <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} className={cls} placeholder="e.g. CC-MELT-F01" />
+          </div>
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">Name <span className="text-red-500">*</span></label>
+            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={cls} placeholder="e.g. Melting Furnace F-01" />
+          </div>
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">Type <span className="text-red-500">*</span></label>
+            <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value, machine_id: '' })} className={cls}>
+              <option value="department">Department</option>
+              <option value="machine">Machine</option>
+              <option value="project">Project</option>
+              <option value="overhead">Overhead</option>
+            </select>
+          </div>
+          {form.type === 'machine' && (
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Linked Machine</label>
+              <select value={form.machine_id} onChange={e => setForm({ ...form, machine_id: e.target.value })} className={cls}>
+                <option value="">Select machine...</option>
+                {allMachines.map((m: any) => <option key={m.id} value={m.id}>{m.machine_code} — {m.machine_name}</option>)}
+              </select>
+            </div>
+          )}
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to add cost centre</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({ ...form, machine_id: form.machine_id || null })}
+              disabled={!form.code || !form.name || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Adding...' : 'Add Cost Centre'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default Settings;
