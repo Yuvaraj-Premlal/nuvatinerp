@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
+import { fmtDate, fmtTime, fmtDateTime, fmtDateShort, toISTInput, toISTISO } from '../../utils/datetime';
+
 
 const fmt = (n: number) => n?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0';
 
@@ -38,7 +40,7 @@ const CreateMeltModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [step, setStep] = useState<'basic' | 'charge' | 'scrap'>('basic');
   const [form, setForm] = useState<any>({
     furnace_id: '', alloy_grade_id: '', mwo_id: '', shift: 'A',
-    charge_date: new Date().toISOString().slice(0, 16),
+    charge_date: toISTInput(),
     fresh_ingot_weight: '', operator_id: '',
     lining_condition: 'good', ambient_temp_c: '', ambient_humidity_pct: '',
     flux_type: '', flux_quantity_kg: '',
@@ -343,14 +345,14 @@ const UpdateStatusModal: React.FC<{ record: any; onClose: () => void }> = ({ rec
           )}
           {status === 'degassing' && (
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-xs text-text-secondary mb-1">Melt complete temp (°C)</label><input type="number" className={cls} placeholder="700" onChange={e => setData({ ...data, temp_at_melt_complete: parseFloat(e.target.value), melting_end_at: new Date().toISOString(), degassing_start_at: new Date().toISOString() })} /></div>
+              <div><label className="block text-xs text-text-secondary mb-1">Melt complete temp (°C)</label><input type="number" className={cls} placeholder="700" onChange={e => setData({ ...data, temp_at_melt_complete: parseFloat(e.target.value), melting_end_at: toISTISO(toISTInput()), degassing_start_at: toISTISO(toISTInput()) })} /></div>
               <div><label className="block text-xs text-text-secondary mb-1">Instrument</label><select className={cls} onChange={e => setData({ ...data, temp_instrument: e.target.value })}><option value="thermocouple">Thermocouple</option><option value="pyrometer">Pyrometer</option></select></div>
             </div>
           )}
           {status === 'ready' && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-xs text-text-secondary mb-1">Metal ready (KG)</label><input type="number" className={cls} placeholder="0" onChange={e => setData({ ...data, metal_ready_kg: parseFloat(e.target.value), degassing_end_at: new Date().toISOString(), ready_at: new Date().toISOString() })} /></div>
+                <div><label className="block text-xs text-text-secondary mb-1">Metal ready (KG)</label><input type="number" className={cls} placeholder="0" onChange={e => setData({ ...data, metal_ready_kg: parseFloat(e.target.value), degassing_end_at: toISTISO(toISTInput()), ready_at: toISTISO(toISTInput()) })} /></div>
                 <div><label className="block text-xs text-text-secondary mb-1">Dross weight (KG)</label><input type="number" className={cls} placeholder="0" onChange={e => setData({ ...data, dross_weight_kg: parseFloat(e.target.value) })} /></div>
               </div>
               <div><label className="block text-xs text-text-secondary mb-1">Temp at degassing end (°C)</label><input type="number" className={cls} placeholder="700" onChange={e => setData({ ...data, temp_at_degassing_end: parseFloat(e.target.value) })} /></div>
@@ -359,7 +361,7 @@ const UpdateStatusModal: React.FC<{ record: any; onClose: () => void }> = ({ rec
           {status === 'transferred' && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-xs text-text-secondary mb-1">Metal transferred (KG)</label><input type="number" className={cls} placeholder="0" onChange={e => setData({ ...data, metal_transferred_kg: parseFloat(e.target.value), transfer_start_at: new Date().toISOString(), transfer_end_at: new Date().toISOString() })} /></div>
+                <div><label className="block text-xs text-text-secondary mb-1">Metal transferred (KG)</label><input type="number" className={cls} placeholder="0" onChange={e => setData({ ...data, metal_transferred_kg: parseFloat(e.target.value), transfer_start_at: toISTISO(toISTInput()), transfer_end_at: toISTISO(toISTInput()) })} /></div>
                 <div><label className="block text-xs text-text-secondary mb-1">Spillage (KG)</label><input type="number" className={cls} placeholder="0" onChange={e => setData({ ...data, metal_spillage_kg: parseFloat(e.target.value) })} /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -862,7 +864,7 @@ const MWOTab: React.FC = () => {
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [selectedMWO, setSelectedMWO] = useState<any>(null);
-  const [form, setForm] = useState<any>({ furnace_id: '', alloy_spec_id: '', planned_charge_weight: '', planned_fresh_ingot: '', planned_return_scrap: '', shift: 'A', planned_date: new Date().toISOString().slice(0,16), notes: '' });
+  const [form, setForm] = useState<any>({ furnace_id: '', alloy_spec_id: '', planned_charge_weight: '', planned_fresh_ingot: '', planned_return_scrap: '', shift: 'A', planned_date: toISTInput(), notes: '' });
 
   const { data: mwos, isLoading } = useQuery({ queryKey: ['mwos'], queryFn: () => api.get('/api/mwo').then(r => r.data.data), staleTime: 0 });
   const { data: furnaces } = useQuery({ queryKey: ['furnaces'], queryFn: () => api.get('/api/melt/furnaces').then(r => r.data.data) });
@@ -871,7 +873,7 @@ const MWOTab: React.FC = () => {
 
   const createMutation = useMutation({
     mutationFn: (d: any) => api.post('/api/mwo', d),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['mwos'] }); setShowCreate(false); setForm({ furnace_id: '', alloy_spec_id: '', planned_charge_weight: '', planned_fresh_ingot: '', planned_return_scrap: '', shift: 'A', planned_date: new Date().toISOString().slice(0,16), notes: '' }); }
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['mwos'] }); setShowCreate(false); setForm({ furnace_id: '', alloy_spec_id: '', planned_charge_weight: '', planned_fresh_ingot: '', planned_return_scrap: '', shift: 'A', planned_date: toISTInput(), notes: '' }); }
   });
 
   const releaseMutation = useMutation({
@@ -978,7 +980,7 @@ const MWOTab: React.FC = () => {
                   <tr key={m.id} onClick={() => setSelectedMWO(m)} className={`border-t border-border hover:bg-brand-light cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
                     <td className="px-4 py-3 font-medium text-brand-primary">{m.mwo_number}</td>
                     <td className="px-4 py-3 text-text-secondary text-xs">
-                      {new Date(m.planned_date).toLocaleDateString('en-IN')}<br />Shift {m.shift}
+                      {fmtDateShort(m.planned_date)}<br />Shift {m.shift}
                     </td>
                     <td className="px-4 py-3 text-xs">{m.furnace?.machine_code}</td>
                     <td className="px-4 py-3 text-xs font-medium">{m.alloy_spec?.item?.item_code || '—'}</td>
@@ -1237,7 +1239,7 @@ const Melting: React.FC = () => {
                     <tr key={r.id} onClick={() => setSelectedRecord(r)}
                       className={`border-t border-border hover:bg-brand-light cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
                       <td className="px-4 py-3 font-medium text-brand-primary">{r.melt_lot_number}</td>
-                      <td className="px-4 py-3 text-text-secondary text-xs">{new Date(r.charge_date).toLocaleDateString('en-IN')}<br />{r.shift && `Shift ${r.shift}`}</td>
+                      <td className="px-4 py-3 text-text-secondary text-xs">{fmtDateShort(r.charge_date)}<br />{r.shift && `Shift ${r.shift}`}</td>
                       <td className="px-4 py-3 text-xs">{r.furnace?.machine_code}</td>
                       <td className="px-4 py-3 text-xs font-medium">{r.alloy_spec?.item?.item_code}</td>
                       <td className="px-4 py-3 text-right text-xs">{fmt(r.total_charge_weight)} KG</td>

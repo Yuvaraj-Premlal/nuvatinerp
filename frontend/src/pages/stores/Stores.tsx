@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
+import { fmtDate, fmtTime, fmtDateTime, fmtDateShort, toISTInput, toISTISO } from '../../utils/datetime';
+
 import { printIssueSlip } from '../../utils/issue.slip.pdf';
 import StoresReports from './StoresReports';
 import BatchTracking from './BatchTracking';
@@ -300,7 +302,7 @@ const GRNDetailContent: React.FC<{ grnId: string }> = ({ grnId }) => {
     <div className="p-5 space-y-4">
       <div className="grid grid-cols-4 gap-3 text-sm">
         <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">PO Number</p><p className="font-medium text-brand-primary">{grnData.po?.po_number || '—'}</p></div>
-        <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Received Date</p><p className="font-medium">{new Date(grnData.received_date).toLocaleDateString('en-IN')}</p></div>
+        <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Received Date</p><p className="font-medium">{fmtDateShort(grnData.received_date)}</p></div>
         <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Supplier</p><p className="font-medium">{grnData.po?.supplier?.supplier_name || '—'}</p></div>
         <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Vehicle</p><p className="font-medium">{grnData.vehicle_number || '—'}</p></div>
       </div>
@@ -661,8 +663,8 @@ const Stores: React.FC = () => {
                 {movements?.map((m: any, i: number) => (
                   <tr key={m.id} className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
                     <td className="px-4 py-3 text-text-secondary text-xs">
-                      <p>{new Date(m.transacted_at).toLocaleDateString('en-IN')}</p>
-                      <p>{new Date(m.transacted_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
+                      <p>{fmtDateShort(m.transacted_at)}</p>
+                      <p>{fmtTime(m.transacted_at)}</p>
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-text-primary text-xs">{m.item_name}</p>
@@ -733,7 +735,7 @@ const Stores: React.FC = () => {
                         <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full border border-green-200 capitalize">{q.disposition?.replace(/_/g, ' ')}</span>
                       )}
                       {q.disposition !== 'pending' && q.disposed_at && (
-                        <p className="text-xs text-text-secondary mt-0.5">{new Date(q.disposed_at).toLocaleDateString('en-IN')}</p>
+                        <p className="text-xs text-text-secondary mt-0.5">{fmtDateShort(q.disposed_at)}</p>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">

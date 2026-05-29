@@ -3,6 +3,8 @@ import { printPO } from '../../utils/po.pdf';
 import { printGRN } from '../../utils/grn.pdf';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
+import { fmtDate, fmtTime, fmtDateTime, fmtDateShort, toISTInput, toISTISO } from '../../utils/datetime';
+
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const colors: any = {
@@ -403,7 +405,7 @@ const GRNHistorySection: React.FC<{ poId: string }> = ({ poId }) => {
                   <span className="font-medium text-brand-primary">{g.grn_number}</span>
                   {g.is_reversed && <span className="bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Reversed</span>}
                 </div>
-                <span className="text-text-secondary">{new Date(g.received_date).toLocaleDateString('en-IN')}</span>
+                <span className="text-text-secondary">{fmtDateShort(g.received_date)}</span>
               </div>
               <div className="flex gap-4 mt-1">
                 <span className="text-green-600">✓ Accepted: {totalAccepted}</span>
@@ -434,8 +436,8 @@ const PODetailModal: React.FC<{ poId: string; onClose: () => void }> = ({ poId, 
         {isLoading ? <div className="p-8 text-center text-brand-primary animate-pulse">Loading...</div> : po ? (
           <div className="p-5 space-y-4">
             <div className="grid grid-cols-3 gap-3 text-sm">
-              <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">PO Date</p><p className="font-medium">{new Date(po.po_date).toLocaleDateString('en-IN')}</p></div>
-              <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Expected Delivery</p><p className="font-medium">{po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString('en-IN') : '—'}</p></div>
+              <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">PO Date</p><p className="font-medium">{fmtDateShort(po.po_date)}</p></div>
+              <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Expected Delivery</p><p className="font-medium">{po.expected_delivery_date ? fmtDateShort(po.expected_delivery_date) : '—'}</p></div>
               <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Payment Terms</p><p className="font-medium">{po.payment_terms || '—'}</p></div>
             </div>
             {po.short_closed && (
@@ -444,7 +446,7 @@ const PODetailModal: React.FC<{ poId: string; onClose: () => void }> = ({ poId, 
                 <div className="grid grid-cols-3 gap-3 mt-2 text-xs">
                   <div><p className="text-text-secondary">Balance Written Off</p><p className="font-bold text-orange-600">{po.short_closed_qty} units</p></div>
                   <div><p className="text-text-secondary">Closed By</p><p className="font-medium">{po.closed_by || '—'}</p></div>
-                  <div><p className="text-text-secondary">Closed On</p><p className="font-medium">{po.closed_at ? new Date(po.closed_at).toLocaleDateString('en-IN') : '—'}</p></div>
+                  <div><p className="text-text-secondary">Closed On</p><p className="font-medium">{po.closed_at ? fmtDateShort(po.closed_at) : '—'}</p></div>
                 </div>
                 <p className="text-xs text-orange-600 mt-2"><strong>Reason:</strong> {po.short_close_reason}</p>
               </div>
@@ -481,7 +483,7 @@ const PODetailModal: React.FC<{ poId: string; onClose: () => void }> = ({ poId, 
                     <div key={a.id} className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
                       <p className="font-medium text-amber-700">Rev {a.revision_from} → Rev {a.revision_to}</p>
                       <p className="text-amber-600 mt-1">{a.amendment_reason}</p>
-                      <p className="text-amber-500 mt-1">{new Date(a.amended_at).toLocaleDateString('en-IN')} by {a.amended_by}</p>
+                      <p className="text-amber-500 mt-1">{fmtDateShort(a.amended_at)} by {a.amended_by}</p>
                     </div>
                   ))}
                 </div>
@@ -643,7 +645,7 @@ const GRNDetailModal: React.FC<{ grnId: string; onClose: () => void }> = ({ grnI
         {isLoading ? <div className="p-8 text-center text-brand-primary animate-pulse">Loading...</div> : grnData ? (
           <div className="p-5 space-y-4">
             <div className="grid grid-cols-4 gap-3 text-sm">
-              <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Received Date</p><p className="font-medium">{new Date(grnData.received_date).toLocaleDateString('en-IN')}</p></div>
+              <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Received Date</p><p className="font-medium">{fmtDateShort(grnData.received_date)}</p></div>
               <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Vehicle</p><p className="font-medium">{grnData.vehicle_number || '—'}</p></div>
               <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Received By</p><p className="font-medium">{grnData.received_by || '—'}</p></div>
               <div className="bg-surface rounded-lg p-3"><p className="text-xs text-text-secondary">Supplier</p><p className="font-medium">{grnData.po?.supplier?.supplier_name || '—'}</p></div>
@@ -697,7 +699,7 @@ const GRNDetailModal: React.FC<{ grnId: string; onClose: () => void }> = ({ grnI
             {grnData.is_reversed && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
                 <p className="font-medium text-red-700">GRN Reversed</p>
-                <p className="text-red-600 text-xs mt-1">Reason: {grnData.reversal_reason} | Date: {grnData.reversed_at ? new Date(grnData.reversed_at).toLocaleDateString('en-IN') : '—'}</p>
+                <p className="text-red-600 text-xs mt-1">Reason: {grnData.reversal_reason} | Date: {grnData.reversed_at ? fmtDateShort(grnData.reversed_at) : '—'}</p>
               </div>
             )}
           </div>
@@ -1193,9 +1195,9 @@ const Purchase: React.FC = () => {
                       {po.short_closed && <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded ml-1">Short Closed — {po.short_closed_qty} written off</span>}
                     </td>
                     <td className="px-4 py-3 text-text-primary">{po.supplier?.supplier_name}</td>
-                    <td className="px-4 py-3 text-text-secondary text-xs">{new Date(po.po_date).toLocaleDateString('en-IN')}</td>
+                    <td className="px-4 py-3 text-text-secondary text-xs">{fmtDateShort(po.po_date)}</td>
                     <td className="px-4 py-3 text-text-secondary text-xs">
-                      {po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString('en-IN') : '—'}
+                      {po.expected_delivery_date ? fmtDateShort(po.expected_delivery_date) : '—'}
                       <DeliveryStatusBadge po={po} />
                     </td>
                     <td className="px-4 py-3 text-text-secondary text-xs">{po.payment_terms || '—'}</td>
@@ -1275,7 +1277,7 @@ const Purchase: React.FC = () => {
                     {(grn as any).is_reversed && <span className="ml-1 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Reversed</span>}
                   </td>
                   <td className="px-4 py-3 text-brand-primary text-xs font-medium">{grn.po?.po_number || '—'}</td>
-                  <td className="px-4 py-3 text-text-secondary text-xs">{new Date(grn.received_date).toLocaleDateString('en-IN')}</td>
+                  <td className="px-4 py-3 text-text-secondary text-xs">{fmtDateShort(grn.received_date)}</td>
                   <td className="px-4 py-3 text-xs">
                     {grn.grn_lines?.map((gl: any) => (
                       <div key={gl.id} className="mb-1">

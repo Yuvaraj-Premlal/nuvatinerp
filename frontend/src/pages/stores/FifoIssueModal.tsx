@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
+import { fmtDate, fmtTime, fmtDateTime, fmtDateShort, toISTInput, toISTISO } from '../../utils/datetime';
+
 import { printIssueSlip } from '../../utils/issue.slip.pdf';
 
 const fmt = (n: number) => n?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0';
@@ -312,7 +314,7 @@ const FifoIssueModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <div className="flex justify-between items-center mb-2">
                           <div>
                             <p className="font-medium text-sm">{line.batch_number}</p>
-                            <p className="text-xs text-text-secondary">{line.grn_number} | {new Date(line.received_date).toLocaleDateString('en-IN')}</p>
+                            <p className="text-xs text-text-secondary">{line.grn_number} | {fmtDateShort(line.received_date)}</p>
                             {line.location && <p className="text-xs text-blue-600 mt-0.5">📍 Pick from: {line.location}</p>}
                           </div>
                           <div className="flex items-center gap-2">

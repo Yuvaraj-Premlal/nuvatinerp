@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
+import { fmtDate, fmtTime, fmtDateTime, fmtDateShort, toISTInput, toISTISO } from '../../utils/datetime';
+
 
 const fmt = (n: number) => n?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0';
 
@@ -67,7 +69,7 @@ const BatchTraceModal: React.FC<{ batchNumber: string; onClose: () => void }> = 
                             <p className="font-medium text-green-700 text-sm">📦 GRN Receipt — {line.grn?.grn_number}</p>
                             <p className="text-xs text-green-600 mt-0.5">Supplier: {line.supplier_name} | PO: {line.grn?.po?.po_number || '—'} | Location: {line.location || '—'}</p>
                           </div>
-                          <p className="text-xs text-text-secondary">{new Date(line.grn?.received_date || line.created_at).toLocaleDateString('en-IN')}</p>
+                          <p className="text-xs text-text-secondary">{fmtDateShort(line.grn?.received_date || line.created_at)}</p>
                         </div>
                         <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
                           <div><p className="text-text-secondary">Received</p><p className="font-bold text-green-700">{fmt(line.quantity_received)} {line.item?.unit_of_measure}</p></div>
@@ -91,7 +93,7 @@ const BatchTraceModal: React.FC<{ batchNumber: string; onClose: () => void }> = 
                           </div>
                           <div className="text-right">
                             <p className={`font-bold text-sm ${m.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>{m.quantity > 0 ? '+' : ''}{fmt(m.quantity)} {m.item?.unit_of_measure}</p>
-                            <p className="text-xs text-text-secondary">{new Date(m.transacted_at).toLocaleDateString('en-IN')}</p>
+                            <p className="text-xs text-text-secondary">{fmtDateShort(m.transacted_at)}</p>
                           </div>
                         </div>
                       </div>
@@ -108,7 +110,7 @@ const BatchTraceModal: React.FC<{ batchNumber: string; onClose: () => void }> = 
                             <p className="font-medium text-blue-700 text-sm">🏭 Used in Production — {issue.job?.job_number}</p>
                             <p className="text-xs text-blue-600 mt-0.5">Part: {issue.job?.part_name || '—'} | Qty: {issue.job?.quantity}</p>
                           </div>
-                          <p className="text-xs text-text-secondary">{new Date(issue.issued_at).toLocaleDateString('en-IN')}</p>
+                          <p className="text-xs text-text-secondary">{fmtDateShort(issue.issued_at)}</p>
                         </div>
                       </div>
                     </div>
@@ -190,7 +192,7 @@ const BatchTracking: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 text-text-secondary text-xs">{b.supplier_name}</td>
                   <td className="px-4 py-3 text-xs font-medium text-brand-primary">{b.grn_number}</td>
-                  <td className="px-4 py-3 text-text-secondary text-xs">{new Date(b.received_date).toLocaleDateString('en-IN')}</td>
+                  <td className="px-4 py-3 text-text-secondary text-xs">{fmtDateShort(b.received_date)}</td>
                   <td className="px-4 py-3 text-right text-xs">{fmt(b.total_received)} {b.unit_of_measure}</td>
                   <td className="px-4 py-3 text-right text-xs text-green-600 font-medium">{fmt(b.total_accepted)}</td>
                   <td className="px-4 py-3 text-right text-xs">

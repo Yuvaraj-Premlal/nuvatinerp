@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
+import { fmtDate, fmtTime, fmtDateTime, fmtDateShort, toISTInput, toISTISO } from '../../utils/datetime';
+
 import { printIssueSlip } from '../../utils/issue.slip.pdf';
 
 const fmt = (n: number) => n?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) || '0';
@@ -115,8 +117,8 @@ const IssueHistory: React.FC = () => {
                   <tr className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
                     <td className="px-4 py-3 font-medium text-brand-primary">{g.slip_number}</td>
                     <td className="px-4 py-3 text-text-secondary text-xs">
-                      <p>{new Date(g.issued_at).toLocaleDateString('en-IN')}</p>
-                      <p>{new Date(g.issued_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
+                      <p>{fmtDateShort(g.issued_at)}</p>
+                      <p>{fmtTime(g.issued_at)}</p>
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium">{g.job?.job_number}</p>
