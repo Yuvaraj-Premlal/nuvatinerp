@@ -101,15 +101,13 @@ export const getBatchTrace = async (req: AuthRequest, res: Response) => {
       return { ...m, reference_number };
     }));
 
-    const batchIssueJobIds = new Set(
-      enrichedMovements
-        .filter((m: any) => m.transaction_type === 'issue')
-        .map((m: any) => m.reference_id)
-    );
+    const jobIssueIds = enrichedMovements
+      .filter((m: any) => m.transaction_type === 'issue' && m.reference_type === 'job_card' && m.reference_id)
+      .map((m: any) => m.reference_id);
 
-    const batchIssues = batchIssueJobIds.size > 0
+    const batchIssues = jobIssueIds.length > 0
       ? await prisma.materialIssue.findMany({
-          where: { tenant_id, job_id: { in: Array.from(batchIssueJobIds) as string[] } },
+          where: { tenant_id, job_id: { in: jobIssueIds as string[] } },
           include: {
             item: { select: { item_name: true, item_code: true, unit_of_measure: true } },
             job: { select: { job_number: true, planned_quantity: true } }
