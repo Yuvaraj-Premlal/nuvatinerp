@@ -90,8 +90,13 @@ export const getBatchTrace = async (req: AuthRequest, res: Response) => {
       } else if (m.reference_type === 'job_card' && m.reference_id) {
         const jc = await prisma.jobCard.findFirst({ where: { id: m.reference_id }, select: { job_number: true } });
         if (jc) reference_number = jc.job_number;
+      } else if (m.reference_type === 'mwo' && m.reference_id) {
+        const mwo = await prisma.meltWorkOrder.findFirst({ where: { id: m.reference_id }, select: { mwo_number: true, furnace: { select: { machine_code: true } } } });
+        if (mwo) reference_number = `${mwo.mwo_number} → ${mwo.furnace?.machine_code || ''}`;
       } else if (m.reference_type === 'quarantine') {
         reference_number = 'Quarantine';
+      } else if (m.reference_type === 'location_transfer') {
+        reference_number = 'Location Transfer';
       }
       return { ...m, reference_number };
     }));
