@@ -93,7 +93,7 @@ const BatchTraceModal: React.FC<{ batchNumber: string; onClose: () => void }> = 
                           </div>
                           <div className="text-right">
                             <p className={`font-bold text-sm ${m.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>{m.quantity > 0 ? '+' : ''}{fmt(m.quantity)} {m.item?.unit_of_measure}</p>
-                            <p className="text-xs text-text-secondary">{fmtDateShort(m.transacted_at)}</p>
+                            <p className="text-xs text-text-secondary">{fmtDateTime(m.transacted_at)}</p>
                           </div>
                         </div>
                       </div>
@@ -192,7 +192,7 @@ const BatchTracking: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 text-text-secondary text-xs">{b.supplier_name}</td>
                   <td className="px-4 py-3 text-xs font-medium text-brand-primary">{b.grn_number}</td>
-                  <td className="px-4 py-3 text-text-secondary text-xs">{fmtDateShort(b.received_date)}</td>
+                  <td className="px-4 py-3 text-text-secondary text-xs">{fmtDate(b.received_date)}</td>
                   <td className="px-4 py-3 text-right text-xs">{fmt(b.total_received)} {b.unit_of_measure}</td>
                   <td className="px-4 py-3 text-right text-xs text-green-600 font-medium">{fmt(b.total_accepted)}</td>
                   <td className="px-4 py-3 text-right text-xs">

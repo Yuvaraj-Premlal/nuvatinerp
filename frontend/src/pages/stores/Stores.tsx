@@ -663,7 +663,7 @@ const Stores: React.FC = () => {
                 {movements?.map((m: any, i: number) => (
                   <tr key={m.id} className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
                     <td className="px-4 py-3 text-text-secondary text-xs">
-                      <p>{fmtDateShort(m.transacted_at)}</p>
+                      <p>{fmtDate(m.transacted_at)}</p>
                       <p>{fmtTime(m.transacted_at)}</p>
                     </td>
                     <td className="px-4 py-3">

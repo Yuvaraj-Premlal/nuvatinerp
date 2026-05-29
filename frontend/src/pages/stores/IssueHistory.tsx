@@ -117,7 +117,7 @@ const IssueHistory: React.FC = () => {
                   <tr className={`border-t border-border hover:bg-surface ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
                     <td className="px-4 py-3 font-medium text-brand-primary">{g.slip_number}</td>
                     <td className="px-4 py-3 text-text-secondary text-xs">
-                      <p>{fmtDateShort(g.issued_at)}</p>
+                      <p>{fmtDateTime(g.issued_at)}</p>
                       <p>{fmtTime(g.issued_at)}</p>
                     </td>
                     <td className="px-4 py-3">
