@@ -79,7 +79,7 @@ export const getBatchTrace = async (req: AuthRequest, res: Response) => {
     const stockMovements = await prisma.stockLedger.findMany({
       where: { tenant_id, batch_number: String(batch_number) },
       include: { item: { select: { item_name: true, item_code: true, unit_of_measure: true } } },
-      orderBy: { transacted_at: 'asc' }
+      orderBy: { transacted_at: 'desc' }
     });
 
     const enrichedMovements = await Promise.all((stockMovements as any[]).map(async (m: any) => {
