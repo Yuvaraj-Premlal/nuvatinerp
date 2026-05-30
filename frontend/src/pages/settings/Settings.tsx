@@ -650,7 +650,8 @@ const MasterTable: React.FC<{
   onEdit?: (row: any) => void;
   onHistory?: (row: any) => void;
   onToggleStatus?: (row: any) => void;
-}> = ({ title, data, columns, onAdd, onEdit, onHistory, onToggleStatus }) => (
+  onView?: (row: any) => void;
+}> = ({ title, data, columns, onAdd, onEdit, onHistory, onToggleStatus, onView }) => (
   <div>
     <div className="flex items-center justify-between mb-3">
       <h3 className="font-semibold text-text-primary">{title}</h3>
@@ -669,11 +670,13 @@ const MasterTable: React.FC<{
         <tbody>
           {data?.map((row: any, i: number) => (
             <tr key={row.id} className={`border-t border-border ${!row.is_active ? 'opacity-40 bg-gray-50' : i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
-              {columns.map(col => (
+              {columns.map((col, ci) => (
                 <td key={col.key} className="px-4 py-2 text-xs text-text-primary">
                   {col.key === 'is_active'
                     ? <span className={`px-2 py-0.5 rounded-full text-xs ${row.is_active ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>{row.is_active ? 'Active' : 'Inactive'}</span>
-                    : row[col.key] || '—'}
+                    : ci === 0 && onView
+                      ? <button onClick={() => onView(row)} className="font-medium text-brand-primary hover:underline">{row[col.key] || '—'}</button>
+                      : row[col.key] || '—'}
                 </td>
               ))}
               <td className="px-4 py-2 text-right">
@@ -710,6 +713,8 @@ const Settings: React.FC = () => {
   const [historyType, setHistoryType] = useState<string>('');
   const [deactivateRecord, setDeactivateRecord] = useState<any>(null);
   const [deactivateType, setDeactivateType] = useState<string>('');
+  const [viewSupplier, setViewSupplier] = useState<any>(null);
+  const [editSupplier, setEditSupplier] = useState<any>(null);
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/suppliers').then(r => r.data.data) });
   const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
@@ -750,6 +755,8 @@ const Settings: React.FC = () => {
       {showItemModal && <AddItemModal onClose={() => setShowItemModal(false)} />}
       {showPaymentTermsModal && <AddPaymentTermsModal onClose={() => setShowPaymentTermsModal(false)} />}
       {historyRecord && <HistoryModal entity_type={historyType} record={historyRecord} onClose={() => setHistoryRecord(null)} />}
+      {viewSupplier && !editSupplier && <SupplierDetailModal supplier={viewSupplier} onClose={() => setViewSupplier(null)} onEdit={() => { setEditSupplier(viewSupplier); setViewSupplier(null); }} />}
+      {editSupplier && <EditSupplierModal supplier={editSupplier} onClose={() => setEditSupplier(null)} />}
       {deactivateRecord && <DeactivateModal entity_type={deactivateType} record={deactivateRecord} onClose={() => setDeactivateRecord(null)} />}
 
       <div>
@@ -856,9 +863,10 @@ const Settings: React.FC = () => {
             { key: 'is_active', label: 'Status' }
           ]}
           onAdd={() => setShowSupplierModal(true)}
-          onEdit={row => { setEditRecord(row); setEditType('supplier'); }}
+          onEdit={row => setEditSupplier(row)}
           onHistory={row => { setHistoryRecord(row); setHistoryType('supplier'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('supplier'); }}
+          onView={row => setViewSupplier(row)}
         />
       )}
 
@@ -1425,6 +1433,160 @@ const DeactivateModal: React.FC<{ entity_type: string; record: any; onClose: () 
             <button onClick={() => mutation.mutate()} disabled={!reason.trim() || mutation.isPending}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 ${isActive ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-green-500 text-white hover:bg-green-600'}`}>
               {mutation.isPending ? 'Saving...' : isActive ? 'Deactivate' : 'Activate'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+const SupplierDetailModal: React.FC<{ supplier: any; onClose: () => void; onEdit: () => void }> = ({ supplier, onClose, onEdit }) => {
+  const cls = "text-sm text-text-primary";
+  const label = "text-xs text-text-secondary mb-0.5";
+  const field = (l: string, v: any) => (
+    <div><p className={label}>{l}</p><p className={cls}>{v || '—'}</p></div>
+  );
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h2 className="font-bold text-text-primary">{supplier.supplier_name}</h2>
+            <p className="text-xs text-brand-primary font-medium mt-0.5">{supplier.supplier_code}</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onEdit} className="px-3 py-1.5 bg-brand-primary text-white rounded-lg text-xs font-medium hover:bg-brand-dark">✏️ Edit</button>
+            <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+          </div>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            {field('Supplier Type', supplier.supplier_type)}
+            {field('Status', supplier.is_active ? '✅ Active' : '🔴 Inactive')}
+            {field('Rating', supplier.rating ? `${supplier.rating}/5` : '—')}
+          </div>
+          <div className="border-t border-border pt-3">
+            <p className="text-xs font-medium text-text-primary mb-2">Contact</p>
+            <div className="grid grid-cols-3 gap-4">
+              {field('Contact Person', supplier.contact_person)}
+              {field('Phone', supplier.contact_phone)}
+              {field('Email', supplier.contact_email)}
+              {field('City', supplier.city)}
+              {field('State', supplier.state)}
+              {field('GSTIN', supplier.gstin)}
+            </div>
+            {supplier.address && <div className="mt-2">{field('Address', supplier.address)}</div>}
+          </div>
+          <div className="border-t border-border pt-3">
+            <p className="text-xs font-medium text-text-primary mb-2">Commercial</p>
+            <div className="grid grid-cols-3 gap-4">
+              {field('Payment Terms', supplier.payment_terms_ref ? `${supplier.payment_terms_ref.code} — ${supplier.payment_terms_ref.description}` : supplier.payment_terms || '—')}
+              {field('Lead Time', supplier.lead_time_days ? `${supplier.lead_time_days} days` : '—')}
+              {field('Credit Limit', supplier.credit_limit ? `₹${supplier.credit_limit.toLocaleString('en-IN')}` : '—')}
+            </div>
+          </div>
+          {(supplier.bank_name || supplier.bank_account) && (
+            <div className="border-t border-border pt-3">
+              <p className="text-xs font-medium text-text-primary mb-2">Bank Details</p>
+              <div className="grid grid-cols-3 gap-4">
+                {field('Bank', supplier.bank_name)}
+                {field('Account No', supplier.bank_account)}
+                {field('IFSC', supplier.bank_ifsc)}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EditSupplierModal: React.FC<{ supplier: any; onClose: () => void }> = ({ supplier, onClose }) => {
+  const queryClient = useQueryClient();
+  const { data: paymentTermsList } = useQuery({ queryKey: ['paymentTerms'], queryFn: () => api.get('/api/payment-terms').then(r => r.data.data) });
+  const [form, setForm] = useState<any>({
+    supplier_name: supplier.supplier_name || '',
+    supplier_type: supplier.supplier_type || 'direct',
+    contact_person: supplier.contact_person || '',
+    contact_email: supplier.contact_email || '',
+    contact_phone: supplier.contact_phone || '',
+    address: supplier.address || '',
+    city: supplier.city || '',
+    state: supplier.state || '',
+    gstin: supplier.gstin || '',
+    payment_terms_id: supplier.payment_terms_id || '',
+    payment_days: supplier.payment_days || 30,
+    credit_limit: supplier.credit_limit || '',
+    lead_time_days: supplier.lead_time_days || '',
+    bank_name: supplier.bank_name || '',
+    bank_account: supplier.bank_account || '',
+    bank_ifsc: supplier.bank_ifsc || '',
+    rating: supplier.rating || '',
+    reason: ''
+  });
+  const mutation = useMutation({
+    mutationFn: (data: any) => api.put(`/api/suppliers/${supplier.id}`, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['suppliers'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Edit Supplier</h2>
+            <p className="text-xs text-brand-primary font-medium">{supplier.supplier_code}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Supplier Name <span className="text-red-500">*</span></label>
+              <input value={form.supplier_name} onChange={e => setForm({...form, supplier_name: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Contact Person</label>
+              <input value={form.contact_person} onChange={e => setForm({...form, contact_person: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Phone</label>
+              <input value={form.contact_phone} onChange={e => setForm({...form, contact_phone: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Email</label>
+              <input type="email" value={form.contact_email} onChange={e => setForm({...form, contact_email: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">GSTIN</label>
+              <input value={form.gstin} onChange={e => setForm({...form, gstin: e.target.value.toUpperCase()})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">City</label>
+              <input value={form.city} onChange={e => setForm({...form, city: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">State</label>
+              <input value={form.state} onChange={e => setForm({...form, state: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Payment Terms</label>
+              <select value={form.payment_terms_id} onChange={e => setForm({...form, payment_terms_id: e.target.value})} className={cls}>
+                <option value="">Select...</option>
+                {paymentTermsList?.map((pt: any) => <option key={pt.id} value={pt.id}>{pt.code} — {pt.description}</option>)}
+              </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Lead Time (days)</label>
+              <input type="number" value={form.lead_time_days} onChange={e => setForm({...form, lead_time_days: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Credit Limit (₹)</label>
+              <input type="number" value={form.credit_limit} onChange={e => setForm({...form, credit_limit: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Rating (1-5)</label>
+              <input type="number" min="1" max="5" step="0.1" value={form.rating} onChange={e => setForm({...form, rating: e.target.value})} className={cls} /></div>
+          </div>
+          <div className="border-t border-border pt-2">
+            <p className="text-xs font-medium text-text-primary mb-2">Bank Details</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div><label className="block text-xs text-text-secondary mb-1">Bank Name</label>
+                <input value={form.bank_name} onChange={e => setForm({...form, bank_name: e.target.value})} className={cls} /></div>
+              <div><label className="block text-xs text-text-secondary mb-1">Account No</label>
+                <input value={form.bank_account} onChange={e => setForm({...form, bank_account: e.target.value})} className={cls} /></div>
+              <div><label className="block text-xs text-text-secondary mb-1">IFSC</label>
+                <input value={form.bank_ifsc} onChange={e => setForm({...form, bank_ifsc: e.target.value.toUpperCase()})} className={cls} /></div>
+            </div>
+          </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Reason for change <span className="text-red-500">*</span></label>
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className={cls} placeholder="e.g. Updated bank details after supplier communication" /></div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to update supplier</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({...form, lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days) : null, credit_limit: form.credit_limit ? parseFloat(form.credit_limit) : null, rating: form.rating ? parseFloat(form.rating) : null})}
+              disabled={!form.supplier_name || !form.reason || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </div>
