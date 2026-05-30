@@ -140,14 +140,21 @@ model ItemAlloySpec {
   si_max            Float?
   cu_min            Float?
   cu_max            Float?
+  fe_min            Float?
   fe_max            Float?
+  mn_min            Float?
   mn_max            Float?
   mg_min            Float?
   mg_max            Float?
+  ni_min            Float?
   ni_max            Float?
+  zn_min            Float?
   zn_max            Float?
+  sn_min            Float?
   sn_max            Float?
+  ti_min            Float?
   ti_max            Float?
+  pb_min            Float?
   pb_max            Float?
   melt_temp_min     Float?
   melt_temp_max     Float?
@@ -1629,14 +1636,21 @@ model AlloyGrade {
   si_max            Float?
   cu_min            Float?
   cu_max            Float?
+  fe_min            Float?
   fe_max            Float?
+  mn_min            Float?
   mn_max            Float?
   mg_min            Float?
   mg_max            Float?
+  ni_min            Float?
   ni_max            Float?
+  zn_min            Float?
   zn_max            Float?
+  sn_min            Float?
   sn_max            Float?
+  ti_min            Float?
   ti_max            Float?
+  pb_min            Float?
   pb_max            Float?
   melt_temp_min     Float?
   melt_temp_max     Float?
