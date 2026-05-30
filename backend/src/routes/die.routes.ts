@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import { createDie, getDies, getDieById, updateDieStatus } from '../controllers/die.controller';
 import { authenticate } from '../middleware/auth.middleware';
+import { createDie, getDies, getDieById, updateDie, toggleDieStatus } from '../controllers/die.controller';
 
 const router = Router();
-
-router.post('/', authenticate, createDie);
 router.get('/', authenticate, getDies);
 router.get('/:id', authenticate, getDieById);
-router.put('/:id', authenticate, updateDieStatus);
-
+router.post('/', authenticate, createDie);
+router.put('/:id', authenticate, updateDie);
+router.patch('/:id/status', authenticate, toggleDieStatus);
 export default router;

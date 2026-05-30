@@ -41,18 +41,21 @@ export const getDieById = async (req: AuthRequest, res: Response) => {
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };
 
-export const updateDieStatus = async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params as { id: string };
-    const die = await prisma.dieMaster.update({ where: { id }, data: { current_status: req.body.status } });
-    res.json({ success: true, data: die });
-  } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
-};
-
 export const updateDie = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params as { id: string };
     const die = await prisma.dieMaster.update({ where: { id }, data: req.body });
     res.json({ success: true, data: die });
+  } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
+};
+
+export const toggleDieStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const { reason } = req.body;
+    if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
+    const old = await (prisma as any).dieMaster.findUnique({ where: { id } });
+    const updated = await (prisma as any).dieMaster.update({ where: { id }, data: { is_active: !old?.is_active } });
+    res.json({ success: true, data: updated });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };

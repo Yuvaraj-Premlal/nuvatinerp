@@ -28,3 +28,14 @@ export const updatePaymentTerms = async (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: terms });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };
+
+export const togglePaymenttermsStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const { reason } = req.body;
+    if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
+    const old = await (prisma as any).paymentTerms.findUnique({ where: { id } });
+    const updated = await (prisma as any).paymentTerms.update({ where: { id }, data: { is_active: !old?.is_active } });
+    res.json({ success: true, data: updated });
+  } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
+};
