@@ -38,6 +38,7 @@ model Tenant {
   sales_orders          SalesOrder[]
   price_history         ItemPriceHistory[]
   vendors               VendorMaster[]
+  customers             CustomerMaster[]
 
   @@map("tenants")
 }
@@ -923,21 +924,25 @@ model JobWorkReceipt {
 }
 
 model CustomerMaster {
-  id             String   @id @default(uuid())
-  tenant_id      String
-  customer_code  String
-  customer_name  String
-  address        String?
-  gstin          String?
-  contact_person String?
-  contact_phone  String?
-  payment_terms  String?
-  is_active      Boolean  @default(true)
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
-
-  sales_orders SalesOrder[]
-
+  id               String   @id @default(uuid())
+  tenant_id        String
+  customer_code    String
+  customer_name    String
+  address          String?
+  city             String?
+  state            String?
+  gstin            String?
+  contact_person   String?
+  contact_phone    String?
+  contact_email    String?
+  payment_terms    String?
+  payment_terms_id String?
+  credit_limit     Float?
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  tenant           Tenant        @relation(fields: [tenant_id], references: [id])
+  sales_orders     SalesOrder[]
   @@unique([tenant_id, customer_code])
   @@map("customer_master")
 }

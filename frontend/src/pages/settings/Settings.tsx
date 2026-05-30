@@ -1069,7 +1069,7 @@ const AddAlloySpecModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const elements = ['si', 'cu', 'fe', 'mn', 'mg', 'ni', 'zn', 'sn', 'ti', 'pb'];
   const [form, setForm] = useState<any>({ item_id: '', standard: '', alloy_system: 'Al-Si', melt_temp_min: '', melt_temp_max: '', transfer_temp_min: '', transfer_temp_max: '', pouring_temp_min: '', pouring_temp_max: '' });
   const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
-  const rawMaterials = items?.filter((i: any) => i.item_type === 'raw_material') || [];
+  const rawMaterials = items?.filter((i: any) => i.item_type === 'raw_material' && !i.alloy_spec) || [];
   const mutation = useMutation({
     mutationFn: (d: any) => api.post('/api/melt/alloy-grades', d),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['alloyGrades'] }); onClose(); }
@@ -1129,7 +1129,7 @@ const AddAlloySpecModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               ))}
             </div>
           </div>
-          {mutation.isError && <p className="text-red-500 text-sm">Failed to add alloy spec</p>}
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to add alloy spec — this item may already have a spec defined.</p>}
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
             <button onClick={() => mutation.mutate(form)} disabled={!form.item_id || mutation.isPending}
