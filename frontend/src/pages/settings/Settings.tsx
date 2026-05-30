@@ -715,6 +715,8 @@ const Settings: React.FC = () => {
   const [deactivateType, setDeactivateType] = useState<string>('');
   const [viewSupplier, setViewSupplier] = useState<any>(null);
   const [editSupplier, setEditSupplier] = useState<any>(null);
+  const [viewItem, setViewItem] = useState<any>(null);
+  const [editItem, setEditItem] = useState<any>(null);
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/suppliers').then(r => r.data.data) });
   const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
@@ -757,6 +759,8 @@ const Settings: React.FC = () => {
       {historyRecord && <HistoryModal entity_type={historyType} record={historyRecord} onClose={() => setHistoryRecord(null)} />}
       {viewSupplier && !editSupplier && <SupplierDetailModal supplier={viewSupplier} onClose={() => setViewSupplier(null)} onEdit={() => { setEditSupplier(viewSupplier); setViewSupplier(null); }} />}
       {editSupplier && <EditSupplierModal supplier={editSupplier} onClose={() => setEditSupplier(null)} />}
+      {viewItem && !editItem && <ItemDetailModal item={viewItem} onClose={() => setViewItem(null)} onEdit={() => { setEditItem(viewItem); setViewItem(null); }} />}
+      {editItem && <EditItemModal item={editItem} onClose={() => setEditItem(null)} />}
       {deactivateRecord && <DeactivateModal entity_type={deactivateType} record={deactivateRecord} onClose={() => setDeactivateRecord(null)} />}
 
       <div>
@@ -1595,4 +1599,121 @@ const EditSupplierModal: React.FC<{ supplier: any; onClose: () => void }> = ({ s
   );
 };
 
+
+const ItemDetailModal: React.FC<{ item: any; onClose: () => void; onEdit: () => void }> = ({ item, onClose, onEdit }) => {
+  const label = "text-xs text-text-secondary mb-0.5";
+  const cls = "text-sm text-text-primary";
+  const field = (l: string, v: any) => <div><p className={label}>{l}</p><p className={cls}>{v || '—'}</p></div>;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">{item.item_name}</h2>
+            <p className="text-xs text-brand-primary font-medium mt-0.5">{item.item_code}</p></div>
+          <div className="flex gap-2">
+            <button onClick={onEdit} className="px-3 py-1.5 bg-brand-primary text-white rounded-lg text-xs font-medium hover:bg-brand-dark">✏️ Edit</button>
+            <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+          </div>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            {field('Type', item.item_type?.replace(/_/g,' '))}
+            {field('Category', item.item_category)}
+            {field('UOM', item.unit_of_measure)}
+            {field('HSN Code', item.hsn_code)}
+            {field('Purchase Type', item.purchase_type)}
+            {field('Status', item.is_active ? '✅ Active' : '🔴 Inactive')}
+          </div>
+          <div className="border-t border-border pt-3">
+            <p className="text-xs font-medium text-text-primary mb-2">Costs</p>
+            <div className="grid grid-cols-3 gap-4">
+              {field('Benchmark Cost', item.benchmark_cost ? `₹${item.benchmark_cost}/UOM` : '—')}
+              {field('Selling Price', item.selling_price ? `₹${item.selling_price}` : '—')}
+            </div>
+          </div>
+          <div className="border-t border-border pt-3">
+            <p className="text-xs font-medium text-text-primary mb-2">Stock Control</p>
+            <div className="grid grid-cols-3 gap-4">
+              {field('Reorder Point', item.reorder_point ? `${item.reorder_point} ${item.unit_of_measure}` : '—')}
+              {field('Safety Stock', item.safety_stock ? `${item.safety_stock} ${item.unit_of_measure}` : '—')}
+              {field('Order Quantity', item.order_quantity ? `${item.order_quantity} ${item.unit_of_measure}` : '—')}
+            </div>
+          </div>
+          {item.description && <div className="border-t border-border pt-3">{field('Description', item.description)}</div>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EditItemModal: React.FC<{ item: any; onClose: () => void }> = ({ item, onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<any>({
+    item_name: item.item_name || '', item_category: item.item_category || '',
+    unit_of_measure: item.unit_of_measure || 'KG', hsn_code: item.hsn_code || '',
+    purchase_type: item.purchase_type || 'direct', benchmark_cost: item.benchmark_cost || '',
+    selling_price: item.selling_price || '', reorder_point: item.reorder_point || '',
+    safety_stock: item.safety_stock || '', order_quantity: item.order_quantity || '',
+    description: item.description || '', reason: ''
+  });
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.put(`/api/items/${item.id}`, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['items'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Edit Item</h2>
+            <p className="text-xs text-brand-primary font-medium">{item.item_code}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Item Name <span className="text-red-500">*</span></label>
+              <input value={form.item_name} onChange={e => setForm({...form, item_name: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Category</label>
+              <input value={form.item_category} onChange={e => setForm({...form, item_category: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">HSN Code</label>
+              <input value={form.hsn_code} onChange={e => setForm({...form, hsn_code: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">UOM</label>
+              <select value={form.unit_of_measure} onChange={e => setForm({...form, unit_of_measure: e.target.value})} className={cls}>
+                {['KG','NOS','LTR','MTR','SQM','SET','BOX','PKT'].map(u => <option key={u}>{u}</option>)}
+              </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Purchase Type</label>
+              <select value={form.purchase_type} onChange={e => setForm({...form, purchase_type: e.target.value})} className={cls}>
+                <option value="direct">Direct</option><option value="indirect">Indirect</option>
+              </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Benchmark Cost (₹)</label>
+              <input type="number" value={form.benchmark_cost} onChange={e => setForm({...form, benchmark_cost: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Selling Price (₹)</label>
+              <input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} className={cls} /></div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div><label className="block text-xs text-text-secondary mb-1">Reorder Point</label>
+              <input type="number" value={form.reorder_point} onChange={e => setForm({...form, reorder_point: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Safety Stock</label>
+              <input type="number" value={form.safety_stock} onChange={e => setForm({...form, safety_stock: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Order Qty</label>
+              <input type="number" value={form.order_quantity} onChange={e => setForm({...form, order_quantity: e.target.value})} className={cls} /></div>
+          </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Description</label>
+            <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} className={cls} /></div>
+          <div><label className="block text-xs text-text-secondary mb-1">Reason for change <span className="text-red-500">*</span></label>
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className={cls} placeholder="e.g. Updated benchmark cost after quarterly review" /></div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to update item</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({...form, benchmark_cost: form.benchmark_cost ? parseFloat(form.benchmark_cost) : null, selling_price: form.selling_price ? parseFloat(form.selling_price) : null, reorder_point: form.reorder_point ? parseFloat(form.reorder_point) : null, safety_stock: form.safety_stock ? parseFloat(form.safety_stock) : null, order_quantity: form.order_quantity ? parseFloat(form.order_quantity) : null})}
+              disabled={!form.item_name || !form.reason || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 export default Settings;
