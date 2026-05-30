@@ -717,6 +717,9 @@ const Settings: React.FC = () => {
   const [editSupplier, setEditSupplier] = useState<any>(null);
   const [viewItem, setViewItem] = useState<any>(null);
   const [editItem, setEditItem] = useState<any>(null);
+  const [viewCustomer, setViewCustomer] = useState<any>(null);
+  const [editCustomer, setEditCustomer] = useState<any>(null);
+  const [editVendor, setEditVendor] = useState<any>(null);
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/suppliers').then(r => r.data.data) });
   const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
@@ -761,6 +764,9 @@ const Settings: React.FC = () => {
       {editSupplier && <EditSupplierModal supplier={editSupplier} onClose={() => setEditSupplier(null)} />}
       {viewItem && !editItem && <ItemDetailModal item={viewItem} onClose={() => setViewItem(null)} onEdit={() => { setEditItem(viewItem); setViewItem(null); }} />}
       {editItem && <EditItemModal item={editItem} onClose={() => setEditItem(null)} />}
+      {viewCustomer && !editCustomer && <CustomerDetailModal customer={viewCustomer} onClose={() => setViewCustomer(null)} onEdit={() => { setEditCustomer(viewCustomer); setViewCustomer(null); }} />}
+      {editCustomer && <EditCustomerModal customer={editCustomer} onClose={() => setEditCustomer(null)} />}
+      {editVendor && <EditVendorModal vendor={editVendor} onClose={() => setEditVendor(null)} />}
       {deactivateRecord && <DeactivateModal entity_type={deactivateType} record={deactivateRecord} onClose={() => setDeactivateRecord(null)} />}
 
       <div>
@@ -921,6 +927,10 @@ const Settings: React.FC = () => {
             { key: 'payment_terms', label: 'Terms' }
           ]}
           onAdd={() => setShowCustomerModal(true)}
+          onEdit={row => setEditCustomer(row)}
+          onHistory={row => { setHistoryRecord(row); setHistoryType('customer'); }}
+          onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('customer'); }}
+          onView={row => setViewCustomer(row)}
         />
       )}
 
@@ -937,6 +947,9 @@ const Settings: React.FC = () => {
             { key: 'city', label: 'City' }
           ]}
           onAdd={() => setShowVendorModal(true)}
+          onEdit={row => setEditVendor(row)}
+          onHistory={row => { setHistoryRecord(row); setHistoryType('vendor'); }}
+          onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('vendor'); }}
         />
       )}
 
@@ -1708,6 +1721,130 @@ const EditItemModal: React.FC<{ item: any; onClose: () => void }> = ({ item, onC
             <button onClick={() => mutation.mutate({...form, benchmark_cost: form.benchmark_cost ? parseFloat(form.benchmark_cost) : null, selling_price: form.selling_price ? parseFloat(form.selling_price) : null, reorder_point: form.reorder_point ? parseFloat(form.reorder_point) : null, safety_stock: form.safety_stock ? parseFloat(form.safety_stock) : null, order_quantity: form.order_quantity ? parseFloat(form.order_quantity) : null})}
               disabled={!form.item_name || !form.reason || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CustomerDetailModal: React.FC<{ customer: any; onClose: () => void; onEdit: () => void }> = ({ customer, onClose, onEdit }) => {
+  const label = "text-xs text-text-secondary mb-0.5";
+  const cls = "text-sm text-text-primary";
+  const field = (l: string, v: any) => <div><p className={label}>{l}</p><p className={cls}>{v || '—'}</p></div>;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">{customer.customer_name}</h2>
+            <p className="text-xs text-brand-primary font-medium">{customer.customer_code}</p></div>
+          <div className="flex gap-2">
+            <button onClick={onEdit} className="px-3 py-1.5 bg-brand-primary text-white rounded-lg text-xs font-medium">✏️ Edit</button>
+            <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+          </div>
+        </div>
+        <div className="p-5 grid grid-cols-2 gap-4">
+          {field('Contact Person', customer.contact_person)}
+          {field('Phone', customer.contact_phone)}
+          {field('Email', customer.contact_email)}
+          {field('GSTIN', customer.gstin)}
+          {field('City', customer.city)}
+          {field('State', customer.state)}
+          {field('Payment Terms', customer.payment_terms)}
+          {field('Credit Limit', customer.credit_limit ? `₹${customer.credit_limit.toLocaleString('en-IN')}` : '—')}
+          {field('Status', customer.is_active ? '✅ Active' : '🔴 Inactive')}
+          {customer.address && <div className="col-span-2">{field('Address', customer.address)}</div>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EditCustomerModal: React.FC<{ customer: any; onClose: () => void }> = ({ customer, onClose }) => {
+  const queryClient = useQueryClient();
+  const { data: paymentTermsList } = useQuery({ queryKey: ['paymentTerms'], queryFn: () => api.get('/api/payment-terms').then(r => r.data.data) });
+  const [form, setForm] = useState<any>({ customer_name: customer.customer_name || '', contact_person: customer.contact_person || '', contact_phone: customer.contact_phone || '', contact_email: customer.contact_email || '', address: customer.address || '', city: customer.city || '', state: customer.state || '', gstin: customer.gstin || '', payment_terms_id: customer.payment_terms_id || '', reason: '' });
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.put(`/api/customers/${customer.id}`, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['customers'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Edit Customer</h2><p className="text-xs text-brand-primary">{customer.customer_code}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Customer Name <span className="text-red-500">*</span></label>
+              <input value={form.customer_name} onChange={e => setForm({...form, customer_name: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Contact Person</label><input value={form.contact_person} onChange={e => setForm({...form, contact_person: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Phone</label><input value={form.contact_phone} onChange={e => setForm({...form, contact_phone: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Email</label><input type="email" value={form.contact_email} onChange={e => setForm({...form, contact_email: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">GSTIN</label><input value={form.gstin} onChange={e => setForm({...form, gstin: e.target.value.toUpperCase()})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">City</label><input value={form.city} onChange={e => setForm({...form, city: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">State</label><input value={form.state} onChange={e => setForm({...form, state: e.target.value})} className={cls} /></div>
+            <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Payment Terms</label>
+              <select value={form.payment_terms_id} onChange={e => setForm({...form, payment_terms_id: e.target.value})} className={cls}>
+                <option value="">Select...</option>
+                {paymentTermsList?.map((pt: any) => <option key={pt.id} value={pt.id}>{pt.code} — {pt.description}</option>)}
+              </select></div>
+          </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Reason <span className="text-red-500">*</span></label>
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className={cls} /></div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to update</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate(form)} disabled={!form.customer_name || !form.reason || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
+              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EditVendorModal: React.FC<{ vendor: any; onClose: () => void }> = ({ vendor, onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<any>({ vendor_name: vendor.vendor_name || '', service_type: vendor.service_type || 'machining', contact_person: vendor.contact_person || '', contact_phone: vendor.contact_phone || '', contact_email: vendor.contact_email || '', city: vendor.city || '', state: vendor.state || '', gstin: vendor.gstin || '', lead_time_days: vendor.lead_time_days || '', reason: '' });
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.put(`/api/vendors/${vendor.id}`, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['vendors'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Edit Vendor</h2><p className="text-xs text-brand-primary">{vendor.vendor_code}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Vendor Name <span className="text-red-500">*</span></label>
+              <input value={form.vendor_name} onChange={e => setForm({...form, vendor_name: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Service Type</label>
+              <select value={form.service_type} onChange={e => setForm({...form, service_type: e.target.value})} className={cls}>
+                {['machining','plating','heat_treatment','assembly','painting','shot_blast','fettling','other'].map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
+              </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Contact Person</label><input value={form.contact_person} onChange={e => setForm({...form, contact_person: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Phone</label><input value={form.contact_phone} onChange={e => setForm({...form, contact_phone: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">City</label><input value={form.city} onChange={e => setForm({...form, city: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Lead Time (days)</label><input type="number" value={form.lead_time_days} onChange={e => setForm({...form, lead_time_days: e.target.value})} className={cls} /></div>
+          </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Reason <span className="text-red-500">*</span></label>
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className={cls} /></div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to update</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({...form, lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days) : null})} disabled={!form.vendor_name || !form.reason || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
               {mutation.isPending ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
