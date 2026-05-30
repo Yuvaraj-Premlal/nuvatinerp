@@ -59,6 +59,10 @@ export const createAlloySpec = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const { item_id, ...data } = req.body;
+    const existing = await prisma.itemAlloySpec.findFirst({ where: { item_id, tenant_id } });
+    if (existing) {
+      return res.status(400).json({ success: false, error: 'This item already has an alloy spec. Edit the existing spec instead.' });
+    }
     const spec = await prisma.itemAlloySpec.create({ data: { tenant_id, item_id, ...data } });
     res.json({ success: true, data: spec });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
