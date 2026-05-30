@@ -39,6 +39,7 @@ model Tenant {
   price_history         ItemPriceHistory[]
   vendors               VendorMaster[]
   customers             CustomerMaster[]
+  audit_logs            AuditLog[]
 
   @@map("tenants")
 }
@@ -2023,4 +2024,20 @@ model ItemPriceHistory {
   item          ItemMaster     @relation(fields: [item_id], references: [id])
   supplier      SupplierMaster? @relation(fields: [supplier_id], references: [id])
   @@map("item_price_history")
+}
+
+model AuditLog {
+  id               String   @id @default(uuid())
+  tenant_id        String
+  entity_type      String
+  entity_id        String
+  entity_code      String?
+  action           String
+  changed_fields   Json?
+  changed_by_id    String?
+  changed_by_email String?
+  reason           String?
+  changed_at       DateTime @default(now())
+  tenant           Tenant   @relation(fields: [tenant_id], references: [id])
+  @@map("audit_log")
 }

@@ -5,6 +5,7 @@ export interface AuthRequest extends Request {
   user?: {
     user_id: string;
     tenant_id: string;
+    email: string;
     tenant_code: string;
     role: string;
   };

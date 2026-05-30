@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { createSupplier, getSuppliers, getSupplierById } from '../controllers/supplier.controller';
 import { authenticate } from '../middleware/auth.middleware';
+import { createSupplier, getSuppliers, getSupplierById, updateSupplier, toggleSupplierStatus } from '../controllers/supplier.controller';
 
 const router = Router();
-
-router.post('/', authenticate, createSupplier);
 router.get('/', authenticate, getSuppliers);
 router.get('/:id', authenticate, getSupplierById);
-
+router.post('/', authenticate, createSupplier);
+router.put('/:id', authenticate, updateSupplier);
+router.patch('/:id/status', authenticate, toggleSupplierStatus);
 export default router;
