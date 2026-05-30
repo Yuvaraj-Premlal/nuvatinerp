@@ -725,6 +725,8 @@ const Settings: React.FC = () => {
   const [editLocation, setEditLocation] = useState<any>(null);
   const [editCostCentre, setEditCostCentre] = useState<any>(null);
   const [editPaymentTerms, setEditPaymentTerms] = useState<any>(null);
+  const [editAlloySpec, setEditAlloySpec] = useState<any>(null);
+  const [editAlloySpec, setEditAlloySpec] = useState<any>(null);
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/suppliers').then(r => r.data.data) });
   const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
@@ -777,6 +779,8 @@ const Settings: React.FC = () => {
       {editLocation && <EditLocationModal location={editLocation} onClose={() => setEditLocation(null)} />}
       {editCostCentre && <EditCostCentreModal costCentre={editCostCentre} onClose={() => setEditCostCentre(null)} />}
       {editPaymentTerms && <EditPaymentTermsModal paymentTerms={editPaymentTerms} onClose={() => setEditPaymentTerms(null)} />}
+      {editAlloySpec && <EditAlloySpecModal spec={editAlloySpec} onClose={() => setEditAlloySpec(null)} />}
+      {editAlloySpec && <EditAlloySpecModal spec={editAlloySpec} onClose={() => setEditAlloySpec(null)} />}
       {deactivateRecord && <DeactivateModal entity_type={deactivateType} record={deactivateRecord} onClose={() => setDeactivateRecord(null)} />}
 
       <div>
@@ -988,37 +992,30 @@ const Settings: React.FC = () => {
       )}
 
       {activeSection === 'alloy_specs' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm font-medium text-text-primary">Alloy Chemistry Specs</p>
-            <button onClick={() => setShowAlloySpecModal(true)} className="text-sm bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add Alloy Spec</button>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
-              <thead><tr className="bg-brand-light">
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Item</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Standard</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">System</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Melt Temp</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Transfer Temp</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Key Limits</th>
-              </tr></thead>
-              <tbody>
-                {alloySpecs?.map((g: any, i: number) => (
-                  <tr key={g.id} className={`border-t border-border ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
-                    <td className="px-4 py-3"><p className="font-medium text-text-primary">{g.item?.item_code}</p><p className="text-text-secondary text-xs">{g.item?.item_name}</p></td>
-                    <td className="px-4 py-3 text-xs text-text-secondary">{g.standard || '—'}</td>
-                    <td className="px-4 py-3 text-xs text-text-secondary">{g.alloy_system || '—'}</td>
-                    <td className="px-4 py-3 text-xs">{g.melt_temp_min && g.melt_temp_max ? `${g.melt_temp_min}–${g.melt_temp_max}°C` : '—'}</td>
-                    <td className="px-4 py-3 text-xs">{g.transfer_temp_min && g.transfer_temp_max ? `${g.transfer_temp_min}–${g.transfer_temp_max}°C` : '—'}</td>
-                    <td className="px-4 py-3 text-xs text-text-secondary">{['si', 'cu', 'fe'].filter(el => g[`${el}_max`]).map(el => `${el.toUpperCase()} ≤${g[`${el}_max`]}`).join(' | ') || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {(!alloySpecs || alloySpecs.length === 0) && <div className="text-center py-12 text-text-secondary">No alloy specs defined yet</div>}
-          </div>
-        </div>
+        <MasterTable
+          title="Alloy Chemistry Specs"
+          data={(alloySpecs || []).map((g: any) => ({
+            ...g,
+            item_code: g.item?.item_code,
+            item_name: g.item?.item_name,
+            melt_range: g.melt_temp_min && g.melt_temp_max ? `${g.melt_temp_min}–${g.melt_temp_max}°C` : '—',
+            transfer_range: g.transfer_temp_min && g.transfer_temp_max ? `${g.transfer_temp_min}–${g.transfer_temp_max}°C` : '—',
+            key_limits: ['si','cu','fe'].filter(el => g[`${el}_max`]).map(el => `${el.toUpperCase()} ≤${g[`${el}_max`]}`).join(' | ') || '—'
+          }))}
+          columns={[
+            { key: 'item_code', label: 'Item Code' },
+            { key: 'item_name', label: 'Item Name' },
+            { key: 'standard', label: 'Standard' },
+            { key: 'alloy_system', label: 'System' },
+            { key: 'melt_range', label: 'Melt Temp' },
+            { key: 'transfer_range', label: 'Transfer Temp' },
+            { key: 'key_limits', label: 'Key Limits' }
+          ]}
+          onAdd={() => setShowAlloySpecModal(true)}
+          onEdit={row => setEditAlloySpec(row)}
+          onHistory={row => { setHistoryRecord(row); setHistoryType('alloy_spec'); }}
+          onView={row => setEditAlloySpec(row)}
+        />
       )}
 
       {activeSection === 'toc' && (
@@ -2076,4 +2073,162 @@ const EditPaymentTermsModal: React.FC<{ paymentTerms: any; onClose: () => void }
     </div>
   );
 };
+
+const EditAlloySpecModal: React.FC<{ spec: any; onClose: () => void }> = ({ spec, onClose }) => {
+  const queryClient = useQueryClient();
+  const elements = ['si', 'cu', 'fe', 'mn', 'mg', 'ni', 'zn', 'sn', 'ti', 'pb'];
+  const [form, setForm] = useState<any>({
+    standard: spec.standard || '', alloy_system: spec.alloy_system || 'Al-Si',
+    melt_temp_min: spec.melt_temp_min || '', melt_temp_max: spec.melt_temp_max || '',
+    transfer_temp_min: spec.transfer_temp_min || '', transfer_temp_max: spec.transfer_temp_max || '',
+    pouring_temp_min: spec.pouring_temp_min || '', pouring_temp_max: spec.pouring_temp_max || '',
+    ...Object.fromEntries(elements.flatMap(el => [[`${el}_min`, spec[`${el}_min`] || ''], [`${el}_max`, spec[`${el}_max`] || '']]))
+  });
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.put(`/api/melt/alloy-grades/${spec.id}`, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['alloyGrades'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  const clsXs = "w-full px-2 py-1.5 border border-border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-primary";
+  const handleSave = () => {
+    const data: any = {};
+    Object.keys(form).forEach(k => { data[k] = form[k] !== '' ? parseFloat(form[k]) || form[k] : null; });
+    mutation.mutate(data);
+  };
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Edit Alloy Spec</h2>
+            <p className="text-xs text-brand-primary">{spec.item?.item_code} — {spec.item?.item_name}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-xs text-text-secondary mb-1">Standard</label>
+              <input value={form.standard} onChange={e => setForm({...form, standard: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Alloy System</label>
+              <select value={form.alloy_system} onChange={e => setForm({...form, alloy_system: e.target.value})} className={cls}>
+                {['Al-Si','Al-Cu','Al-Mg','Al-Zn','Zn','Other'].map(s => <option key={s}>{s}</option>)}
+              </select></div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-text-primary mb-2">Chemistry Spec (% by weight)</p>
+            <div className="grid grid-cols-5 gap-2">
+              {elements.map(el => (
+                <div key={el} className="space-y-1">
+                  <p className="text-xs text-center font-medium text-text-secondary uppercase">{el}</p>
+                  <input type="number" step="0.01" placeholder="min" value={form[`${el}_min`]} onChange={e => setForm({...form, [`${el}_min`]: e.target.value})} className={clsXs} />
+                  <input type="number" step="0.01" placeholder="max" value={form[`${el}_max`]} onChange={e => setForm({...form, [`${el}_max`]: e.target.value})} className={clsXs} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-text-primary mb-2">Temperature Spec (°C)</p>
+            <div className="grid grid-cols-3 gap-3">
+              {[['melt_temp', 'Melt Temp'], ['transfer_temp', 'Transfer Temp'], ['pouring_temp', 'Pouring Temp']].map(([key, label]) => (
+                <div key={key}>
+                  <p className="text-xs text-text-secondary mb-1">{label}</p>
+                  <div className="flex gap-1">
+                    <input type="number" placeholder="min" value={form[`${key}_min`]} onChange={e => setForm({...form, [`${key}_min`]: e.target.value})} className={clsXs} />
+                    <input type="number" placeholder="max" value={form[`${key}_max`]} onChange={e => setForm({...form, [`${key}_max`]: e.target.value})} className={clsXs} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to update alloy spec</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={handleSave} disabled={mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
+              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+const EditAlloySpecModal: React.FC<{ spec: any; onClose: () => void }> = ({ spec, onClose }) => {
+  const queryClient = useQueryClient();
+  const elements = ['si', 'cu', 'fe', 'mn', 'mg', 'ni', 'zn', 'sn', 'ti', 'pb'];
+  const [form, setForm] = useState<any>({
+    standard: spec.standard || '', alloy_system: spec.alloy_system || 'Al-Si',
+    melt_temp_min: spec.melt_temp_min || '', melt_temp_max: spec.melt_temp_max || '',
+    transfer_temp_min: spec.transfer_temp_min || '', transfer_temp_max: spec.transfer_temp_max || '',
+    pouring_temp_min: spec.pouring_temp_min || '', pouring_temp_max: spec.pouring_temp_max || '',
+    ...Object.fromEntries(elements.flatMap(el => [[`${el}_min`, spec[`${el}_min`] || ''], [`${el}_max`, spec[`${el}_max`] || '']]))
+  });
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.put(`/api/melt/alloy-grades/${spec.id}`, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['alloyGrades'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  const clsXs = "w-full px-2 py-1.5 border border-border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-primary";
+  const handleSave = () => {
+    const data: any = {};
+    Object.keys(form).forEach(k => { data[k] = form[k] !== '' ? parseFloat(form[k]) || form[k] : null; });
+    mutation.mutate(data);
+  };
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Edit Alloy Spec</h2>
+            <p className="text-xs text-brand-primary">{spec.item?.item_code} — {spec.item?.item_name}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-xs text-text-secondary mb-1">Standard</label>
+              <input value={form.standard} onChange={e => setForm({...form, standard: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Alloy System</label>
+              <select value={form.alloy_system} onChange={e => setForm({...form, alloy_system: e.target.value})} className={cls}>
+                {['Al-Si','Al-Cu','Al-Mg','Al-Zn','Zn','Other'].map(s => <option key={s}>{s}</option>)}
+              </select></div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-text-primary mb-2">Chemistry Spec (% by weight)</p>
+            <div className="grid grid-cols-5 gap-2">
+              {elements.map(el => (
+                <div key={el} className="space-y-1">
+                  <p className="text-xs text-center font-medium text-text-secondary uppercase">{el}</p>
+                  <input type="number" step="0.01" placeholder="min" value={form[`${el}_min`]} onChange={e => setForm({...form, [`${el}_min`]: e.target.value})} className={clsXs} />
+                  <input type="number" step="0.01" placeholder="max" value={form[`${el}_max`]} onChange={e => setForm({...form, [`${el}_max`]: e.target.value})} className={clsXs} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-text-primary mb-2">Temperature Spec (°C)</p>
+            <div className="grid grid-cols-3 gap-3">
+              {[['melt_temp', 'Melt Temp'], ['transfer_temp', 'Transfer Temp'], ['pouring_temp', 'Pouring Temp']].map(([key, label]) => (
+                <div key={key}>
+                  <p className="text-xs text-text-secondary mb-1">{label}</p>
+                  <div className="flex gap-1">
+                    <input type="number" placeholder="min" value={form[`${key}_min`]} onChange={e => setForm({...form, [`${key}_min`]: e.target.value})} className={clsXs} />
+                    <input type="number" placeholder="max" value={form[`${key}_max`]} onChange={e => setForm({...form, [`${key}_max`]: e.target.value})} className={clsXs} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to update alloy spec</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={handleSave} disabled={mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
+              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default Settings;
