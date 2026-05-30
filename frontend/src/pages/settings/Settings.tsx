@@ -726,7 +726,6 @@ const Settings: React.FC = () => {
   const [editCostCentre, setEditCostCentre] = useState<any>(null);
   const [editPaymentTerms, setEditPaymentTerms] = useState<any>(null);
   const [editAlloySpec, setEditAlloySpec] = useState<any>(null);
-  const [editAlloySpec, setEditAlloySpec] = useState<any>(null);
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/suppliers').then(r => r.data.data) });
   const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
