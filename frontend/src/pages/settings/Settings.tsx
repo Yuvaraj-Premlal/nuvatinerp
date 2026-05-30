@@ -2153,3 +2153,5 @@ const EditAlloySpecModal: React.FC<{ spec: any; onClose: () => void }> = ({ spec
 
 
 
+
+export default Settings;
