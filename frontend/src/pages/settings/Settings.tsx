@@ -1069,7 +1069,7 @@ const AddAlloySpecModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const elements = ['si', 'cu', 'fe', 'mn', 'mg', 'ni', 'zn', 'sn', 'ti', 'pb'];
   const [form, setForm] = useState<any>({ item_id: '', standard: '', alloy_system: 'Al-Si', melt_temp_min: '', melt_temp_max: '', transfer_temp_min: '', transfer_temp_max: '', pouring_temp_min: '', pouring_temp_max: '' });
   const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
-  const rawMaterials = items?.filter((i: any) => i.item_type === 'raw_material' && !i.alloy_spec) || [];
+  const rawMaterials = items?.filter((i: any) => i.item_type === 'raw_material') || [];
   const mutation = useMutation({
     mutationFn: (d: any) => api.post('/api/melt/alloy-grades', d),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['alloyGrades'] }); onClose(); }
