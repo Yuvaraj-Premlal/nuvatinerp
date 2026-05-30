@@ -1129,7 +1129,7 @@ const AddAlloySpecModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               ))}
             </div>
           </div>
-          {mutation.isError && <p className="text-red-500 text-sm">Failed to add alloy spec — this item may already have a spec defined.</p>}
+          {mutation.isError && <p className="text-red-500 text-sm">{(mutation.error as any)?.response?.data?.error || 'Failed to add alloy spec'}</p>}
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
             <button onClick={() => mutation.mutate(form)} disabled={!form.item_id || mutation.isPending}
