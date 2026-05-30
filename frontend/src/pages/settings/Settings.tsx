@@ -4,8 +4,8 @@ import api from '../../services/api';
 
 const AddSupplierModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
+  const { data: paymentTermsList } = useQuery({ queryKey: ['paymentTerms'], queryFn: () => api.get('/api/payment-terms').then(r => r.data.data) });
   const [form, setForm] = useState<any>({
-    supplier_code: '',
     supplier_name: '',
     supplier_type: 'direct',
     contact_person: '',
@@ -55,13 +55,8 @@ const AddSupplierModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Supplier Code</label>
-              <input value={form.supplier_code} onChange={e => setForm({ ...form, supplier_code: e.target.value.toUpperCase() })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="e.g. SUP-HIND-001" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Supplier Name</label>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-text-primary mb-1">Supplier Name <span className="text-red-500">*</span></label>
               <input value={form.supplier_name} onChange={e => setForm({ ...form, supplier_name: e.target.value })}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required />
             </div>
@@ -97,9 +92,12 @@ const AddSupplierModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">Payment Terms</label>
-              <select value={form.payment_terms} onChange={e => setForm({ ...form, payment_terms: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
-                <option>Net 30</option><option>Net 45</option><option>Net 60</option><option>Advance</option><option>COD</option>
+              <select value={form.payment_terms_id} onChange={e => {
+                const pt = paymentTermsList?.find((p: any) => p.id === e.target.value);
+                setForm({ ...form, payment_terms_id: e.target.value, payment_terms: pt?.description || '', payment_days: pt?.days || 30 });
+              }} className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+                <option value="">Select payment terms...</option>
+                {paymentTermsList?.map((pt: any) => <option key={pt.id} value={pt.id}>{pt.code} — {pt.description}</option>)}
               </select>
             </div>
             <div>
@@ -148,7 +146,7 @@ const AddSupplierModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           {mutation.isError && <p className="text-red-500 text-sm">Failed to add supplier</p>}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+            <button type="submit" disabled={!form.supplier_name || mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Adding...' : 'Add Supplier'}
             </button>
           </div>
@@ -160,6 +158,7 @@ const AddSupplierModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 const AddMachineModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
+  const { data: locations } = useQuery({ queryKey: ['locations'], queryFn: () => api.get('/api/locations').then(r => r.data.data) });
   const [form, setForm] = useState({
     machine_code: '',
     machine_name: '',
@@ -259,8 +258,11 @@ const AddMachineModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-text-primary mb-1">Location</label>
-              <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="e.g. Bay 1" />
+              <select value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+                <option value="">Select location...</option>
+                {locations?.map((l: any) => <option key={l.id} value={l.code}>{l.code}{l.description ? ` — ${l.description}` : ''}</option>)}
+              </select>
             </div>
           </div>
           {form.machine_type === 'furnace' && (
@@ -416,97 +418,56 @@ const AddDieModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 const AddCustomerModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({
-    customer_code: '',
-    customer_name: '',
-    contact_person: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    gstin: '',
-    payment_terms: 'Net 30'
-  });
-
+  const { data: paymentTermsList } = useQuery({ queryKey: ['paymentTerms'], queryFn: () => api.get('/api/payment-terms').then(r => r.data.data) });
+  const [form, setForm] = useState<any>({ customer_name: '', contact_person: '', contact_email: '', contact_phone: '', address: '', city: '', state: '', gstin: '', payment_terms: '', payment_terms_id: '' });
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/api/customers', data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      onClose();
-    }
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['customers'] }); onClose(); }
   });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    mutation.mutate(form);
-  };
-
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-lg max-h-screen overflow-y-auto">
+      <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="font-bold text-text-primary">Add Customer</h2>
+          <div><h2 className="font-bold text-text-primary">Add Customer</h2><p className="text-xs text-text-secondary mt-0.5">Code will be auto-generated as CUST-[NAME]-[NNNN]</p></div>
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <div className="p-5 space-y-3">
+          <div><label className="block text-xs text-text-secondary mb-1">Customer Name <span className="text-red-500">*</span></label>
+            <input value={form.customer_name} onChange={e => setForm({...form, customer_name: e.target.value})} className={cls} placeholder="e.g. Bajaj Auto Ltd" required /></div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Customer Code</label>
-              <input value={form.customer_code} onChange={e => setForm({ ...form, customer_code: e.target.value.toUpperCase() })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="e.g. CUST-BAJAJ-001" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Customer Name</label>
-              <input value={form.customer_name} onChange={e => setForm({ ...form, customer_name: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Contact Person</label>
-              <input value={form.contact_person} onChange={e => setForm({ ...form, contact_person: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Phone</label>
-              <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Email</label>
-              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">GSTIN</label>
-              <input value={form.gstin} onChange={e => setForm({ ...form, gstin: e.target.value.toUpperCase() })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">City</label>
-              <input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">State</label>
-              <input value={form.state} onChange={e => setForm({ ...form, state: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-text-primary mb-1">Payment Terms</label>
-              <select value={form.payment_terms} onChange={e => setForm({ ...form, payment_terms: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
-                <option>Net 30</option><option>Net 45</option><option>Net 60</option><option>Advance</option><option>COD</option>
-              </select>
-            </div>
+            <div><label className="block text-xs text-text-secondary mb-1">Contact Person</label>
+              <input value={form.contact_person} onChange={e => setForm({...form, contact_person: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Phone</label>
+              <input value={form.contact_phone} onChange={e => setForm({...form, contact_phone: e.target.value})} className={cls} placeholder="10-digit mobile" /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Email</label>
+              <input type="email" value={form.contact_email} onChange={e => setForm({...form, contact_email: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">GSTIN</label>
+              <input value={form.gstin} onChange={e => setForm({...form, gstin: e.target.value.toUpperCase()})} className={cls} placeholder="15-char GSTIN" maxLength={15} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">City</label>
+              <input value={form.city} onChange={e => setForm({...form, city: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">State</label>
+              <input value={form.state} onChange={e => setForm({...form, state: e.target.value})} className={cls} /></div>
           </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Address</label>
+            <input value={form.address} onChange={e => setForm({...form, address: e.target.value})} className={cls} /></div>
+          <div><label className="block text-xs text-text-secondary mb-1">Payment Terms</label>
+            <select value={form.payment_terms_id} onChange={e => {
+              const pt = paymentTermsList?.find((p: any) => p.id === e.target.value);
+              setForm({...form, payment_terms_id: e.target.value, payment_terms: pt?.description || ''});
+            }} className={cls}>
+              <option value="">Select payment terms...</option>
+              {paymentTermsList?.map((pt: any) => <option key={pt.id} value={pt.id}>{pt.code} — {pt.description}</option>)}
+            </select></div>
           {mutation.isError && <p className="text-red-500 text-sm">Failed to add customer</p>}
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate(form)} disabled={!form.customer_name || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Adding...' : 'Add Customer'}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -514,102 +475,64 @@ const AddCustomerModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 const AddVendorModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({
-    vendor_code: '',
-    vendor_name: '',
-    contact_person: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    gstin: '',
-    service_type: 'machining',
-    payment_terms: 'Net 30'
-  });
-
+  const { data: paymentTermsList } = useQuery({ queryKey: ['paymentTerms'], queryFn: () => api.get('/api/payment-terms').then(r => r.data.data) });
+  const [form, setForm] = useState<any>({ vendor_name: '', service_type: 'machining', contact_person: '', contact_phone: '', contact_email: '', address: '', city: '', state: '', gstin: '', payment_terms: '', payment_terms_id: '', lead_time_days: '' });
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/api/vendors', data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vendors'] });
-      onClose();
-    }
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['vendors'] }); onClose(); }
   });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    mutation.mutate(form);
-  };
-
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-lg max-h-screen overflow-y-auto">
+      <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="font-bold text-text-primary">Add Vendor</h2>
+          <div><h2 className="font-bold text-text-primary">Add Vendor</h2><p className="text-xs text-text-secondary mt-0.5">Code auto-generated as VEND-[NAME]-[NNNN]</p></div>
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <div className="p-5 space-y-3">
+          <div><label className="block text-xs text-text-secondary mb-1">Vendor Name <span className="text-red-500">*</span></label>
+            <input value={form.vendor_name} onChange={e => setForm({...form, vendor_name: e.target.value})} className={cls} placeholder="e.g. Precision CNC Works" required /></div>
+          <div><label className="block text-xs text-text-secondary mb-1">Service Type <span className="text-red-500">*</span></label>
+            <select value={form.service_type} onChange={e => setForm({...form, service_type: e.target.value})} className={cls}>
+              {['machining','plating','heat_treatment','assembly','painting','shot_blast','fettling','other'].map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
+            </select></div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Vendor Code</label>
-              <input value={form.vendor_code} onChange={e => setForm({ ...form, vendor_code: e.target.value.toUpperCase() })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="e.g. VEN-CNC-002" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Vendor Name</label>
-              <input value={form.vendor_name} onChange={e => setForm({ ...form, vendor_name: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Service Type</label>
-              <select value={form.service_type} onChange={e => setForm({ ...form, service_type: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
-                <option value="machining">Machining</option>
-                <option value="plating">Plating / Surface Treatment</option>
-                <option value="heat_treatment">Heat Treatment</option>
-                <option value="assembly">Assembly</option>
-                <option value="painting">Painting</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Contact Person</label>
-              <input value={form.contact_person} onChange={e => setForm({ ...form, contact_person: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Phone</label>
-              <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">GSTIN</label>
-              <input value={form.gstin} onChange={e => setForm({ ...form, gstin: e.target.value.toUpperCase() })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">City</label>
-              <input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">State</label>
-              <input value={form.state} onChange={e => setForm({ ...form, state: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
+            <div><label className="block text-xs text-text-secondary mb-1">Contact Person</label>
+              <input value={form.contact_person} onChange={e => setForm({...form, contact_person: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Phone</label>
+              <input value={form.contact_phone} onChange={e => setForm({...form, contact_phone: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Email</label>
+              <input type="email" value={form.contact_email} onChange={e => setForm({...form, contact_email: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">GSTIN</label>
+              <input value={form.gstin} onChange={e => setForm({...form, gstin: e.target.value.toUpperCase()})} className={cls} maxLength={15} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">City</label>
+              <input value={form.city} onChange={e => setForm({...form, city: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Lead Time (days)</label>
+              <input type="number" value={form.lead_time_days} onChange={e => setForm({...form, lead_time_days: e.target.value})} className={cls} /></div>
           </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Payment Terms</label>
+            <select value={form.payment_terms_id} onChange={e => {
+              const pt = paymentTermsList?.find((p: any) => p.id === e.target.value);
+              setForm({...form, payment_terms_id: e.target.value, payment_terms: pt?.description || ''});
+            }} className={cls}>
+              <option value="">Select payment terms...</option>
+              {paymentTermsList?.map((pt: any) => <option key={pt.id} value={pt.id}>{pt.code} — {pt.description}</option>)}
+            </select></div>
           {mutation.isError && <p className="text-red-500 text-sm">Failed to add vendor</p>}
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({...form, lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days) : null})}
+              disabled={!form.vendor_name || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Adding...' : 'Add Vendor'}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
 };
+
 
 const CostConfigSection: React.FC = () => {
   const queryClient = useQueryClient();
@@ -850,6 +773,9 @@ const Settings: React.FC = () => {
       {showVendorModal && <AddVendorModal onClose={() => setShowVendorModal(false)} />}
       {showLocationModal && <AddLocationModal onClose={() => setShowLocationModal(false)} />}
       {showAlloySpecModal && <AddAlloySpecModal onClose={() => setShowAlloySpecModal(false)} />}
+      {showCostCentreModal && <AddCostCentreModal onClose={() => setShowCostCentreModal(false)} />}
+      {showItemModal && <AddItemModal onClose={() => setShowItemModal(false)} />}
+      {showPaymentTermsModal && <AddPaymentTermsModal onClose={() => setShowPaymentTermsModal(false)} />}
 
       <div>
         <h1 className="text-xl font-bold text-text-primary">Settings</h1>
