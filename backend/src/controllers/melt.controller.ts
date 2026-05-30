@@ -291,8 +291,10 @@ export const toggleAlloySpecStatus = async (req: AuthRequest, res: Response) => 
     const { id } = req.params as { id: string };
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
-    const old = await prisma.itemAlloySpec.findUnique({ where: { id } });
-    const updated = await prisma.itemAlloySpec.update({ where: { id }, data: { is_active: !old?.is_active } });
+    const existing = await prisma.itemAlloySpec.findUnique({ where: { id }, include: { item: { select: { item_code: true } } } });
+    const updated = await prisma.itemAlloySpec.update({ where: { id }, data: { is_active: !existing?.is_active } });
+    const { logChange } = await import('../utils/audit');
+    await logChange(existing?.tenant_id || '', 'alloy_spec', id, existing?.item?.item_code || '', existing?.is_active ? 'deactivate' : 'activate', existing, updated, req.user?.user_id || '', req.user?.email || '', reason);
     res.json({ success: true, data: updated });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };

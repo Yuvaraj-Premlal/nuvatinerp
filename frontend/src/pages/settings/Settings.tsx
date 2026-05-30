@@ -1405,7 +1405,7 @@ const DeactivateModal: React.FC<{ entity_type: string; record: any; onClose: () 
   };
   const mutation = useMutation({
     mutationFn: () => api.patch(`/api/${endpointMap[entity_type]}/${record.id}/status`, { reason }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [entity_type + 's'] }); queryClient.invalidateQueries({ queryKey: ['suppliers'] }); queryClient.invalidateQueries({ queryKey: ['items'] }); queryClient.invalidateQueries({ queryKey: ['customers'] }); queryClient.invalidateQueries({ queryKey: ['vendors'] }); queryClient.invalidateQueries({ queryKey: ['machines'] }); queryClient.invalidateQueries({ queryKey: ['dies'] }); queryClient.invalidateQueries({ queryKey: ['locations'] }); queryClient.invalidateQueries({ queryKey: ['costCentres'] }); queryClient.invalidateQueries({ queryKey: ['paymentTerms'] }); onClose(); }
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [entity_type + 's'] }); queryClient.invalidateQueries({ queryKey: ['suppliers'] }); queryClient.invalidateQueries({ queryKey: ['items'] }); queryClient.invalidateQueries({ queryKey: ['customers'] }); queryClient.invalidateQueries({ queryKey: ['vendors'] }); queryClient.invalidateQueries({ queryKey: ['machines'] }); queryClient.invalidateQueries({ queryKey: ['dies'] }); queryClient.invalidateQueries({ queryKey: ['locations'] }); queryClient.invalidateQueries({ queryKey: ['costCentres'] }); queryClient.invalidateQueries({ queryKey: ['paymentTerms'] }); queryClient.invalidateQueries({ queryKey: ['alloyGrades'] }); onClose(); }
   });
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
