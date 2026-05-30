@@ -1222,9 +1222,9 @@ const AddCostCentreModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 const AddItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<any>({
-    item_code: '', item_name: '', item_type: 'raw_material', item_category: '',
+    item_name: '', item_type: 'raw_material', item_category: '',
     unit_of_measure: 'KG', hsn_code: '', purchase_type: 'direct',
-    standard_cost: '', material_cost: '', selling_price: '',
+    benchmark_cost: '', selling_price: '',
     reorder_point: '', safety_stock: '', order_quantity: '', description: ''
   });
   const mutation = useMutation({
@@ -1236,15 +1236,13 @@ const AddItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="font-bold text-text-primary">Add Item</h2>
+          <div><h2 className="font-bold text-text-primary">Add Item</h2><p className="text-xs text-text-secondary mt-0.5">Code auto-generated as TYPE-NAME-NNNN</p></div>
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
         </div>
         <div className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-xs text-text-secondary mb-1">Item Code <span className="text-red-500">*</span></label>
-              <input value={form.item_code} onChange={e => setForm({...form, item_code: e.target.value.toUpperCase()})} className={cls} placeholder="e.g. RM-ADC12" required /></div>
-            <div><label className="block text-xs text-text-secondary mb-1">Item Name <span className="text-red-500">*</span></label>
-              <input value={form.item_name} onChange={e => setForm({...form, item_name: e.target.value})} className={cls} required /></div>
+            <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Item Name <span className="text-red-500">*</span></label>
+              <input value={form.item_name} onChange={e => setForm({...form, item_name: e.target.value})} className={cls} placeholder="e.g. Aluminium Ingot ADC12" required /></div>
             <div><label className="block text-xs text-text-secondary mb-1">Item Type <span className="text-red-500">*</span></label>
               <select value={form.item_type} onChange={e => setForm({...form, item_type: e.target.value})} className={cls}>
                 {['raw_material','finished_goods','semi_finished','consumable','spare','tool','packaging'].map(t => <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
@@ -1262,10 +1260,8 @@ const AddItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <option value="direct">Direct (production material)</option>
                 <option value="indirect">Indirect (consumable/overhead)</option>
               </select></div>
-            <div><label className="block text-xs text-text-secondary mb-1">Standard Cost (₹)</label>
-              <input type="number" value={form.standard_cost} onChange={e => setForm({...form, standard_cost: e.target.value})} className={cls} placeholder="per UOM" /></div>
-            <div><label className="block text-xs text-text-secondary mb-1">Material Cost (₹)</label>
-              <input type="number" value={form.material_cost} onChange={e => setForm({...form, material_cost: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Benchmark Cost (₹) <span className="text-text-secondary font-normal text-xs">— management anchor, reviewed quarterly</span></label>
+              <input type="number" value={form.benchmark_cost} onChange={e => setForm({...form, benchmark_cost: e.target.value})} className={cls} placeholder="per UOM" /></div>
             <div><label className="block text-xs text-text-secondary mb-1">Selling Price (₹)</label>
               <input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} className={cls} /></div>
           </div>
@@ -1285,8 +1281,14 @@ const AddItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           {mutation.isError && <p className="text-red-500 text-sm">Failed to add item</p>}
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button onClick={() => mutation.mutate({...form, standard_cost: form.standard_cost ? parseFloat(form.standard_cost) : null, material_cost: form.material_cost ? parseFloat(form.material_cost) : null, selling_price: form.selling_price ? parseFloat(form.selling_price) : null, reorder_point: form.reorder_point ? parseFloat(form.reorder_point) : null, safety_stock: form.safety_stock ? parseFloat(form.safety_stock) : null, order_quantity: form.order_quantity ? parseFloat(form.order_quantity) : null})}
-              disabled={!form.item_code || !form.item_name || mutation.isPending}
+            <button onClick={() => mutation.mutate({...form,
+              benchmark_cost: form.benchmark_cost ? parseFloat(form.benchmark_cost) : null,
+              selling_price: form.selling_price ? parseFloat(form.selling_price) : null,
+              reorder_point: form.reorder_point ? parseFloat(form.reorder_point) : null,
+              safety_stock: form.safety_stock ? parseFloat(form.safety_stock) : null,
+              order_quantity: form.order_quantity ? parseFloat(form.order_quantity) : null
+            })}
+              disabled={!form.item_name || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Adding...' : 'Add Item'}
             </button>
@@ -1296,7 +1298,6 @@ const AddItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     </div>
   );
 };
-
 const AddPaymentTermsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ code: '', description: '', days: '30', discount_percent: '', discount_days: '' });
