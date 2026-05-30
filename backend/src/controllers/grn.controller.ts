@@ -51,6 +51,21 @@ export const createGRN = async (req: AuthRequest, res: Response) => {
             location: line.location || null
           }
         });
+        // Auto-create price history
+        if (parseFloat(line.unit_price || 0) > 0) {
+          await prisma.itemPriceHistory.create({
+            data: {
+              tenant_id,
+              item_id: line.item_id,
+              supplier_id: req.body.supplier_id || null,
+              price_per_uom: parseFloat(line.unit_price),
+              source: 'grn',
+              grn_id: grn.id,
+              effective_date: new Date(),
+              created_by: req.user?.user_id || "system"
+            }
+          });
+        }
       }
 
       const receivedQty = parseFloat(line.quantity_received);

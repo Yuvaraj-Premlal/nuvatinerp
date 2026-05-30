@@ -36,6 +36,7 @@ model Tenant {
   locations             LocationMaster[]
   job_cards             JobCard[]
   sales_orders          SalesOrder[]
+  price_history         ItemPriceHistory[]
 
   @@map("tenants")
 }
@@ -97,6 +98,7 @@ model ItemMaster {
   melt_charge_lines MeltChargeLine[]
   mr_lines          MaterialRequisitionLine[]
   pr_lines          PurchaseRequisitionLine[]
+  price_history     ItemPriceHistory[]
   alloy_spec        ItemAlloySpec?
 
   @@unique([tenant_id, item_code])
@@ -193,6 +195,7 @@ model SupplierMaster {
   item_suppliers    ItemSupplierMap[]
   purchase_orders   PurchaseOrder[]
   payment_terms_ref PaymentTerms?     @relation(fields: [payment_terms_id], references: [id])
+  price_history     ItemPriceHistory[]
 
   @@unique([tenant_id, supplier_code])
   @@map("supplier_master")
@@ -1969,4 +1972,24 @@ model PaymentTerms {
 
   @@unique([tenant_id, code])
   @@map("payment_terms")
+}
+
+model ItemPriceHistory {
+  id            String   @id @default(uuid())
+  tenant_id     String
+  item_id       String
+  supplier_id   String?
+  price_per_uom Float
+  currency      String   @default("INR")
+  effective_date DateTime @default(now())
+  source        String   @default("grn")
+  // grn / manual / import
+  grn_id        String?
+  notes         String?
+  created_by    String?
+  created_at    DateTime @default(now())
+  tenant        Tenant         @relation(fields: [tenant_id], references: [id])
+  item          ItemMaster     @relation(fields: [item_id], references: [id])
+  supplier      SupplierMaster? @relation(fields: [supplier_id], references: [id])
+  @@map("item_price_history")
 }

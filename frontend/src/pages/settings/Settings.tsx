@@ -825,7 +825,7 @@ const Settings: React.FC = () => {
                     <td className="px-4 py-3 text-xs text-text-secondary">{item.item_category || '—'}</td>
                     <td className="px-4 py-3 text-xs">{item.unit_of_measure}</td>
                     <td className="px-4 py-3 text-xs text-text-secondary">{item.hsn_code || '—'}</td>
-                    <td className="px-4 py-3 text-xs text-right">₹{item.standard_cost || item.material_cost || '—'}</td>
+                    <td className="px-4 py-3 text-xs text-right">₹{item.benchmark_cost || '—'}</td>
                     <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-0.5 rounded-full ${item.purchase_type === 'indirect' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>{item.purchase_type || 'direct'}</span></td>
                   </tr>
                 ))}
