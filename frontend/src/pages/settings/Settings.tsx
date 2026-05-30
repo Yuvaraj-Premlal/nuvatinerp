@@ -643,13 +643,18 @@ const TOCConfigSection: React.FC = () => {
   );
 };
 
-const MasterTable: React.FC<{ title: string; data: any[]; columns: { key: string; label: string }[]; onAdd: () => void }> = ({ title, data, columns, onAdd }) => (
+const MasterTable: React.FC<{
+  title: string; data: any[];
+  columns: { key: string; label: string }[];
+  onAdd: () => void;
+  onEdit?: (row: any) => void;
+  onHistory?: (row: any) => void;
+  onToggleStatus?: (row: any) => void;
+}> = ({ title, data, columns, onAdd, onEdit, onHistory, onToggleStatus }) => (
   <div>
     <div className="flex items-center justify-between mb-3">
       <h3 className="font-semibold text-text-primary">{title}</h3>
-      <button onClick={onAdd} className="text-xs bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">
-        + Add
-      </button>
+      <button onClick={onAdd} className="text-xs bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add</button>
     </div>
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
       <table className="w-full text-sm">
@@ -658,21 +663,31 @@ const MasterTable: React.FC<{ title: string; data: any[]; columns: { key: string
             {columns.map(col => (
               <th key={col.key} className="text-left px-4 py-2 text-brand-primary font-medium text-xs">{col.label}</th>
             ))}
+            <th className="text-right px-4 py-2 text-brand-primary font-medium text-xs">Actions</th>
           </tr>
         </thead>
         <tbody>
           {data?.map((row: any, i: number) => (
-            <tr key={row.id} className={`border-t border-border ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
+            <tr key={row.id} className={`border-t border-border ${!row.is_active ? 'opacity-40 bg-gray-50' : i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
               {columns.map(col => (
-                <td key={col.key} className="px-4 py-2 text-xs text-text-primary">{row[col.key] || '—'}</td>
+                <td key={col.key} className="px-4 py-2 text-xs text-text-primary">
+                  {col.key === 'is_active'
+                    ? <span className={`px-2 py-0.5 rounded-full text-xs ${row.is_active ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>{row.is_active ? 'Active' : 'Inactive'}</span>
+                    : row[col.key] || '—'}
+                </td>
               ))}
+              <td className="px-4 py-2 text-right">
+                <div className="flex items-center justify-end gap-2">
+                  {onEdit && <button onClick={() => onEdit(row)} title="Edit" className="text-brand-primary hover:text-brand-dark text-xs px-2 py-1 rounded border border-brand-primary hover:bg-brand-light">✏️</button>}
+                  {onHistory && <button onClick={() => onHistory(row)} title="History" className="text-text-secondary hover:text-text-primary text-xs px-2 py-1 rounded border border-border hover:bg-surface">🕐</button>}
+                  {onToggleStatus && <button onClick={() => onToggleStatus(row)} title={row.is_active ? 'Deactivate' : 'Activate'} className={`text-xs px-2 py-1 rounded border ${row.is_active ? 'border-red-200 text-red-500 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}>{row.is_active ? '🔴' : '🟢'}</button>}
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-      {data?.length === 0 && (
-        <div className="text-center py-6 text-text-secondary text-sm">No records found</div>
-      )}
+      {(!data || data?.length === 0) && <div className="text-center py-6 text-text-secondary text-sm">No records found</div>}
     </div>
   </div>
 );
@@ -689,6 +704,12 @@ const Settings: React.FC = () => {
   const [showCostCentreModal, setShowCostCentreModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
   const [showPaymentTermsModal, setShowPaymentTermsModal] = useState(false);
+  const [editRecord, setEditRecord] = useState<any>(null);
+  const [editType, setEditType] = useState<string>('');
+  const [historyRecord, setHistoryRecord] = useState<any>(null);
+  const [historyType, setHistoryType] = useState<string>('');
+  const [deactivateRecord, setDeactivateRecord] = useState<any>(null);
+  const [deactivateType, setDeactivateType] = useState<string>('');
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/suppliers').then(r => r.data.data) });
   const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
@@ -728,6 +749,8 @@ const Settings: React.FC = () => {
       {showCostCentreModal && <AddCostCentreModal onClose={() => setShowCostCentreModal(false)} />}
       {showItemModal && <AddItemModal onClose={() => setShowItemModal(false)} />}
       {showPaymentTermsModal && <AddPaymentTermsModal onClose={() => setShowPaymentTermsModal(false)} />}
+      {historyRecord && <HistoryModal entity_type={historyType} record={historyRecord} onClose={() => setHistoryRecord(null)} />}
+      {deactivateRecord && <DeactivateModal entity_type={deactivateType} record={deactivateRecord} onClose={() => setDeactivateRecord(null)} />}
 
       <div>
         <h1 className="text-xl font-bold text-text-primary">Settings</h1>
@@ -828,11 +851,14 @@ const Settings: React.FC = () => {
             { key: 'supplier_code', label: 'Code' },
             { key: 'supplier_name', label: 'Name' },
             { key: 'contact_person', label: 'Contact' },
-            { key: 'phone', label: 'Phone' },
             { key: 'city', label: 'City' },
-            { key: 'payment_terms', label: 'Terms' }
+            { key: 'supplier_type', label: 'Type' },
+            { key: 'is_active', label: 'Status' }
           ]}
           onAdd={() => setShowSupplierModal(true)}
+          onEdit={row => { setEditRecord(row); setEditType('supplier'); }}
+          onHistory={row => { setHistoryRecord(row); setHistoryType('supplier'); }}
+          onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('supplier'); }}
         />
       )}
 
@@ -1314,6 +1340,91 @@ const AddPaymentTermsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
               disabled={!form.code || !form.description || !form.days || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Adding...' : 'Add Terms'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+const HistoryModal: React.FC<{ entity_type: string; record: any; onClose: () => void }> = ({ entity_type, record, onClose }) => {
+  const { data: logs, isLoading } = useQuery({
+    queryKey: ['audit', entity_type, record.id],
+    queryFn: () => api.get(`/api/audit/${entity_type}/${record.id}`).then(r => r.data.data)
+  });
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Change History</h2>
+            <p className="text-xs text-text-secondary mt-0.5">{record.supplier_code || record.item_code || record.customer_code || record.vendor_code || record.machine_code || record.code || record.die_number || record.name}</p>
+          </div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5">
+          {isLoading && <p className="text-text-secondary text-sm">Loading...</p>}
+          {(!logs || logs.length === 0) && !isLoading && <p className="text-text-secondary text-sm">No changes recorded yet.</p>}
+          {logs?.map((log: any) => (
+            <div key={log.id} className="border border-border rounded-lg p-3 mb-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${log.action === 'create' ? 'bg-green-50 text-green-600' : log.action === 'deactivate' ? 'bg-red-50 text-red-500' : log.action === 'activate' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>{log.action}</span>
+                <span className="text-xs text-text-secondary">{new Date(log.changed_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
+              </div>
+              <p className="text-xs text-text-secondary mb-1">By: <span className="font-medium text-text-primary">{log.changed_by_email || '—'}</span></p>
+              {log.reason && <p className="text-xs text-amber-600 mb-1">Reason: {log.reason}</p>}
+              {log.changed_fields && log.changed_fields.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {log.changed_fields.map((f: any, i: number) => (
+                    <div key={i} className="text-xs grid grid-cols-3 gap-2 bg-surface rounded p-1.5">
+                      <span className="font-medium text-text-primary">{f.field}</span>
+                      <span className="text-red-500 line-through">{String(f.old_value ?? '—')}</span>
+                      <span className="text-green-600">{String(f.new_value ?? '—')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DeactivateModal: React.FC<{ entity_type: string; record: any; onClose: () => void }> = ({ entity_type, record, onClose }) => {
+  const queryClient = useQueryClient();
+  const [reason, setReason] = useState('');
+  const isActive = record.is_active;
+  const endpointMap: Record<string, string> = {
+    supplier: 'suppliers', item: 'items', customer: 'customers', vendor: 'vendors',
+    machine: 'machines', die: 'dies', location: 'locations', cost_centre: 'cost-centres', payment_terms: 'payment-terms'
+  };
+  const mutation = useMutation({
+    mutationFn: () => api.patch(`/api/${endpointMap[entity_type]}/${record.id}/status`, { reason }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [entity_type + 's'] }); queryClient.invalidateQueries({ queryKey: ['suppliers'] }); queryClient.invalidateQueries({ queryKey: ['items'] }); queryClient.invalidateQueries({ queryKey: ['customers'] }); queryClient.invalidateQueries({ queryKey: ['vendors'] }); queryClient.invalidateQueries({ queryKey: ['machines'] }); queryClient.invalidateQueries({ queryKey: ['dies'] }); queryClient.invalidateQueries({ queryKey: ['locations'] }); queryClient.invalidateQueries({ queryKey: ['costCentres'] }); queryClient.invalidateQueries({ queryKey: ['paymentTerms'] }); onClose(); }
+  });
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h2 className="font-bold text-text-primary">{isActive ? 'Deactivate' : 'Activate'} Record</h2>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-sm text-text-primary">You are about to <strong>{isActive ? 'deactivate' : 'activate'}</strong> this record. A reason is required.</p>
+          <div><label className="block text-xs text-text-secondary mb-1">Reason <span className="text-red-500">*</span></label>
+            <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3}
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              placeholder={isActive ? 'e.g. Supplier not responding, found better alternative' : 'e.g. Supplier reinstated after quality audit'} />
+          </div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to update status</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate()} disabled={!reason.trim() || mutation.isPending}
+              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 ${isActive ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-green-500 text-white hover:bg-green-600'}`}>
+              {mutation.isPending ? 'Saving...' : isActive ? 'Deactivate' : 'Activate'}
             </button>
           </div>
         </div>
