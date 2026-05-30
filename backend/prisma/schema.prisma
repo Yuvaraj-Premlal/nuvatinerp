@@ -37,6 +37,7 @@ model Tenant {
   job_cards             JobCard[]
   sales_orders          SalesOrder[]
   price_history         ItemPriceHistory[]
+  vendors               VendorMaster[]
 
   @@map("tenants")
 }
@@ -849,21 +850,31 @@ model SystemAlert {
 }
 
 model VendorMaster {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  vendor_code     String
-  vendor_name     String
-  address         String?
-  gstin           String?
-  operation_types String?
-  payment_terms   String?
-  lead_time_days  Int?
-  is_active       Boolean  @default(true)
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-
-  job_work_orders JobWorkOrder[]
-
+  id               String   @id @default(uuid())
+  tenant_id        String
+  vendor_code      String
+  vendor_name      String
+  service_type     String   @default("machining")
+  address          String?
+  city             String?
+  state            String?
+  gstin            String?
+  contact_person   String?
+  contact_email    String?
+  contact_phone    String?
+  payment_terms    String?
+  payment_terms_id String?
+  lead_time_days   Int?
+  bank_name        String?
+  bank_account     String?
+  bank_ifsc        String?
+  rating           Float?
+  operation_types  String?
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  tenant           Tenant        @relation(fields: [tenant_id], references: [id])
+  job_work_orders  JobWorkOrder[]
   @@unique([tenant_id, vendor_code])
   @@map("vendor_master")
 }

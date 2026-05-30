@@ -2,57 +2,41 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 
-export const createDie = async (req: AuthRequest, res: Response) => {
-  try {
-    const tenant_id = req.user?.tenant_id as string;
-    const { die_number, die_name, item_id, cavity_count, design_life_shots, current_shot_count, pm_interval_shots, die_owner, customer_id, current_status, repair_vendor, repair_lead_time_days, machine_id, location } = req.body;
-    const die = await prisma.dieMaster.create({
-      data: { tenant_id, die_number, die_name, item_id, cavity_count, design_life_shots, current_shot_count, pm_interval_shots, die_owner, customer_id, current_status, repair_vendor, repair_lead_time_days, machine_id, location }
-    });
-    res.status(201).json({ success: true, data: die });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
 export const getDies = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const dies = await prisma.dieMaster.findMany({
-      where: { tenant_id, is_active: true },
-      include: { machine: true }
+      where: { tenant_id },
+      include: { item: { select: { item_name: true, item_code: true } } },
+      orderBy: { die_number: 'asc' }
     });
     res.json({ success: true, data: dies });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };
 
-export const getDieById = async (req: AuthRequest, res: Response) => {
+export const createDie = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
-    const id = req.params.id as string;
-    const die = await prisma.dieMaster.findFirst({
-      where: { id, tenant_id },
-      include: { machine: true, die_shot_logs: { orderBy: { logged_at: 'desc' }, take: 10 } }
+    const { die_name, item_id, ...rest } = req.body;
+    const count = await prisma.dieMaster.count({ where: { tenant_id } });
+    // Auto-generate die number: DIE-YYYY-NNNN
+    const die_number = `DIE-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+    const die = await prisma.dieMaster.create({
+      data: {
+        tenant_id, die_number, die_name, item_id: item_id || null, ...rest,
+        cavity_count: rest.cavity_count ? parseInt(rest.cavity_count) : 1,
+        design_life_shots: rest.design_life_shots ? parseInt(rest.design_life_shots) : null,
+        pm_interval_shots: rest.pm_interval_shots ? parseInt(rest.pm_interval_shots) : null,
+      }
     });
-    res.json({ success: true, data: die });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+    res.status(201).json({ success: true, data: die });
+  } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };
 
-export const updateDieStatus = async (req: AuthRequest, res: Response) => {
+export const updateDie = async (req: AuthRequest, res: Response) => {
   try {
-    const tenant_id = req.user?.tenant_id as string;
-    const id = req.params.id as string;
-    const { current_status, current_shot_count, shots_at_last_pm } = req.body;
-    const die = await prisma.dieMaster.updateMany({
-      where: { id, tenant_id },
-      data: { current_status, current_shot_count, shots_at_last_pm }
-    });
+    const { id } = req.params as { id: string };
+    const die = await prisma.dieMaster.update({ where: { id }, data: req.body });
     res.json({ success: true, data: die });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };

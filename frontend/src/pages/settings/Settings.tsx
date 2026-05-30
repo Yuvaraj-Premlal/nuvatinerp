@@ -309,112 +309,64 @@ const AddMachineModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 const AddDieModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({
-    die_number: '',
-    die_name: '',
-    machine_id: '',
-    material: 'H13',
-    number_of_cavities: '1',
-    design_life_shots: '',
-    pm_interval_shots: '20000',
-    shots_at_last_pm: '0'
+  const [form, setForm] = useState<any>({
+    die_name: '', machine_id: '', item_id: '',
+    cavity_count: '1', design_life_shots: '',
+    pm_interval_shots: '20000', die_owner: ''
   });
-
-  const { data: machines } = useQuery({
-    queryKey: ['machines'],
-    queryFn: () => api.get('/api/machines').then(r => r.data.data)
-  });
-
+  const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
+  const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
+  const finishedGoods = items?.filter((i: any) => i.item_type === 'finished_goods') || [];
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/api/dies', data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dies'] });
-      onClose();
-    }
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['dies'] }); onClose(); }
   });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    mutation.mutate({
-      ...form,
-      number_of_cavities: parseInt(form.number_of_cavities),
-      design_life_shots: form.design_life_shots ? parseInt(form.design_life_shots) : null,
-      pm_interval_shots: parseInt(form.pm_interval_shots),
-      shots_at_last_pm: parseInt(form.shots_at_last_pm),
-      current_shot_count: 0,
-      current_status: 'available'
-    });
-  };
-
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-lg">
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="font-bold text-text-primary">Add Die</h2>
+          <div><h2 className="font-bold text-text-primary">Add Die</h2><p className="text-xs text-text-secondary mt-0.5">Number auto-generated as DIE-YYYY-NNNN</p></div>
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <div className="p-5 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Die Number</label>
-              <input value={form.die_number} onChange={e => setForm({ ...form, die_number: e.target.value.toUpperCase() })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="e.g. D-048" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Die Name</label>
-              <input value={form.die_name} onChange={e => setForm({ ...form, die_name: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="Part name this die makes" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Machine</label>
-              <select value={form.machine_id} onChange={e => setForm({ ...form, machine_id: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+            <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Die Name <span className="text-red-500">*</span></label>
+              <input value={form.die_name} onChange={e => setForm({...form, die_name: e.target.value})} className={cls} placeholder="e.g. Brake Housing LH" required /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Part (Finished Good)</label>
+              <select value={form.item_id} onChange={e => setForm({...form, item_id: e.target.value})} className={cls}>
+                <option value="">Select part...</option>
+                {finishedGoods.map((i: any) => <option key={i.id} value={i.id}>{i.item_code} — {i.item_name}</option>)}
+              </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Machine</label>
+              <select value={form.machine_id} onChange={e => setForm({...form, machine_id: e.target.value})} className={cls}>
                 <option value="">Select machine...</option>
-                {machines?.map((m: any) => (
-                  <option key={m.id} value={m.id}>{m.machine_name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Material</label>
-              <select value={form.material} onChange={e => setForm({ ...form, material: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
-                <option>H13</option><option>H11</option><option>P20</option><option>D2</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Cavities</label>
-              <input type="number" value={form.number_of_cavities} onChange={e => setForm({ ...form, number_of_cavities: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Design Life (shots)</label>
-              <input type="number" value={form.design_life_shots} onChange={e => setForm({ ...form, design_life_shots: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="e.g. 300000" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">PM Interval (shots)</label>
-              <input type="number" value={form.pm_interval_shots} onChange={e => setForm({ ...form, pm_interval_shots: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Shots at Last PM</label>
-              <input type="number" value={form.shots_at_last_pm} onChange={e => setForm({ ...form, shots_at_last_pm: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
-            </div>
+                {machines?.filter((m: any) => m.machine_type !== 'furnace').map((m: any) => <option key={m.id} value={m.id}>{m.machine_code} — {m.machine_name}</option>)}
+              </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Cavities</label>
+              <input type="number" value={form.cavity_count} onChange={e => setForm({...form, cavity_count: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Design Life (shots)</label>
+              <input type="number" value={form.design_life_shots} onChange={e => setForm({...form, design_life_shots: e.target.value})} className={cls} placeholder="e.g. 300000" /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">PM Interval (shots)</label>
+              <input type="number" value={form.pm_interval_shots} onChange={e => setForm({...form, pm_interval_shots: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Die Owner</label>
+              <input value={form.die_owner} onChange={e => setForm({...form, die_owner: e.target.value})} className={cls} placeholder="Customer or company name" /></div>
           </div>
           {mutation.isError && <p className="text-red-500 text-sm">Failed to add die</p>}
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({...form, item_id: form.item_id || null, machine_id: form.machine_id || null, current_shot_count: 0, current_status: 'available'})}
+              disabled={!form.die_name || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Adding...' : 'Add Die'}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
 };
+
 
 const AddCustomerModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
@@ -972,6 +924,38 @@ const Settings: React.FC = () => {
         />
       )}
 
+      {activeSection === 'cost_centres' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-sm font-medium text-text-primary">Cost Centres</p>
+            <button onClick={() => setShowCostCentreModal(true)} className="text-sm bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add Cost Centre</button>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead><tr className="bg-brand-light">
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Code</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Name</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Type</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Linked Machine</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Budget/Month</th>
+              </tr></thead>
+              <tbody>
+                {costCentres?.map((cc: any, i: number) => (
+                  <tr key={cc.id} className={`border-t border-border ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
+                    <td className="px-4 py-3 font-medium text-brand-primary">{cc.code}</td>
+                    <td className="px-4 py-3 text-text-primary">{cc.name}</td>
+                    <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded-full bg-surface border border-border capitalize">{cc.type}</span></td>
+                    <td className="px-4 py-3 text-xs text-text-secondary">{cc.machine ? `${cc.machine.machine_code} — ${cc.machine.machine_name}` : '—'}</td>
+                    <td className="px-4 py-3 text-xs">{cc.budget_monthly ? `₹${cc.budget_monthly.toLocaleString('en-IN')}` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {(!costCentres || costCentres.length === 0) && <div className="text-center py-12 text-text-secondary">No cost centres defined yet</div>}
+          </div>
+        </div>
+      )}
+
       {activeSection === 'alloy_specs' && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
@@ -1161,7 +1145,7 @@ const AddAlloySpecModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 const AddCostCentreModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ code: '', name: '', type: 'department', machine_id: '' });
+  const [form, setForm] = useState({ name: '', type: 'department', machine_id: '' });
   const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
   const furnaces = machines?.filter((m: any) => m.machine_type === 'furnace') || [];
   const allMachines = machines || [];
@@ -1178,10 +1162,7 @@ const AddCostCentreModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
         </div>
         <div className="p-5 space-y-3">
-          <div>
-            <label className="block text-xs text-text-secondary mb-1">Code <span className="text-red-500">*</span></label>
-            <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} className={cls} placeholder="e.g. CC-MELT-F01" />
-          </div>
+          <div className="bg-surface rounded-lg p-2 text-xs text-text-secondary">Code auto-generated as CC-TYPE-NNNN</div>
           <div>
             <label className="block text-xs text-text-secondary mb-1">Name <span className="text-red-500">*</span></label>
             <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={cls} placeholder="e.g. Melting Furnace F-01" />
@@ -1208,7 +1189,7 @@ const AddCostCentreModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
             <button onClick={() => mutation.mutate({ ...form, machine_id: form.machine_id || null })}
-              disabled={!form.code || !form.name || mutation.isPending}
+              disabled={!form.name || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Adding...' : 'Add Cost Centre'}
             </button>

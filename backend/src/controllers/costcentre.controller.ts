@@ -17,8 +17,12 @@ export const getCostCentres = async (req: AuthRequest, res: Response) => {
 export const createCostCentre = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
+    const { name, type, ...rest } = req.body;
+    const count = await prisma.costCentre.count({ where: { tenant_id } });
+    const prefix = type === 'machine' ? 'CC-MACH' : type === 'department' ? 'CC-DEPT' : type === 'project' ? 'CC-PROJ' : 'CC-OVH';
+    const code = `${prefix}-${String(count + 1).padStart(4, '0')}`;
     const cc = await prisma.costCentre.create({
-      data: { tenant_id, ...req.body, machine_id: req.body.machine_id || null }
+      data: { tenant_id, code, name, type, ...rest, machine_id: rest.machine_id || null }
     });
     res.status(201).json({ success: true, data: cc });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
