@@ -285,3 +285,14 @@ export const addChemistryLog = async (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: log, status });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };
+
+export const toggleAlloySpecStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const { reason } = req.body;
+    if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
+    const old = await prisma.itemAlloySpec.findUnique({ where: { id } });
+    const updated = await prisma.itemAlloySpec.update({ where: { id }, data: { is_active: !old?.is_active } });
+    res.json({ success: true, data: updated });
+  } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
+};
