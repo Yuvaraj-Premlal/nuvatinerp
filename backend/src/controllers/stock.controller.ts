@@ -307,7 +307,7 @@ export const getStockReports = async (req: AuthRequest, res: Response) => {
     if (type === 'stock_statement') {
       const rows = items.map((item: any) => {
         const qty = balanceMap[item.id] || 0;
-        const unit_cost = item.material_cost || 0;
+        const unit_cost = item.benchmark_cost || 0;
         const reorder = item.pfep_detail?.reorder_point || 0;
         const safety = item.pfep_detail?.safety_stock || 0;
         const zone = qty <= 0 ? 'red' : qty <= safety ? 'red' : qty <= reorder ? 'yellow' : 'green';
@@ -333,13 +333,13 @@ export const getStockReports = async (req: AuthRequest, res: Response) => {
       const where: any = { tenant_id };
       if (from_date) where.issued_at = { ...where.issued_at, gte: new Date(String(from_date)) };
       if (to_date) where.issued_at = { ...where.issued_at, lte: new Date(String(to_date) + 'T23:59:59.999Z') };
-      const issues = await prisma.materialIssue.findMany({ where, include: { item: { select: { item_name: true, item_code: true, unit_of_measure: true, material_cost: true } }, job: { select: { job_number: true } } }, orderBy: { issued_at: 'desc' } });
+      const issues = await prisma.materialIssue.findMany({ where, include: { item: { select: { item_name: true, item_code: true, unit_of_measure: true, benchmark_cost: true } }, job: { select: { job_number: true } } }, orderBy: { issued_at: 'desc' } });
       const itemMap: Record<string, any> = {};
       issues.forEach((issue: any) => {
         const key = issue.item_id;
-        if (!itemMap[key]) itemMap[key] = { item_code: issue.item?.item_code, item_name: issue.item?.item_name, unit_of_measure: issue.item?.unit_of_measure, unit_cost: issue.item?.material_cost || 0, total_issued: 0, total_value: 0, issue_count: 0, jobs: [] };
+        if (!itemMap[key]) itemMap[key] = { item_code: issue.item?.item_code, item_name: issue.item?.item_name, unit_of_measure: issue.item?.unit_of_measure, unit_cost: issue.item?.benchmark_cost || 0, total_issued: 0, total_value: 0, issue_count: 0, jobs: [] };
         itemMap[key].total_issued += issue.issued_qty;
-        itemMap[key].total_value += issue.issued_qty * (issue.item?.material_cost || 0);
+        itemMap[key].total_value += issue.issued_qty * (issue.item?.benchmark_cost || 0);
         itemMap[key].issue_count += 1;
         itemMap[key].jobs.push({ job_number: issue.job?.job_number || '—', issued_qty: issue.issued_qty, issued_at: issue.issued_at });
       });
@@ -348,13 +348,13 @@ export const getStockReports = async (req: AuthRequest, res: Response) => {
     }
 
     if (type === 'abc') {
-      const issues = await prisma.materialIssue.findMany({ where: { tenant_id }, include: { item: { select: { item_name: true, item_code: true, unit_of_measure: true, material_cost: true } } } });
+      const issues = await prisma.materialIssue.findMany({ where: { tenant_id }, include: { item: { select: { item_name: true, item_code: true, unit_of_measure: true, benchmark_cost: true } } } });
       const itemMap: Record<string, any> = {};
       issues.forEach((issue: any) => {
         const key = issue.item_id;
         if (!itemMap[key]) itemMap[key] = { item_code: issue.item?.item_code, item_name: issue.item?.item_name, unit_of_measure: issue.item?.unit_of_measure, total_issued: 0, consumption_value: 0 };
         itemMap[key].total_issued += issue.issued_qty;
-        itemMap[key].consumption_value += issue.issued_qty * (issue.item?.material_cost || 0);
+        itemMap[key].consumption_value += issue.issued_qty * (issue.item?.benchmark_cost || 0);
       });
       const sorted = Object.values(itemMap).sort((a: any, b: any) => b.consumption_value - a.consumption_value);
       const grand_total = sorted.reduce((s: number, r: any) => s + r.consumption_value, 0);

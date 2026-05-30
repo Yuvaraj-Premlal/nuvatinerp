@@ -42,8 +42,7 @@ export const createItem = async (req: AuthRequest, res: Response) => {
     const item = await prisma.itemMaster.create({
       data: {
         tenant_id, item_code, item_name, item_type, ...rest,
-        standard_cost: rest.standard_cost ? parseFloat(rest.standard_cost) : null,
-        material_cost: rest.material_cost ? parseFloat(rest.material_cost) : null,
+        benchmark_cost: rest.benchmark_cost ? parseFloat(rest.benchmark_cost) : null,
         selling_price: rest.selling_price ? parseFloat(rest.selling_price) : null,
         reorder_point: rest.reorder_point ? parseFloat(rest.reorder_point) : null,
         safety_stock: rest.safety_stock ? parseFloat(rest.safety_stock) : null,

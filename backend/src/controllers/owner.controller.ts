@@ -88,15 +88,15 @@ export const getOwnerDashboard = async (req: AuthRequest, res: Response) => {
         const goodParts = itemJobs.reduce((s: number, j: any) => s + j.actual_quantity_good, 0);
         if (goodParts === 0) return null;
         const revenue = goodParts * (item.selling_price ?? 0);
-        const varCost = goodParts * (item.material_cost ?? 0);
+        const varCost = goodParts * (item.benchmark_cost ?? 0);
         const throughput = revenue - varCost;
         return {
           item_code: item.item_code,
           item_name: item.item_name,
           good_parts: goodParts,
           selling_price: item.selling_price,
-          variable_cost_per_part: item.material_cost,
-          throughput_per_part: (item.selling_price ?? 0) - (item.material_cost ?? 0),
+          variable_cost_per_part: item.benchmark_cost,
+          throughput_per_part: (item.selling_price ?? 0) - (item.benchmark_cost ?? 0),
           total_revenue: Math.round(revenue),
           total_throughput: Math.round(throughput)
         };

@@ -268,7 +268,7 @@ export const getMonthlyThroughput = async (req: AuthRequest, res: Response) => {
       const goodParts = itemJobs.reduce((s: number, j: any) => s + j.actual_quantity_good, 0);
       if (goodParts === 0) return null;
       const revenue = goodParts * (item.selling_price ?? 0);
-      const varCost = goodParts * (item.material_cost ?? 0);
+      const varCost = goodParts * (item.benchmark_cost ?? 0);
       return {
         item_name: item.item_name,
         item_code: item.item_code,

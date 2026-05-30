@@ -70,9 +70,8 @@ model ItemMaster {
   description     String?
   hsn_code        String?
   purchase_type   String   @default("direct")
-  standard_cost   Float?
+  benchmark_cost  Float?
   selling_price   Float?
-  material_cost   Float?
   reorder_point   Float?
   safety_stock    Float?
   order_quantity  Float?

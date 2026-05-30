@@ -68,7 +68,7 @@ export async function runTOCSchedule(tenant_id: string) {
     if (!constraintOp) continue;
     const item = job.item as any;
     if (item?.selling_price && item?.material_cost) {
-      const throughputPerHour = Math.round((item.selling_price - item.material_cost) / (cycleTimeSec / 3600));
+      const throughputPerHour = Math.round((item.selling_price - item.benchmark_cost) / (cycleTimeSec / 3600));
       jobsAtConstraint.push({ job_id: job.id, job_number: (job as any).job_number, throughput_per_hour: throughputPerHour });
     }
   }

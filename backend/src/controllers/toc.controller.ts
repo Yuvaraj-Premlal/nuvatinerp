@@ -141,8 +141,8 @@ export const getPriorityQueue = async (req: AuthRequest, res: Response) => {
         let throughputPerConstraintHour = null;
         if (job.item_id) {
           const item = await prisma.itemMaster.findUnique({ where: { id: job.item_id } });
-          if (item && item.selling_price && item.material_cost) {
-            const throughputPerPiece = item.selling_price - item.material_cost;
+          if (item && item.selling_price && item.benchmark_cost) {
+            const throughputPerPiece = item.selling_price - item.benchmark_cost;
             const constraintTimeSec = constraint.rated_cycle_time_sec ?? 48;
             const constraintTimeHrs = constraintTimeSec / 3600;
             throughputPerConstraintHour = Math.round(throughputPerPiece / constraintTimeHrs);
