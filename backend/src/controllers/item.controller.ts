@@ -22,7 +22,7 @@ export const getItems = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const { item_type } = req.query;
-    const where: any = { tenant_id, is_active: true };
+    const where: any = { tenant_id, };
     if (item_type) where.item_type = String(item_type);
     const items = await prisma.itemMaster.findMany({
       where,

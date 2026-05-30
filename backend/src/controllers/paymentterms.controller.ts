@@ -6,7 +6,7 @@ export const getPaymentTerms = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const terms = await prisma.paymentTerms.findMany({
-      where: { tenant_id, is_active: true },
+      where: { tenant_id, },
       orderBy: { days: 'asc' }
     });
     res.json({ success: true, data: terms });

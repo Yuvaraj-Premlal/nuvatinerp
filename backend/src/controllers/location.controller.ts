@@ -6,7 +6,7 @@ export const getLocations = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const locations = await prisma.locationMaster.findMany({
-      where: { tenant_id, is_active: true },
+      where: { tenant_id, },
       orderBy: [{ zone: 'asc' }, { code: 'asc' }]
     });
     res.json({ success: true, data: locations });

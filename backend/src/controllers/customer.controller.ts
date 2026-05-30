@@ -12,7 +12,7 @@ export const getCustomers = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const customers = await prisma.customerMaster.findMany({
-      where: { tenant_id, is_active: true },
+      where: { tenant_id, },
       orderBy: { customer_name: 'asc' }
     });
     res.json({ success: true, data: customers });

@@ -6,7 +6,7 @@ export const getCostCentres = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const ccs = await prisma.costCentre.findMany({
-      where: { tenant_id, is_active: true },
+      where: { tenant_id, },
       include: { machine: { select: { machine_code: true, machine_name: true } } },
       orderBy: { code: 'asc' }
     });

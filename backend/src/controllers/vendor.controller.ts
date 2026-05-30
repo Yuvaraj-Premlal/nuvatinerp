@@ -12,7 +12,7 @@ export const getVendors = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const vendors = await prisma.vendorMaster.findMany({
-      where: { tenant_id, is_active: true },
+      where: { tenant_id, },
       orderBy: { vendor_name: 'asc' }
     });
     res.json({ success: true, data: vendors });

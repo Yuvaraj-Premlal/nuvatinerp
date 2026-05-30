@@ -19,7 +19,7 @@ export const getMachines = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const machines = await prisma.machineMaster.findMany({
-      where: { tenant_id, is_active: true }
+      where: { tenant_id, }
     });
     res.json({ success: true, data: machines });
   } catch (error: any) {

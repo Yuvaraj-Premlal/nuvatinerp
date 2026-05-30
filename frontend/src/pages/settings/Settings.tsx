@@ -1013,6 +1013,7 @@ const Settings: React.FC = () => {
           onAdd={() => setShowAlloySpecModal(true)}
           onEdit={row => setEditAlloySpec(row)}
           onHistory={row => { setHistoryRecord(row); setHistoryType('alloy_spec'); }}
+          onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('alloy_spec'); }}
           onView={row => setEditAlloySpec(row)}
         />
       )}

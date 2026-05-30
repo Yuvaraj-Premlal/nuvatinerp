@@ -7,7 +7,7 @@ export const getFurnaces = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const furnaces = await prisma.machineMaster.findMany({
-      where: { tenant_id, machine_type: 'furnace', is_active: true },
+      where: { tenant_id, machine_type: 'furnace', },
       orderBy: { machine_code: 'asc' }
     });
     res.json({ success: true, data: furnaces });
