@@ -1,6 +1,6 @@
 generator client {
-  provider        = "prisma-client-js"
-  output          = "../generated/prisma"
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -8,56 +8,58 @@ datasource db {
 }
 
 model Tenant {
-  id          String   @id @default(uuid())
-  name        String
-  code        String   @unique
-  industry    String?
-  address     String?
-  gstin       String?
-  is_active   Boolean  @default(true)
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id         String   @id @default(uuid())
+  name       String
+  code       String   @unique
+  industry   String?
+  address    String?
+  gstin      String?
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  users              User[]
-  items              ItemMaster[]
-  suppliers          SupplierMaster[]
-  machines           MachineMaster[]
-  dies               DieMaster[]
-  bom_headers        BomHeader[]
-  purchase_orders    PurchaseOrder[]
-  furnaces           Furnace[]
-  alloy_grades       AlloyGrade[]
-  melt_records       MeltChargeRecord[]
-  melt_work_orders   MeltWorkOrder[]
+  users                 User[]
+  items                 ItemMaster[]
+  suppliers             SupplierMaster[]
+  machines              MachineMaster[]
+  dies                  DieMaster[]
+  bom_headers           BomHeader[]
+  purchase_orders       PurchaseOrder[]
+  furnaces              Furnace[]
+  alloy_grades          AlloyGrade[]
+  melt_records          MeltChargeRecord[]
+  melt_work_orders      MeltWorkOrder[]
   material_requisitions MaterialRequisition[]
   purchase_requisitions PurchaseRequisition[]
   cost_centres          CostCentre[]
-  job_cards          JobCard[]
-  sales_orders       SalesOrder[]
+  payment_terms         PaymentTerms[]
+  locations             LocationMaster[]
+  job_cards             JobCard[]
+  sales_orders          SalesOrder[]
 
   @@map("tenants")
 }
 
 model User {
-  id          String   @id @default(uuid())
-  tenant_id   String
-  email       String
-  password    String
-  first_name  String
-  last_name   String?
-  role        String
-  is_active   Boolean  @default(true)
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id         String   @id @default(uuid())
+  tenant_id  String
+  email      String
+  password   String
+  first_name String
+  last_name  String?
+  role       String
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  tenant      Tenant   @relation(fields: [tenant_id], references: [id])
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
 
   @@unique([tenant_id, email])
   @@map("users")
 }
 
 model ItemMaster {
-  id              String          @id @default(uuid())
+  id              String   @id @default(uuid())
   tenant_id       String
   item_code       String
   item_name       String
@@ -65,26 +67,33 @@ model ItemMaster {
   unit_of_measure String
   item_category   String?
   description     String?
+  hsn_code        String?
+  purchase_type   String   @default("direct")
+  standard_cost   Float?
   selling_price   Float?
   material_cost   Float?
-  is_active       Boolean         @default(true)
-  created_at      DateTime        @default(now())
-  updated_at      DateTime        @updatedAt
+  reorder_point   Float?
+  safety_stock    Float?
+  order_quantity  Float?
+  shelf_life_days Int?
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
-  tenant          Tenant              @relation(fields: [tenant_id], references: [id])
-  pfep_detail     ItemPfepDetail?
-  item_suppliers  ItemSupplierMap[]
-  bom_headers          BomHeader[]
-  bom_lines            BomLine[]
-  fifo_overrides       FifoOverrideRequest[]
-  issue_groups         MaterialIssueGroup[]
-  po_lines        PurchaseOrderLine[]
-  grn_lines       GrnLine[]
-  stock_ledger    StockLedger[]
-  material_issues MaterialIssue[]
-  so_lines        SalesOrderLine[]
-  dispatch_lines  DispatchLine[]
-  quarantine_stock QuarantineStock[]
+  tenant            Tenant                    @relation(fields: [tenant_id], references: [id])
+  pfep_detail       ItemPfepDetail?
+  item_suppliers    ItemSupplierMap[]
+  bom_headers       BomHeader[]
+  bom_lines         BomLine[]
+  fifo_overrides    FifoOverrideRequest[]
+  issue_groups      MaterialIssueGroup[]
+  po_lines          PurchaseOrderLine[]
+  grn_lines         GrnLine[]
+  stock_ledger      StockLedger[]
+  material_issues   MaterialIssue[]
+  so_lines          SalesOrderLine[]
+  dispatch_lines    DispatchLine[]
+  quarantine_stock  QuarantineStock[]
   melt_charge_lines MeltChargeLine[]
   mr_lines          MaterialRequisitionLine[]
   pr_lines          PurchaseRequisitionLine[]
@@ -95,33 +104,33 @@ model ItemMaster {
 }
 
 model ItemPfepDetail {
-  id                    String     @id @default(uuid())
-  tenant_id             String
-  item_id               String     @unique
-  gross_weight_kg       Float?
-  net_weight_kg         Float?
-  yield_percent         Float?
-  storage_location      String?
-  rack_address          String?
-  zone                  String?
-  reorder_point         Float?
-  safety_stock          Float?
-  order_quantity        Float?
-  shelf_life_days       Int?
-  abc_classification    String?
-  constraint_flag       Boolean    @default(false)
-  created_at            DateTime   @default(now())
-  updated_at            DateTime   @updatedAt
+  id                 String   @id @default(uuid())
+  tenant_id          String
+  item_id            String   @unique
+  gross_weight_kg    Float?
+  net_weight_kg      Float?
+  yield_percent      Float?
+  storage_location   String?
+  rack_address       String?
+  zone               String?
+  reorder_point      Float?
+  safety_stock       Float?
+  order_quantity     Float?
+  shelf_life_days    Int?
+  abc_classification String?
+  constraint_flag    Boolean  @default(false)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 
-  item                  ItemMaster @relation(fields: [item_id], references: [id])
+  item ItemMaster @relation(fields: [item_id], references: [id])
 
   @@map("item_pfep_detail")
 }
 
 model ItemAlloySpec {
-  id                String     @id @default(uuid())
+  id                String             @id @default(uuid())
   tenant_id         String
-  item_id           String     @unique
+  item_id           String             @unique
   standard          String?
   alloy_system      String?
   si_min            Float?
@@ -143,52 +152,67 @@ model ItemAlloySpec {
   transfer_temp_max Float?
   pouring_temp_min  Float?
   pouring_temp_max  Float?
-  created_at        DateTime   @default(now())
-  updated_at        DateTime   @updatedAt
-  item              ItemMaster       @relation(fields: [item_id], references: [id])
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @updatedAt
+  item              ItemMaster         @relation(fields: [item_id], references: [id])
   melt_records      MeltChargeRecord[]
   melt_work_orders  MeltWorkOrder[]
+
   @@map("item_alloy_spec")
 }
 
 model SupplierMaster {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  supplier_code   String
-  supplier_name   String
-  address         String?
-  gstin           String?
-  payment_terms   String?
-  lead_time_days  Int?
-  moq             Float?
-  currency        String   @default("INR")
-  is_active       Boolean  @default(true)
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id               String   @id @default(uuid())
+  tenant_id        String
+  supplier_code    String
+  supplier_name    String
+  address          String?
+  gstin            String?
+  payment_terms    String?
+  payment_terms_id String?
+  payment_days     Int?     @default(30)
+  credit_limit     Float?
+  lead_time_days   Int?
+  moq              Float?
+  currency         String   @default("INR")
+  supplier_type    String   @default("direct")
+  contact_person   String?
+  contact_email    String?
+  contact_phone    String?
+  bank_name        String?
+  bank_account     String?
+  bank_ifsc        String?
+  rating           Float?
+  is_blacklisted   Boolean  @default(false)
+  blacklist_reason String?
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
 
-  tenant          Tenant            @relation(fields: [tenant_id], references: [id])
-  item_suppliers  ItemSupplierMap[]
-  purchase_orders PurchaseOrder[]
+  tenant            Tenant            @relation(fields: [tenant_id], references: [id])
+  item_suppliers    ItemSupplierMap[]
+  purchase_orders   PurchaseOrder[]
+  payment_terms_ref PaymentTerms?     @relation(fields: [payment_terms_id], references: [id])
 
   @@unique([tenant_id, supplier_code])
   @@map("supplier_master")
 }
 
 model ItemSupplierMap {
-  id              String         @id @default(uuid())
-  tenant_id       String
-  item_id         String
-  supplier_id     String
-  price           Float?
-  moq             Float?
-  lead_time_days  Int?
-  is_preferred    Boolean        @default(false)
-  effective_date  DateTime?
-  created_at      DateTime       @default(now())
-  updated_at      DateTime       @updatedAt
+  id             String    @id @default(uuid())
+  tenant_id      String
+  item_id        String
+  supplier_id    String
+  price          Float?
+  moq            Float?
+  lead_time_days Int?
+  is_preferred   Boolean   @default(false)
+  effective_date DateTime?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
 
-  item            ItemMaster     @relation(fields: [item_id], references: [id])
-  supplier        SupplierMaster @relation(fields: [supplier_id], references: [id])
+  item     ItemMaster     @relation(fields: [item_id], references: [id])
+  supplier SupplierMaster @relation(fields: [supplier_id], references: [id])
 
   @@unique([tenant_id, item_id, supplier_id])
   @@map("item_supplier_map")
@@ -212,23 +236,26 @@ model MachineMaster {
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
 
-  tenant                Tenant             @relation(fields: [tenant_id], references: [id])
+  tenant                Tenant                 @relation(fields: [tenant_id], references: [id])
   dies                  DieMaster[]
   routing_operations    RoutingOperation[]
   downtime_logs         DowntimeLog[]
   constraint_configs    ConstraintConfig[]
   maintenance_wos       MaintenanceWorkOrder[]
   maintenance_schedules MaintenanceSchedule[]
-  melt_records          MeltChargeRecord[] @relation("FurnaceMelts")
-  melt_work_orders      MeltWorkOrder[]    @relation("FurnaceMWOs")
+  melt_records          MeltChargeRecord[]     @relation("FurnaceMelts")
+  melt_work_orders      MeltWorkOrder[]        @relation("FurnaceMWOs")
   cost_centres          CostCentre[]
 
-  fuel_type             String?
-  capacity_kg           Float?
-  lining_material       String?
-  lining_life_kg        Float?
-  total_kg_melted       Float    @default(0)
-  last_relining_at      DateTime?
+  fuel_type         String?
+  capacity_kg       Float?
+  lining_material   String?
+  lining_life_kg    Float?
+  total_kg_melted   Float     @default(0)
+  last_relining_at  DateTime?
+  cost_per_hour     Float?
+  installation_date DateTime?
+  warranty_expiry   DateTime?
 
   @@unique([tenant_id, machine_code])
   @@map("machine_master")
@@ -257,64 +284,64 @@ model DieMaster {
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
 
-  tenant                Tenant         @relation(fields: [tenant_id], references: [id])
-  machine               MachineMaster? @relation(fields: [machine_id], references: [id])
-  die_shot_logs         DieShotLog[]
+  tenant        Tenant         @relation(fields: [tenant_id], references: [id])
+  machine       MachineMaster? @relation(fields: [machine_id], references: [id])
+  die_shot_logs DieShotLog[]
 
   @@unique([tenant_id, die_number])
   @@map("die_master")
 }
 
 model DieShotLog {
-  id               String    @id @default(uuid())
+  id               String   @id @default(uuid())
   tenant_id        String
   die_id           String
   shots_added      Int
   cumulative_shots Int
   job_card_id      String?
-  logged_at        DateTime  @default(now())
+  logged_at        DateTime @default(now())
   logged_by        String?
 
-  die              DieMaster @relation(fields: [die_id], references: [id])
+  die DieMaster @relation(fields: [die_id], references: [id])
 
   @@map("die_shot_log")
 }
 
 model BomHeader {
-  id              String    @id @default(uuid())
-  tenant_id       String
-  item_id         String
-  bom_revision    String    @default("A")
-  effective_date  DateTime?
-  status          String    @default("draft")
-  created_by      String?
-  approved_by     String?
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  tenant_id      String
+  item_id        String
+  bom_revision   String    @default("A")
+  effective_date DateTime?
+  status         String    @default("draft")
+  created_by     String?
+  approved_by    String?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
 
-  tenant          Tenant     @relation(fields: [tenant_id], references: [id])
-  item            ItemMaster @relation(fields: [item_id], references: [id])
-  bom_lines       BomLine[]
+  tenant    Tenant     @relation(fields: [tenant_id], references: [id])
+  item      ItemMaster @relation(fields: [item_id], references: [id])
+  bom_lines BomLine[]
 
   @@unique([tenant_id, item_id, bom_revision])
   @@map("bom_header")
 }
 
 model BomLine {
-  id                   String     @id @default(uuid())
-  tenant_id            String
-  bom_id               String
-  component_item_id    String
-  quantity_per         Float
-  unit_of_measure      String?
-  yield_factor         Float?
-  scrap_percent        Float?
-  line_type            String     @default("material")
-  created_at           DateTime   @default(now())
-  updated_at           DateTime   @updatedAt
+  id                String   @id @default(uuid())
+  tenant_id         String
+  bom_id            String
+  component_item_id String
+  quantity_per      Float
+  unit_of_measure   String?
+  yield_factor      Float?
+  scrap_percent     Float?
+  line_type         String   @default("material")
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 
-  bom                  BomHeader  @relation(fields: [bom_id], references: [id])
-  component_item       ItemMaster @relation(fields: [component_item_id], references: [id])
+  bom            BomHeader  @relation(fields: [bom_id], references: [id])
+  component_item ItemMaster @relation(fields: [component_item_id], references: [id])
 
   @@map("bom_line")
 }
@@ -329,14 +356,14 @@ model RoutingHeader {
   created_at       DateTime  @default(now())
   updated_at       DateTime  @updatedAt
 
-  operations       RoutingOperation[]
+  operations RoutingOperation[]
 
   @@unique([tenant_id, item_id, routing_revision])
   @@map("routing_header")
 }
 
 model RoutingOperation {
-  id                           String         @id @default(uuid())
+  id                           String   @id @default(uuid())
   tenant_id                    String
   routing_id                   String
   operation_sequence           Int
@@ -344,17 +371,17 @@ model RoutingOperation {
   machine_id                   String?
   standard_time_sec            Int?
   setup_time_min               Int?
-  is_constraint                Boolean        @default(false)
-  is_pre_constraint_inspection Boolean        @default(false)
-  operation_type               String         @default("production")
-  is_outsourced                Boolean        @default(false)
+  is_constraint                Boolean  @default(false)
+  is_pre_constraint_inspection Boolean  @default(false)
+  operation_type               String   @default("production")
+  is_outsourced                Boolean  @default(false)
   vendor_id                    String?
   operators_required           Int?
-  created_at                   DateTime       @default(now())
-  updated_at                   DateTime       @updatedAt
+  created_at                   DateTime @default(now())
+  updated_at                   DateTime @updatedAt
 
-  routing                      RoutingHeader  @relation(fields: [routing_id], references: [id])
-  machine                      MachineMaster? @relation(fields: [machine_id], references: [id])
+  routing RoutingHeader  @relation(fields: [routing_id], references: [id])
+  machine MachineMaster? @relation(fields: [machine_id], references: [id])
 
   @@map("routing_operation")
 }
@@ -372,15 +399,17 @@ model PurchaseOrder {
   currency               String    @default("INR")
   notes                  String?
   payment_terms          String?
+  payment_terms_id       String?
   created_at             DateTime  @default(now())
   updated_at             DateTime  @updatedAt
 
-  tenant                 Tenant             @relation(fields: [tenant_id], references: [id])
-  supplier               SupplierMaster     @relation(fields: [supplier_id], references: [id])
+  tenant                 Tenant              @relation(fields: [tenant_id], references: [id])
+  supplier               SupplierMaster      @relation(fields: [supplier_id], references: [id])
+  payment_terms_ref      PaymentTerms?       @relation(fields: [payment_terms_id], references: [id])
   po_lines               PurchaseOrderLine[]
   grn_headers            GrnHeader[]
-  revision_number        Int       @default(0)
-  is_latest_revision     Boolean   @default(true)
+  revision_number        Int                 @default(0)
+  is_latest_revision     Boolean             @default(true)
   parent_po_id           String?
   cancellation_reason    String?
   cancelled_at           DateTime?
@@ -390,7 +419,7 @@ model PurchaseOrder {
   closed_by              String?
   closure_notes          String?
   bill_status_at_closure String?
-  short_closed           Boolean   @default(false)
+  short_closed           Boolean             @default(false)
   short_closed_qty       Float?
   short_close_reason     String?
 
@@ -399,49 +428,49 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderLine {
-  id                 String        @id @default(uuid())
-  tenant_id          String
-  po_id              String
-  item_id            String
-  quantity_ordered   Float
-  unit_price         Float?
-  uom                String?
-  quantity_received  Float         @default(0)
-  quantity_pending   Float?
-  created_at         DateTime      @default(now())
-  updated_at         DateTime      @updatedAt
+  id                String   @id @default(uuid())
+  tenant_id         String
+  po_id             String
+  item_id           String
+  quantity_ordered  Float
+  unit_price        Float?
+  uom               String?
+  quantity_received Float    @default(0)
+  quantity_pending  Float?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 
-  po                 PurchaseOrder @relation(fields: [po_id], references: [id])
-  item               ItemMaster    @relation(fields: [item_id], references: [id])
+  po   PurchaseOrder @relation(fields: [po_id], references: [id])
+  item ItemMaster    @relation(fields: [item_id], references: [id])
 
   @@map("purchase_order_line")
 }
 
 model GrnHeader {
-  id                  String         @id @default(uuid())
-  tenant_id           String
-  grn_number          String
-  po_id               String?
-  supplier_id         String?
-  received_date       DateTime       @default(now())
-  received_by         String?
-  vehicle_number      String?
-  supplier_dc_number  String?
-  created_at          DateTime       @default(now())
-  updated_at          DateTime       @updatedAt
+  id                 String   @id @default(uuid())
+  tenant_id          String
+  grn_number         String
+  po_id              String?
+  supplier_id        String?
+  received_date      DateTime @default(now())
+  received_by        String?
+  vehicle_number     String?
+  supplier_dc_number String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 
-  is_reversed         Boolean   @default(false)
-  reversal_reason     String?
-  reversed_at         DateTime?
-  po                  PurchaseOrder? @relation(fields: [po_id], references: [id])
-  grn_lines           GrnLine[]
+  is_reversed     Boolean        @default(false)
+  reversal_reason String?
+  reversed_at     DateTime?
+  po              PurchaseOrder? @relation(fields: [po_id], references: [id])
+  grn_lines       GrnLine[]
 
   @@unique([tenant_id, grn_number])
   @@map("grn_header")
 }
 
 model GrnLine {
-  id                String     @id @default(uuid())
+  id                String   @id @default(uuid())
   tenant_id         String
   grn_id            String
   item_id           String
@@ -453,114 +482,120 @@ model GrnLine {
   lot_number        String?
   unit_price        Float?
   location          String?
-  created_at        DateTime   @default(now())
-  updated_at        DateTime   @updatedAt
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 
-  grn               GrnHeader  @relation(fields: [grn_id], references: [id])
-  item              ItemMaster @relation(fields: [item_id], references: [id])
+  grn  GrnHeader  @relation(fields: [grn_id], references: [id])
+  item ItemMaster @relation(fields: [item_id], references: [id])
 
   @@map("grn_line")
 }
 
 model LocationMaster {
-  id          String   @id @default(uuid())
-  tenant_id   String
-  code        String
-  description String?
-  zone        String?
-  type        String   @default("store")
-  is_active   Boolean  @default(true)
-  created_at  DateTime @default(now())
+  id                     String   @id @default(uuid())
+  tenant_id              String
+  code                   String
+  description            String?
+  zone                   String?
+  type                   String   @default("store")
+  capacity_kg            Float?
+  rack_count             Int?
+  bin_count              Int?
+  temperature_controlled Boolean  @default(false)
+  is_active              Boolean  @default(true)
+  created_at             DateTime @default(now())
+  tenant                 Tenant   @relation(fields: [tenant_id], references: [id])
+
   @@unique([tenant_id, code])
   @@map("location_master")
 }
 
 model StockLedger {
-  id               String     @id @default(uuid())
-  tenant_id        String
-  item_id          String
-  transaction_type String
-  quantity         Float
-  unit_cost        Float?
-  reference_type   String?
-  reference_id     String?
-  location         String?
-  to_location      String?
-  batch_number     String?
-  lot_number       String?
-  transacted_at    DateTime   @default(now())
-  transacted_by    String?
+  id                String   @id @default(uuid())
+  tenant_id         String
+  item_id           String
+  transaction_type  String
+  quantity          Float
+  unit_cost         Float?
+  reference_type    String?
+  reference_id      String?
+  location          String?
+  to_location       String?
+  batch_number      String?
+  lot_number        String?
+  transacted_at     DateTime @default(now())
+  transacted_by     String?
   adjustment_reason String?
 
-  item             ItemMaster @relation(fields: [item_id], references: [id])
+  item ItemMaster @relation(fields: [item_id], references: [id])
 
   @@map("stock_ledger")
 }
 
 model JobCard {
-  id                    String    @id @default(uuid())
-  tenant_id             String
-  job_number            String
-  item_id               String?
-  bom_id                String?
-  routing_id            String?
-  machine_id            String?
-  die_id                String?
-  planned_quantity      Float
-  actual_quantity_good  Float     @default(0)
-  shift                 String?
-  planned_date          DateTime?
-  actual_start          DateTime?
-  actual_end            DateTime?
-  status                String    @default("planned")
-  created_by            String?
-  released_by           String?
-  created_at            DateTime  @default(now())
-  updated_at            DateTime  @updatedAt
+  id                   String    @id @default(uuid())
+  tenant_id            String
+  job_number           String
+  item_id              String?
+  bom_id               String?
+  routing_id           String?
+  machine_id           String?
+  die_id               String?
+  planned_quantity     Float
+  actual_quantity_good Float     @default(0)
+  shift                String?
+  planned_date         DateTime?
+  actual_start         DateTime?
+  actual_end           DateTime?
+  status               String    @default("planned")
+  created_by           String?
+  released_by          String?
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
 
-  tenant                Tenant          @relation(fields: [tenant_id], references: [id])
-  shot_logs             ShotLog[]
-  downtime_logs         DowntimeLog[]
-  material_issues       MaterialIssue[]
-  issue_groups          MaterialIssueGroup[]
-  rejection_logs        RejectionLog[]
-  job_operations        JobCardOperation[]
+  tenant          Tenant               @relation(fields: [tenant_id], references: [id])
+  shot_logs       ShotLog[]
+  downtime_logs   DowntimeLog[]
+  material_issues MaterialIssue[]
+  issue_groups    MaterialIssueGroup[]
+  rejection_logs  RejectionLog[]
+  job_operations  JobCardOperation[]
 
   @@unique([tenant_id, job_number])
   @@map("job_card")
 }
 
 model ShotLog {
-  id                String    @id @default(uuid())
-  tenant_id         String
-  job_id            String
-  shot_number       Int
-  shot_result       String    @default("good")
-  rejection_reason  String?
-  logged_at         DateTime  @default(now())
-  logged_by         String?
+  id               String   @id @default(uuid())
+  tenant_id        String
+  job_id           String
+  shot_number      Int
+  shot_result      String   @default("good")
+  rejection_reason String?
+  logged_at        DateTime @default(now())
+  logged_by        String?
 
-  job               JobCard   @relation(fields: [job_id], references: [id])
+  job JobCard @relation(fields: [job_id], references: [id])
 
   @@map("shot_log")
 }
 
 model DowntimeLog {
-  id                String         @id @default(uuid())
+  id                String    @id @default(uuid())
   tenant_id         String
   job_id            String
   machine_id        String?
   start_time        DateTime
   end_time          DateTime?
   duration_min      Int?
-  downtime_category String         @default("unplanned")
+  downtime_category String    @default("unplanned")
   reason_code       String?
   reason_detail     String?
   logged_by         String?
-  created_at        DateTime       @default(now())
+  created_at        DateTime  @default(now())
 
-  job               JobCard        @relation(fields: [job_id], references: [id])
-  machine           MachineMaster? @relation(fields: [machine_id], references: [id])
+  job     JobCard        @relation(fields: [job_id], references: [id])
+  machine MachineMaster? @relation(fields: [machine_id], references: [id])
 
   @@map("downtime_log")
 }
@@ -581,54 +616,55 @@ model MaterialIssueGroup {
   mwo              MeltWorkOrder?  @relation(fields: [mwo_id], references: [id])
   item             ItemMaster      @relation(fields: [item_id], references: [id])
   lines            MaterialIssue[]
+
   @@map("material_issue_group")
 }
 
 model MaterialIssue {
-  id           String     @id @default(uuid())
-  tenant_id    String
-  job_id       String?
-  item_id      String
-  planned_qty  Float?
-  issued_qty   Float
-  returned_qty Float      @default(0)
-  issued_at    DateTime   @default(now())
-  issued_by    String?
-  location     String?
-  to_location  String?
-  mwo_id       String?
-  melt_id      String?
+  id             String   @id @default(uuid())
+  tenant_id      String
+  job_id         String?
+  item_id        String
+  planned_qty    Float?
+  issued_qty     Float
+  returned_qty   Float    @default(0)
+  issued_at      DateTime @default(now())
+  issued_by      String?
+  location       String?
+  to_location    String?
+  mwo_id         String?
+  melt_id        String?
   cost_centre_id String?
 
   batch_number         String?
   grn_id               String?
-  fifo_override        Boolean  @default(false)
+  fifo_override        Boolean   @default(false)
   override_reason      String?
   override_approved_by String?
   override_approved_at DateTime?
   override_request_id  String?
   group_id             String?
 
-  job          JobCard?            @relation(fields: [job_id], references: [id])
-  item         ItemMaster          @relation(fields: [item_id], references: [id])
-  group        MaterialIssueGroup? @relation(fields: [group_id], references: [id])
-  mwo          MeltWorkOrder?      @relation(fields: [mwo_id], references: [id])
-  melt         MeltChargeRecord?   @relation(fields: [melt_id], references: [id])
-  cost_centre  CostCentre?         @relation(fields: [cost_centre_id], references: [id])
+  job         JobCard?            @relation(fields: [job_id], references: [id])
+  item        ItemMaster          @relation(fields: [item_id], references: [id])
+  group       MaterialIssueGroup? @relation(fields: [group_id], references: [id])
+  mwo         MeltWorkOrder?      @relation(fields: [mwo_id], references: [id])
+  melt        MeltChargeRecord?   @relation(fields: [melt_id], references: [id])
+  cost_centre CostCentre?         @relation(fields: [cost_centre_id], references: [id])
 
   @@map("material_issue")
 }
 
 model InspectionHeader {
-  id               String    @id @default(uuid())
-  tenant_id        String
-  job_id           String?
-  inspection_type  String
-  inspection_date  DateTime  @default(now())
-  inspector_id     String?
-  result           String    @default("pending")
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
+  id              String   @id @default(uuid())
+  tenant_id       String
+  job_id          String?
+  inspection_type String
+  inspection_date DateTime @default(now())
+  inspector_id    String?
+  result          String   @default("pending")
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
   inspection_lines InspectionLine[]
   rejection_logs   RejectionLog[]
@@ -637,306 +673,306 @@ model InspectionHeader {
 }
 
 model InspectionLine {
-  id                  String           @id @default(uuid())
-  tenant_id           String
-  inspection_id       String
-  parameter_name      String
-  specification_min   Float?
-  specification_max   Float?
-  unit                String?
-  actual_value        Float?
-  result              String           @default("pending")
-  created_at          DateTime         @default(now())
+  id                String   @id @default(uuid())
+  tenant_id         String
+  inspection_id     String
+  parameter_name    String
+  specification_min Float?
+  specification_max Float?
+  unit              String?
+  actual_value      Float?
+  result            String   @default("pending")
+  created_at        DateTime @default(now())
 
-  inspection          InspectionHeader @relation(fields: [inspection_id], references: [id])
+  inspection InspectionHeader @relation(fields: [inspection_id], references: [id])
 
   @@map("inspection_line")
 }
 
 model RejectionLog {
-  id                  String            @id @default(uuid())
-  tenant_id           String
-  job_id              String?
-  item_id             String?
-  inspection_id       String?
-  quantity_rejected   Float
-  rejection_stage     String?
-  defect_code         String?
-  defect_description  String?
-  die_id              String?
-  machine_id          String?
-  alloy_lot           String?
-  disposition         String            @default("scrap")
-  logged_at           DateTime          @default(now())
-  logged_by           String?
+  id                 String   @id @default(uuid())
+  tenant_id          String
+  job_id             String?
+  item_id            String?
+  inspection_id      String?
+  quantity_rejected  Float
+  rejection_stage    String?
+  defect_code        String?
+  defect_description String?
+  die_id             String?
+  machine_id         String?
+  alloy_lot          String?
+  disposition        String   @default("scrap")
+  logged_at          DateTime @default(now())
+  logged_by          String?
 
-  job                 JobCard?          @relation(fields: [job_id], references: [id])
-  inspection          InspectionHeader? @relation(fields: [inspection_id], references: [id])
+  job        JobCard?          @relation(fields: [job_id], references: [id])
+  inspection InspectionHeader? @relation(fields: [inspection_id], references: [id])
 
   @@map("rejection_log")
 }
 
 model SalesOrder {
-  id             String    @id @default(uuid())
-  tenant_id      String
-  so_number      String
-  customer_id    String?
-  customer_name  String?
-  order_date     DateTime  @default(now())
-  delivery_date  DateTime?
-  status         String    @default("open")
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  tenant_id     String
+  so_number     String
+  customer_id   String?
+  customer_name String?
+  order_date    DateTime  @default(now())
+  delivery_date DateTime?
+  status        String    @default("open")
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
 
-  tenant         Tenant           @relation(fields: [tenant_id], references: [id])
-  customer       CustomerMaster?  @relation(fields: [customer_id], references: [id])
-  so_lines       SalesOrderLine[]
-  dispatches     DispatchHeader[]
+  tenant     Tenant           @relation(fields: [tenant_id], references: [id])
+  customer   CustomerMaster?  @relation(fields: [customer_id], references: [id])
+  so_lines   SalesOrderLine[]
+  dispatches DispatchHeader[]
 
   @@unique([tenant_id, so_number])
   @@map("sales_order")
 }
 
 model SalesOrderLine {
-  id                   String     @id @default(uuid())
-  tenant_id            String
-  so_id                String
-  item_id              String
-  quantity_ordered     Float
-  quantity_dispatched  Float      @default(0)
-  quantity_pending     Float?
-  unit_price           Float?
-  uom                  String?
-  created_at           DateTime   @default(now())
-  updated_at           DateTime   @updatedAt
+  id                  String   @id @default(uuid())
+  tenant_id           String
+  so_id               String
+  item_id             String
+  quantity_ordered    Float
+  quantity_dispatched Float    @default(0)
+  quantity_pending    Float?
+  unit_price          Float?
+  uom                 String?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
 
-  so                   SalesOrder @relation(fields: [so_id], references: [id])
-  item                 ItemMaster @relation(fields: [item_id], references: [id])
-  dispatch_lines       DispatchLine[]
+  so             SalesOrder     @relation(fields: [so_id], references: [id])
+  item           ItemMaster     @relation(fields: [item_id], references: [id])
+  dispatch_lines DispatchLine[]
 
   @@map("sales_order_line")
 }
 
 model DispatchHeader {
-  id               String      @id @default(uuid())
+  id               String   @id @default(uuid())
   tenant_id        String
   dispatch_number  String
   so_id            String?
-  dispatch_date    DateTime    @default(now())
+  dispatch_date    DateTime @default(now())
   dispatched_by    String?
   vehicle_number   String?
   transporter      String?
   challan_number   String?
   eway_bill_number String?
-  status           String      @default("draft")
-  created_at       DateTime    @default(now())
-  updated_at       DateTime    @updatedAt
+  status           String   @default("draft")
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
 
-  so               SalesOrder? @relation(fields: [so_id], references: [id])
-  dispatch_lines   DispatchLine[]
+  so             SalesOrder?    @relation(fields: [so_id], references: [id])
+  dispatch_lines DispatchLine[]
 
   @@unique([tenant_id, dispatch_number])
   @@map("dispatch_header")
 }
 
 model DispatchLine {
-  id                   String          @id @default(uuid())
-  tenant_id            String
-  dispatch_id          String
-  item_id              String
-  so_line_id           String?
-  quantity_dispatched  Float
-  batch_number         String?
-  pack_count           Int?
-  pieces_per_pack      Int?
-  created_at           DateTime        @default(now())
+  id                  String   @id @default(uuid())
+  tenant_id           String
+  dispatch_id         String
+  item_id             String
+  so_line_id          String?
+  quantity_dispatched Float
+  batch_number        String?
+  pack_count          Int?
+  pieces_per_pack     Int?
+  created_at          DateTime @default(now())
 
-  dispatch             DispatchHeader  @relation(fields: [dispatch_id], references: [id])
-  item                 ItemMaster      @relation(fields: [item_id], references: [id])
-  so_line              SalesOrderLine? @relation(fields: [so_line_id], references: [id])
+  dispatch DispatchHeader  @relation(fields: [dispatch_id], references: [id])
+  item     ItemMaster      @relation(fields: [item_id], references: [id])
+  so_line  SalesOrderLine? @relation(fields: [so_line_id], references: [id])
 
   @@map("dispatch_line")
 }
 
 model ConstraintConfig {
-  id                    String        @id @default(uuid())
-  tenant_id             String
-  machine_id            String
-  is_active_constraint  Boolean       @default(true)
-  buffer_target_hours   Float?
-  throughput_per_hour   Float?
-  effective_from        DateTime?
-  effective_to          DateTime?
-  created_at            DateTime      @default(now())
-  updated_at            DateTime      @updatedAt
+  id                   String    @id @default(uuid())
+  tenant_id            String
+  machine_id           String
+  is_active_constraint Boolean   @default(true)
+  buffer_target_hours  Float?
+  throughput_per_hour  Float?
+  effective_from       DateTime?
+  effective_to         DateTime?
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
 
-  machine               MachineMaster @relation(fields: [machine_id], references: [id])
+  machine MachineMaster @relation(fields: [machine_id], references: [id])
 
   @@map("constraint_config")
 }
 
 model AgentActionLog {
-  id              String    @id @default(uuid())
-  tenant_id       String
-  agent_type      String
-  action_taken    String
-  reference_type  String?
-  reference_id    String?
-  triggered_by    String    @default("system")
-  status          String    @default("pending_approval")
-  actioned_by     String?
-  actioned_at     DateTime?
-  created_at      DateTime  @default(now())
+  id             String    @id @default(uuid())
+  tenant_id      String
+  agent_type     String
+  action_taken   String
+  reference_type String?
+  reference_id   String?
+  triggered_by   String    @default("system")
+  status         String    @default("pending_approval")
+  actioned_by    String?
+  actioned_at    DateTime?
+  created_at     DateTime  @default(now())
 
   @@map("agent_action_log")
 }
 
 model SystemAlert {
-  id              String    @id @default(uuid())
-  tenant_id       String
-  alert_type      String
-  severity        String    @default("info")
-  message         String
-  reference_type  String?
-  reference_id    String?
-  is_read         Boolean   @default(false)
-  is_resolved     Boolean   @default(false)
-  created_at      DateTime  @default(now())
-  resolved_at     DateTime?
-  resolved_by     String?
+  id             String    @id @default(uuid())
+  tenant_id      String
+  alert_type     String
+  severity       String    @default("info")
+  message        String
+  reference_type String?
+  reference_id   String?
+  is_read        Boolean   @default(false)
+  is_resolved    Boolean   @default(false)
+  created_at     DateTime  @default(now())
+  resolved_at    DateTime?
+  resolved_by    String?
 
   @@map("system_alert")
 }
 
 model VendorMaster {
-  id                String   @id @default(uuid())
-  tenant_id         String
-  vendor_code       String
-  vendor_name       String
-  address           String?
-  gstin             String?
-  operation_types   String?
-  payment_terms     String?
-  lead_time_days    Int?
-  is_active         Boolean  @default(true)
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  id              String   @id @default(uuid())
+  tenant_id       String
+  vendor_code     String
+  vendor_name     String
+  address         String?
+  gstin           String?
+  operation_types String?
+  payment_terms   String?
+  lead_time_days  Int?
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
-  job_work_orders   JobWorkOrder[]
+  job_work_orders JobWorkOrder[]
 
   @@unique([tenant_id, vendor_code])
   @@map("vendor_master")
 }
 
 model JobWorkOrder {
-  id                    String    @id @default(uuid())
-  tenant_id             String
-  jwo_number            String
-  job_card_id           String?
-  vendor_id             String
-  item_id               String?
-  operation_id          String?
-  quantity_sent         Float
-  outward_challan       String?
-  expected_return_date  DateTime?
-  job_work_charge       Float?
-  status                String    @default("draft")
-  created_at            DateTime  @default(now())
-  updated_at            DateTime  @updatedAt
+  id                   String    @id @default(uuid())
+  tenant_id            String
+  jwo_number           String
+  job_card_id          String?
+  vendor_id            String
+  item_id              String?
+  operation_id         String?
+  quantity_sent        Float
+  outward_challan      String?
+  expected_return_date DateTime?
+  job_work_charge      Float?
+  status               String    @default("draft")
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
 
-  vendor                VendorMaster      @relation(fields: [vendor_id], references: [id])
-  receipts              JobWorkReceipt[]
+  vendor   VendorMaster     @relation(fields: [vendor_id], references: [id])
+  receipts JobWorkReceipt[]
 
   @@unique([tenant_id, jwo_number])
   @@map("job_work_order")
 }
 
 model JobWorkReceipt {
-  id                      String       @id @default(uuid())
-  tenant_id               String
-  jwr_number              String
-  jwo_id                  String
-  quantity_received       Float
-  accepted_qty            Float?
-  rejected_qty            Float?
-  rejection_reason        String?
-  inward_challan          String?
-  job_work_charge_billed  Float?
-  received_at             DateTime     @default(now())
-  received_by             String?
+  id                     String   @id @default(uuid())
+  tenant_id              String
+  jwr_number             String
+  jwo_id                 String
+  quantity_received      Float
+  accepted_qty           Float?
+  rejected_qty           Float?
+  rejection_reason       String?
+  inward_challan         String?
+  job_work_charge_billed Float?
+  received_at            DateTime @default(now())
+  received_by            String?
 
-  jwo                     JobWorkOrder @relation(fields: [jwo_id], references: [id])
+  jwo JobWorkOrder @relation(fields: [jwo_id], references: [id])
 
   @@unique([tenant_id, jwr_number])
   @@map("job_work_receipt")
 }
 
 model CustomerMaster {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  customer_code   String
-  customer_name   String
-  address         String?
-  gstin           String?
-  contact_person  String?
-  contact_phone   String?
-  payment_terms   String?
-  is_active       Boolean  @default(true)
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id             String   @id @default(uuid())
+  tenant_id      String
+  customer_code  String
+  customer_name  String
+  address        String?
+  gstin          String?
+  contact_person String?
+  contact_phone  String?
+  payment_terms  String?
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
-  sales_orders    SalesOrder[]
+  sales_orders SalesOrder[]
 
   @@unique([tenant_id, customer_code])
   @@map("customer_master")
 }
 
 model JobCardOperation {
-  id                  String    @id @default(uuid())
-  tenant_id           String
-  job_id              String
-  operation_id        String?
-  operation_sequence  Int
-  operation_name      String
-  operation_type      String    @default("production")
-  is_outsourced       Boolean   @default(false)
-  vendor_id           String?
-  machine_id          String?
-  operator_id         String?
-  status              String    @default("pending")
-  planned_start       DateTime?
-  actual_start        DateTime?
-  actual_end          DateTime?
-  notes               String?
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  id                 String    @id @default(uuid())
+  tenant_id          String
+  job_id             String
+  operation_id       String?
+  operation_sequence Int
+  operation_name     String
+  operation_type     String    @default("production")
+  is_outsourced      Boolean   @default(false)
+  vendor_id          String?
+  machine_id         String?
+  operator_id        String?
+  status             String    @default("pending")
+  planned_start      DateTime?
+  actual_start       DateTime?
+  actual_end         DateTime?
+  notes              String?
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
 
-  job                 JobCard   @relation(fields: [job_id], references: [id])
+  job JobCard @relation(fields: [job_id], references: [id])
 
   @@map("job_card_operation")
 }
 
 model BufferLog {
-  id                    String   @id @default(uuid())
-  tenant_id             String
-  machine_id            String
-  buffer_hours          Float
-  buffer_target_hours   Float
-  buffer_status         String
-  logged_at             DateTime @default(now())
+  id                  String   @id @default(uuid())
+  tenant_id           String
+  machine_id          String
+  buffer_hours        Float
+  buffer_target_hours Float
+  buffer_status       String
+  logged_at           DateTime @default(now())
 
   @@map("buffer_log")
 }
 
 model CostConfig {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  config_key      String
-  config_value    Float
-  description     String?
-  effective_from  DateTime @default(now())
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id             String   @id @default(uuid())
+  tenant_id      String
+  config_key     String
+  config_value   Float
+  description    String?
+  effective_from DateTime @default(now())
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
   @@unique([tenant_id, config_key])
   @@map("cost_config")
@@ -947,306 +983,306 @@ model ChartOfAccount {
   tenant_id       String
   account_code    String
   account_name    String
-  account_type    String   // asset / liability / income / expense / equity
-  account_subtype String?  // current_asset / fixed_asset / current_liability etc
+  account_type    String // asset / liability / income / expense / equity
+  account_subtype String? // current_asset / fixed_asset / current_liability etc
   parent_id       String?
   is_system       Boolean  @default(false)
   is_active       Boolean  @default(true)
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
-  journal_lines   JournalLine[]
+  journal_lines JournalLine[]
 
   @@unique([tenant_id, account_code])
   @@map("chart_of_accounts")
 }
 
 model JournalEntry {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  entry_number    String
-  entry_date      DateTime
-  entry_type      String   // auto / manual
-  reference_type  String?  // invoice / payment / grn / dispatch / expense etc
-  reference_id    String?
-  description     String?
-  is_reversal     Boolean  @default(false)
-  reversed_by     String?
-  reversed_entry  String?
-  posted_by       String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id             String   @id @default(uuid())
+  tenant_id      String
+  entry_number   String
+  entry_date     DateTime
+  entry_type     String // auto / manual
+  reference_type String? // invoice / payment / grn / dispatch / expense etc
+  reference_id   String?
+  description    String?
+  is_reversal    Boolean  @default(false)
+  reversed_by    String?
+  reversed_entry String?
+  posted_by      String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
-  lines           JournalLine[]
+  lines JournalLine[]
 
   @@map("journal_entry")
 }
 
 model JournalLine {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  entry_id        String
-  account_id      String
-  debit           Float    @default(0)
-  credit          Float    @default(0)
-  description     String?
-  created_at      DateTime @default(now())
+  id          String   @id @default(uuid())
+  tenant_id   String
+  entry_id    String
+  account_id  String
+  debit       Float    @default(0)
+  credit      Float    @default(0)
+  description String?
+  created_at  DateTime @default(now())
 
-  entry           JournalEntry      @relation(fields: [entry_id], references: [id])
-  account         ChartOfAccount    @relation(fields: [account_id], references: [id])
+  entry   JournalEntry   @relation(fields: [entry_id], references: [id])
+  account ChartOfAccount @relation(fields: [account_id], references: [id])
 
   @@map("journal_line")
 }
 
 model InvoiceHeader {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  invoice_number  String
-  invoice_date    DateTime
-  due_date        DateTime?
-  customer_id     String
-  customer_name   String
-  customer_gstin  String?
-  dispatch_id     String?
-  subtotal        Float    @default(0)
-  cgst_amount     Float    @default(0)
-  sgst_amount     Float    @default(0)
-  igst_amount     Float    @default(0)
-  total_amount    Float    @default(0)
-  amount_paid     Float    @default(0)
-  status          String   @default("draft")
-  payment_terms   String?
-  notes           String?
-  created_by      String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id             String    @id @default(uuid())
+  tenant_id      String
+  invoice_number String
+  invoice_date   DateTime
+  due_date       DateTime?
+  customer_id    String
+  customer_name  String
+  customer_gstin String?
+  dispatch_id    String?
+  subtotal       Float     @default(0)
+  cgst_amount    Float     @default(0)
+  sgst_amount    Float     @default(0)
+  igst_amount    Float     @default(0)
+  total_amount   Float     @default(0)
+  amount_paid    Float     @default(0)
+  status         String    @default("draft")
+  payment_terms  String?
+  notes          String?
+  created_by     String?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
 
-  lines           InvoiceLine[]
-  payments        PaymentReceipt[]
-  credit_notes    CreditNote[]
+  lines        InvoiceLine[]
+  payments     PaymentReceipt[]
+  credit_notes CreditNote[]
 
   @@unique([tenant_id, invoice_number])
   @@map("invoice_header")
 }
 
 model InvoiceLine {
-  id              String   @id @default(uuid())
-  invoice_id      String
-  item_id         String?
-  item_name       String
-  hsn_code        String?
-  quantity        Float
-  unit_price      Float
-  amount          Float
-  tax_rate        Float    @default(18)
-  cgst_rate       Float    @default(9)
-  sgst_rate       Float    @default(9)
-  igst_rate       Float    @default(0)
-  cgst_amount     Float    @default(0)
-  sgst_amount     Float    @default(0)
-  igst_amount     Float    @default(0)
-  total_amount    Float
+  id           String  @id @default(uuid())
+  invoice_id   String
+  item_id      String?
+  item_name    String
+  hsn_code     String?
+  quantity     Float
+  unit_price   Float
+  amount       Float
+  tax_rate     Float   @default(18)
+  cgst_rate    Float   @default(9)
+  sgst_rate    Float   @default(9)
+  igst_rate    Float   @default(0)
+  cgst_amount  Float   @default(0)
+  sgst_amount  Float   @default(0)
+  igst_amount  Float   @default(0)
+  total_amount Float
 
-  invoice         InvoiceHeader @relation(fields: [invoice_id], references: [id])
+  invoice InvoiceHeader @relation(fields: [invoice_id], references: [id])
 
   @@map("invoice_line")
 }
 
 model PaymentReceipt {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  receipt_number  String
-  receipt_date    DateTime
-  invoice_id      String
-  customer_id     String
-  amount_received Float
-  payment_mode    String   // bank / cash / upi / cheque / neft / rtgs
+  id               String    @id @default(uuid())
+  tenant_id        String
+  receipt_number   String
+  receipt_date     DateTime
+  invoice_id       String
+  customer_id      String
+  amount_received  Float
+  payment_mode     String // bank / cash / upi / cheque / neft / rtgs
   reference_number String?
-  bank_account_id String?
-  status          String   @default("received")
-  reversal_reason String?
-  reversed_at     DateTime?
-  notes           String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  bank_account_id  String?
+  status           String    @default("received")
+  reversal_reason  String?
+  reversed_at      DateTime?
+  notes            String?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
-  invoice         InvoiceHeader @relation(fields: [invoice_id], references: [id])
+  invoice InvoiceHeader @relation(fields: [invoice_id], references: [id])
 
   @@map("payment_receipt")
 }
 
 model CreditNote {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  cn_number       String
-  cn_date         DateTime
-  invoice_id      String
-  customer_id     String
-  customer_name   String
-  reason          String
-  return_type     String   // pre_invoice / post_invoice
-  subtotal        Float    @default(0)
-  cgst_amount     Float    @default(0)
-  sgst_amount     Float    @default(0)
-  igst_amount     Float    @default(0)
-  total_amount    Float    @default(0)
-  status          String   @default("draft")
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id            String   @id @default(uuid())
+  tenant_id     String
+  cn_number     String
+  cn_date       DateTime
+  invoice_id    String
+  customer_id   String
+  customer_name String
+  reason        String
+  return_type   String // pre_invoice / post_invoice
+  subtotal      Float    @default(0)
+  cgst_amount   Float    @default(0)
+  sgst_amount   Float    @default(0)
+  igst_amount   Float    @default(0)
+  total_amount  Float    @default(0)
+  status        String   @default("draft")
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
-  invoice         InvoiceHeader @relation(fields: [invoice_id], references: [id])
-  return_lines    CustomerReturnLine[]
+  invoice      InvoiceHeader        @relation(fields: [invoice_id], references: [id])
+  return_lines CustomerReturnLine[]
 
   @@map("credit_note")
 }
 
 model CustomerReturnHeader {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  return_number   String
-  return_date     DateTime
-  dispatch_id     String?
-  invoice_id      String?
-  reason          String
-  return_type     String   // pre_invoice / post_invoice
-  status          String   @default("received")
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id            String   @id @default(uuid())
+  tenant_id     String
+  return_number String
+  return_date   DateTime
+  dispatch_id   String?
+  invoice_id    String?
+  reason        String
+  return_type   String // pre_invoice / post_invoice
+  status        String   @default("received")
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
-  lines           CustomerReturnLine[]
+  lines CustomerReturnLine[]
 
   @@map("customer_return_header")
 }
 
 model CustomerReturnLine {
-  id                  String   @id @default(uuid())
-  return_id           String
-  credit_note_id      String?
-  item_id             String
-  quantity_returned   Float
-  quantity_accepted   Float    @default(0)
-  quantity_scrapped   Float    @default(0)
-  inspection_notes    String?
-  created_at          DateTime @default(now())
+  id                String   @id @default(uuid())
+  return_id         String
+  credit_note_id    String?
+  item_id           String
+  quantity_returned Float
+  quantity_accepted Float    @default(0)
+  quantity_scrapped Float    @default(0)
+  inspection_notes  String?
+  created_at        DateTime @default(now())
 
-  return_header       CustomerReturnHeader @relation(fields: [return_id], references: [id])
-  credit_note         CreditNote?          @relation(fields: [credit_note_id], references: [id])
+  return_header CustomerReturnHeader @relation(fields: [return_id], references: [id])
+  credit_note   CreditNote?          @relation(fields: [credit_note_id], references: [id])
 
   @@map("customer_return_line")
 }
 
 model SupplierBill {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  bill_number     String
-  bill_date       DateTime
-  due_date        DateTime?
-  supplier_id     String
-  supplier_name   String
-  supplier_gstin  String?
-  grn_id          String?
-  subtotal        Float    @default(0)
-  cgst_amount     Float    @default(0)
-  sgst_amount     Float    @default(0)
-  igst_amount     Float    @default(0)
-  total_amount    Float    @default(0)
-  amount_paid     Float    @default(0)
-  status          String   @default("pending")
-  notes           String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id             String    @id @default(uuid())
+  tenant_id      String
+  bill_number    String
+  bill_date      DateTime
+  due_date       DateTime?
+  supplier_id    String
+  supplier_name  String
+  supplier_gstin String?
+  grn_id         String?
+  subtotal       Float     @default(0)
+  cgst_amount    Float     @default(0)
+  sgst_amount    Float     @default(0)
+  igst_amount    Float     @default(0)
+  total_amount   Float     @default(0)
+  amount_paid    Float     @default(0)
+  status         String    @default("pending")
+  notes          String?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
 
-  lines           SupplierBillLine[]
-  payments        PaymentVoucher[]
-  debit_notes     DebitNote[]
+  lines       SupplierBillLine[]
+  payments    PaymentVoucher[]
+  debit_notes DebitNote[]
 
   @@map("supplier_bill")
 }
 
 model SupplierBillLine {
-  id              String   @id @default(uuid())
-  bill_id         String
-  item_id         String?
-  item_name       String
-  hsn_code        String?
-  quantity        Float
-  unit_price      Float
-  amount          Float
-  tax_rate        Float    @default(18)
-  cgst_amount     Float    @default(0)
-  sgst_amount     Float    @default(0)
-  igst_amount     Float    @default(0)
-  total_amount    Float
+  id           String  @id @default(uuid())
+  bill_id      String
+  item_id      String?
+  item_name    String
+  hsn_code     String?
+  quantity     Float
+  unit_price   Float
+  amount       Float
+  tax_rate     Float   @default(18)
+  cgst_amount  Float   @default(0)
+  sgst_amount  Float   @default(0)
+  igst_amount  Float   @default(0)
+  total_amount Float
 
-  bill            SupplierBill @relation(fields: [bill_id], references: [id])
+  bill SupplierBill @relation(fields: [bill_id], references: [id])
 
   @@map("supplier_bill_line")
 }
 
 model PaymentVoucher {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  voucher_number  String
-  voucher_date    DateTime
-  bill_id         String
-  supplier_id     String
-  amount_paid     Float
-  payment_mode    String
+  id               String    @id @default(uuid())
+  tenant_id        String
+  voucher_number   String
+  voucher_date     DateTime
+  bill_id          String
+  supplier_id      String
+  amount_paid      Float
+  payment_mode     String
   reference_number String?
-  bank_account_id String?
-  status          String   @default("paid")
-  reversal_reason String?
-  reversed_at     DateTime?
-  notes           String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  bank_account_id  String?
+  status           String    @default("paid")
+  reversal_reason  String?
+  reversed_at      DateTime?
+  notes            String?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
-  bill            SupplierBill @relation(fields: [bill_id], references: [id])
+  bill SupplierBill @relation(fields: [bill_id], references: [id])
 
   @@map("payment_voucher")
 }
 
 model DebitNote {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  dn_number       String
-  dn_date         DateTime
-  bill_id         String
-  supplier_id     String
-  supplier_name   String
-  reason          String
+  id                String   @id @default(uuid())
+  tenant_id         String
+  dn_number         String
+  dn_date           DateTime
+  bill_id           String
+  supplier_id       String
+  supplier_name     String
+  reason            String
   quantity_returned Float
-  subtotal        Float    @default(0)
-  cgst_amount     Float    @default(0)
-  sgst_amount     Float    @default(0)
-  igst_amount     Float    @default(0)
-  total_amount    Float    @default(0)
-  status          String   @default("draft")
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  subtotal          Float    @default(0)
+  cgst_amount       Float    @default(0)
+  sgst_amount       Float    @default(0)
+  igst_amount       Float    @default(0)
+  total_amount      Float    @default(0)
+  status            String   @default("draft")
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 
-  bill            SupplierBill @relation(fields: [bill_id], references: [id])
+  bill SupplierBill @relation(fields: [bill_id], references: [id])
 
   @@map("debit_note")
 }
 
 model ExpenseEntry {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  expense_number  String
-  expense_date    DateTime
-  category        String   // salary / rent / utilities / maintenance / other
-  description     String
-  amount          Float
-  payment_mode    String
-  bank_account_id String?
+  id               String    @id @default(uuid())
+  tenant_id        String
+  expense_number   String
+  expense_date     DateTime
+  category         String // salary / rent / utilities / maintenance / other
+  description      String
+  amount           Float
+  payment_mode     String
+  bank_account_id  String?
   reference_number String?
-  is_reversed     Boolean  @default(false)
-  reversal_reason String?
-  reversed_at     DateTime?
-  created_by      String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  is_reversed      Boolean   @default(false)
+  reversal_reason  String?
+  reversed_at      DateTime?
+  created_by       String?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
   @@map("expense_entry")
 }
@@ -1268,38 +1304,38 @@ model BankAccount {
 }
 
 model CompanyConfig {
-  id              String   @id @default(uuid())
-  tenant_id       String   @unique
-  legal_name      String
-  gstin           String?
-  pan             String?
-  address         String?
-  city            String?
-  state           String?
-  state_code      String?
-  pincode         String?
-  phone           String?
-  email           String?
-  bank_details    String?
-  signature_text  String?
-  invoice_prefix  String   @default("INV")
-  cn_prefix       String   @default("CN")
-  dn_prefix       String   @default("DN")
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id             String   @id @default(uuid())
+  tenant_id      String   @unique
+  legal_name     String
+  gstin          String?
+  pan            String?
+  address        String?
+  city           String?
+  state          String?
+  state_code     String?
+  pincode        String?
+  phone          String?
+  email          String?
+  bank_details   String?
+  signature_text String?
+  invoice_prefix String   @default("INV")
+  cn_prefix      String   @default("CN")
+  dn_prefix      String   @default("DN")
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
   @@map("company_config")
 }
 
 model ComplaintHeader {
-  id                String   @id @default(uuid())
+  id                String    @id @default(uuid())
   tenant_id         String
   complaint_number  String
-  complaint_type    String   // customer / internal / supplier
-  raised_date       DateTime @default(now())
+  complaint_type    String // customer / internal / supplier
+  raised_date       DateTime  @default(now())
   raised_by         String?
-  severity          String   @default("major") // critical / major / minor
-  status            String   @default("open")
+  severity          String    @default("major") // critical / major / minor
+  status            String    @default("open")
   title             String
   description       String?
   customer_id       String?
@@ -1315,223 +1351,224 @@ model ComplaintHeader {
   due_date          DateTime?
   closed_at         DateTime?
   closed_by         String?
-  is_repeat         Boolean  @default(false)
+  is_repeat         Boolean   @default(false)
   repeat_reference  String?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
 
-  actions           ComplaintAction[]
+  actions ComplaintAction[]
 
   @@unique([tenant_id, complaint_number])
   @@map("complaint_header")
 }
 
 model ComplaintAction {
-  id                String   @id @default(uuid())
-  tenant_id         String
-  complaint_id      String
-  action_type       String   // D1/D2/D3/D4/D5/D6/D7/D8 or containment/rca/capa/verify
-  step_number       Int?
-  description       String
+  id                 String    @id @default(uuid())
+  tenant_id          String
+  complaint_id       String
+  action_type        String // D1/D2/D3/D4/D5/D6/D7/D8 or containment/rca/capa/verify
+  step_number        Int?
+  description        String
   responsible_person String?
-  target_date       DateTime?
-  completion_date   DateTime?
-  status            String   @default("pending")
-  evidence_notes    String?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  target_date        DateTime?
+  completion_date    DateTime?
+  status             String    @default("pending")
+  evidence_notes     String?
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
 
-  complaint         ComplaintHeader @relation(fields: [complaint_id], references: [id])
+  complaint ComplaintHeader @relation(fields: [complaint_id], references: [id])
 
   @@map("complaint_action")
 }
 
 model MaintenanceWorkOrder {
-  id                String   @id @default(uuid())
-  tenant_id         String
-  wo_number         String
-  machine_id        String
-  maintenance_type  String   // preventive / breakdown / calibration / predictive
-  raised_date       DateTime @default(now())
-  scheduled_date    DateTime?
-  started_at        DateTime?
-  completed_at      DateTime?
-  description       String?
-  findings          String?
-  action_taken      String?
-  raised_by         String?
-  assigned_to       String?
-  status            String   @default("open")
-  downtime_minutes  Float?
-  cost              Float?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  id               String    @id @default(uuid())
+  tenant_id        String
+  wo_number        String
+  machine_id       String
+  maintenance_type String // preventive / breakdown / calibration / predictive
+  raised_date      DateTime  @default(now())
+  scheduled_date   DateTime?
+  started_at       DateTime?
+  completed_at     DateTime?
+  description      String?
+  findings         String?
+  action_taken     String?
+  raised_by        String?
+  assigned_to      String?
+  status           String    @default("open")
+  downtime_minutes Float?
+  cost             Float?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
-  machine           MachineMaster      @relation(fields: [machine_id], references: [id])
-  spare_usages      SparePart_Usage[]
+  machine      MachineMaster     @relation(fields: [machine_id], references: [id])
+  spare_usages SparePart_Usage[]
 
   @@unique([tenant_id, wo_number])
   @@map("maintenance_work_order")
 }
 
 model MaintenanceSchedule {
-  id                String   @id @default(uuid())
-  tenant_id         String
-  machine_id        String
-  maintenance_type  String   @default("preventive")
-  title             String
-  frequency         String   // daily / weekly / monthly / quarterly / annual
-  scheduled_date    DateTime
-  next_due_date     DateTime?
-  checklist         String?
-  status            String   @default("scheduled")
-  completed_at      DateTime?
-  completed_by      String?
-  notes             String?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  id               String    @id @default(uuid())
+  tenant_id        String
+  machine_id       String
+  maintenance_type String    @default("preventive")
+  title            String
+  frequency        String // daily / weekly / monthly / quarterly / annual
+  scheduled_date   DateTime
+  next_due_date    DateTime?
+  checklist        String?
+  status           String    @default("scheduled")
+  completed_at     DateTime?
+  completed_by     String?
+  notes            String?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
-  machine           MachineMaster @relation(fields: [machine_id], references: [id])
+  machine MachineMaster @relation(fields: [machine_id], references: [id])
 
   @@map("maintenance_schedule")
 }
 
 model SparePart {
-  id                String   @id @default(uuid())
-  tenant_id         String
-  part_code         String
-  part_name         String
-  machine_id        String?
-  description       String?
-  unit_of_measure   String   @default("NOS")
-  quantity_on_hand  Float    @default(0)
-  reorder_point     Float    @default(2)
-  unit_cost         Float?
-  storage_location  String?
-  is_critical       Boolean  @default(false)
-  is_active         Boolean  @default(true)
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  id               String   @id @default(uuid())
+  tenant_id        String
+  part_code        String
+  part_name        String
+  machine_id       String?
+  description      String?
+  unit_of_measure  String   @default("NOS")
+  quantity_on_hand Float    @default(0)
+  reorder_point    Float    @default(2)
+  unit_cost        Float?
+  storage_location String?
+  is_critical      Boolean  @default(false)
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
 
-  usages            SparePart_Usage[]
+  usages SparePart_Usage[]
 
   @@unique([tenant_id, part_code])
   @@map("spare_part")
 }
 
 model SparePart_Usage {
-  id                String   @id @default(uuid())
-  tenant_id         String
-  wo_id             String
-  spare_part_id     String
-  quantity_used     Float
-  unit_cost         Float?
-  used_at           DateTime @default(now())
+  id            String   @id @default(uuid())
+  tenant_id     String
+  wo_id         String
+  spare_part_id String
+  quantity_used Float
+  unit_cost     Float?
+  used_at       DateTime @default(now())
 
-  work_order        MaintenanceWorkOrder @relation(fields: [wo_id], references: [id])
-  spare_part        SparePart            @relation(fields: [spare_part_id], references: [id])
+  work_order MaintenanceWorkOrder @relation(fields: [wo_id], references: [id])
+  spare_part SparePart            @relation(fields: [spare_part_id], references: [id])
 
   @@map("spare_part_usage")
 }
 
 model FixedAsset {
-  id                    String   @id @default(uuid())
-  tenant_id             String
-  asset_code            String
-  asset_name            String
-  category              String   // machinery / die / vehicle / computer / furniture / other
-  purchase_value        Float
-  purchase_date         DateTime
-  useful_life_years     Int
-  salvage_value         Float    @default(0)
-  depreciation_method   String   @default("straight_line") // straight_line / wdv
-  annual_depreciation   Float?
-  monthly_depreciation  Float?
-  accumulated_depreciation Float  @default(0)
-  current_book_value    Float?
-  is_active             Boolean  @default(true)
-  notes                 String?
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
+  id                       String   @id @default(uuid())
+  tenant_id                String
+  asset_code               String
+  asset_name               String
+  category                 String // machinery / die / vehicle / computer / furniture / other
+  purchase_value           Float
+  purchase_date            DateTime
+  useful_life_years        Int
+  salvage_value            Float    @default(0)
+  depreciation_method      String   @default("straight_line") // straight_line / wdv
+  annual_depreciation      Float?
+  monthly_depreciation     Float?
+  accumulated_depreciation Float    @default(0)
+  current_book_value       Float?
+  is_active                Boolean  @default(true)
+  notes                    String?
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
 
   @@unique([tenant_id, asset_code])
   @@map("fixed_asset")
 }
 
 model LoanAccount {
-  id                String   @id @default(uuid())
-  tenant_id         String
-  loan_name         String
-  lender_name       String
-  loan_type         String   @default("term_loan") // term_loan / working_capital / overdraft
-  principal_amount  Float
+  id                 String    @id @default(uuid())
+  tenant_id          String
+  loan_name          String
+  lender_name        String
+  loan_type          String    @default("term_loan") // term_loan / working_capital / overdraft
+  principal_amount   Float
   outstanding_amount Float
-  interest_rate     Float
-  emi_amount        Float?
-  disbursement_date DateTime?
-  maturity_date     DateTime?
-  next_due_date     DateTime?
-  is_active         Boolean  @default(true)
-  notes             String?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  interest_rate      Float
+  emi_amount         Float?
+  disbursement_date  DateTime?
+  maturity_date      DateTime?
+  next_due_date      DateTime?
+  is_active          Boolean   @default(true)
+  notes              String?
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
 
   @@map("loan_account")
 }
 
 model QuarantineStock {
-  id                String   @id @default(uuid())
+  id                String    @id @default(uuid())
   tenant_id         String
   item_id           String
   grn_id            String
   grn_number        String
   quantity          Float
   rejection_reason  String?
-  disposition       String   @default("pending")
+  disposition       String    @default("pending")
   disposed_at       DateTime?
   disposed_by       String?
   disposition_notes String?
   supplier_id       String?
   batch_number      String?
-  source            String   @default("grn_rejection")
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  source            String    @default("grn_rejection")
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
 
-  item              ItemMaster @relation(fields: [item_id], references: [id])
+  item ItemMaster @relation(fields: [item_id], references: [id])
 
   @@map("quarantine_stock")
 }
 
 model POAmendmentLog {
-  id                String   @id @default(uuid())
-  tenant_id         String
-  po_id             String
-  po_number         String
-  revision_from     Int
-  revision_to       Int
-  amended_by        String?
-  amended_at        DateTime @default(now())
-  amendment_reason  String
-  changes_summary   String?
+  id               String   @id @default(uuid())
+  tenant_id        String
+  po_id            String
+  po_number        String
+  revision_from    Int
+  revision_to      Int
+  amended_by       String?
+  amended_at       DateTime @default(now())
+  amendment_reason String
+  changes_summary  String?
 
   @@map("po_amendment_log")
 }
 
 model FifoOverrideRequest {
-  id                String    @id @default(uuid())
-  tenant_id         String
-  item_id           String
-  requested_grn_id  String
-  available_grn_id  String
-  reason            String
-  status            String    @default("pending")
-  requested_by      String?
-  approved_by       String?
-  approved_at       DateTime?
-  rejection_note    String?
-  expires_at        DateTime
-  created_at        DateTime  @default(now())
-  item              ItemMaster @relation(fields: [item_id], references: [id])
+  id               String     @id @default(uuid())
+  tenant_id        String
+  item_id          String
+  requested_grn_id String
+  available_grn_id String
+  reason           String
+  status           String     @default("pending")
+  requested_by     String?
+  approved_by      String?
+  approved_at      DateTime?
+  rejection_note   String?
+  expires_at       DateTime
+  created_at       DateTime   @default(now())
+  item             ItemMaster @relation(fields: [item_id], references: [id])
+
   @@map("fifo_override_request")
 }
 
@@ -1540,7 +1577,7 @@ model FifoOverrideRequest {
 // ============================================================
 
 model Furnace {
-  id               String   @id @default(uuid())
+  id               String    @id @default(uuid())
   tenant_id        String
   furnace_number   String
   furnace_name     String
@@ -1549,13 +1586,14 @@ model Furnace {
   capacity_kg      Float?
   lining_material  String?
   lining_life_kg   Float?
-  total_kg_melted  Float    @default(0)
+  total_kg_melted  Float     @default(0)
   last_relining_at DateTime?
-  status           String   @default("active")
-  is_active        Boolean  @default(true)
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
-  tenant           Tenant   @relation(fields: [tenant_id], references: [id])
+  status           String    @default("active")
+  is_active        Boolean   @default(true)
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  tenant           Tenant    @relation(fields: [tenant_id], references: [id])
+
   @@unique([tenant_id, furnace_number])
   @@map("furnace")
 }
@@ -1589,65 +1627,66 @@ model AlloyGrade {
   is_active         Boolean  @default(true)
   created_at        DateTime @default(now())
   tenant            Tenant   @relation(fields: [tenant_id], references: [id])
+
   @@unique([tenant_id, grade_code])
   @@map("alloy_grade")
 }
 
 model MeltChargeRecord {
-  id                    String   @id @default(uuid())
-  tenant_id             String
-  melt_lot_number       String
-  furnace_id            String
-  alloy_spec_id         String?
-  mwo_id                String?
-  shift                 String?
-  charge_date           DateTime
-  charging_start_at     DateTime?
-  charging_end_at       DateTime?
-  melting_start_at      DateTime?
-  melting_end_at        DateTime?
-  degassing_start_at    DateTime?
-  degassing_end_at      DateTime?
-  transfer_start_at     DateTime?
-  transfer_end_at       DateTime?
-  ready_at              DateTime?   // when melt is ready for transfer
+  id                      String                @id @default(uuid())
+  tenant_id               String
+  melt_lot_number         String
+  furnace_id              String
+  alloy_spec_id           String?
+  mwo_id                  String?
+  shift                   String?
+  charge_date             DateTime
+  charging_start_at       DateTime?
+  charging_end_at         DateTime?
+  melting_start_at        DateTime?
+  melting_end_at          DateTime?
+  degassing_start_at      DateTime?
+  degassing_end_at        DateTime?
+  transfer_start_at       DateTime?
+  transfer_end_at         DateTime?
+  ready_at                DateTime? // when melt is ready for transfer
   // Holding time = ready_at to transfer_start_at (calculated)
   // Ladle details
-  ladle_number          String?
-  ladle_preheat_temp    Float?
-  ladle_capacity_kg     Float?
+  ladle_number            String?
+  ladle_preheat_temp      Float?
+  ladle_capacity_kg       Float?
   // Metal accounting
-  metal_ready_kg        Float?      // metal available after dross removal
-  metal_spillage_kg     Float?      // spillage/ladle residue loss
+  metal_ready_kg          Float? // metal available after dross removal
+  metal_spillage_kg       Float? // spillage/ladle residue loss
   // metal_transferred_kg already exists
   // Furnace condition
-  lining_condition      String?     // good / fair / poor
+  lining_condition        String? // good / fair / poor
   // Energy
-  energy_consumed       Float?      // kWh or gas units
-  energy_unit           String?     // kWh / m3 / litre
+  energy_consumed         Float? // kWh or gas units
+  energy_unit             String? // kWh / m3 / litre
   // Ambient conditions
-  ambient_temp_c        Float?
-  ambient_humidity_pct  Float?
+  ambient_temp_c          Float?
+  ambient_humidity_pct    Float?
   // Crew
-  helper_1_id           String?
-  helper_2_id           String?
-  fresh_ingot_weight    Float    @default(0)
-  return_scrap_weight   Float    @default(0)
-  total_charge_weight   Float    @default(0)
-  flux_type             String?
-  flux_quantity_kg      Float?
-  degassing_method      String?
-  degassing_medium      String?
-  degassing_duration_min Float?
-  dross_weight_kg       Float?
-  metal_transferred_kg  Float?
-  yield_percent         Float?
+  helper_1_id             String?
+  helper_2_id             String?
+  fresh_ingot_weight      Float                 @default(0)
+  return_scrap_weight     Float                 @default(0)
+  total_charge_weight     Float                 @default(0)
+  flux_type               String?
+  flux_quantity_kg        Float?
+  degassing_method        String?
+  degassing_medium        String?
+  degassing_duration_min  Float?
+  dross_weight_kg         Float?
+  metal_transferred_kg    Float?
+  yield_percent           Float?
   temp_at_melt_complete   Float?
   temp_at_degassing_start Float?
   temp_at_degassing_end   Float?
   temp_at_transfer        Float?
   temp_instrument         String?
-  chemistry_checked       Boolean  @default(false)
+  chemistry_checked       Boolean               @default(false)
   chemistry_method        String?
   si_actual               Float?
   cu_actual               Float?
@@ -1662,80 +1701,84 @@ model MeltChargeRecord {
   chemistry_status        String?
   transfer_to_type        String?
   transfer_to_id          String?
-  status                  String   @default("charging")
+  status                  String                @default("charging")
   operator_id             String?
   approved_by             String?
   approved_at             DateTime?
   rejection_reason        String?
   notes                   String?
-  created_at              DateTime @default(now())
-  updated_at              DateTime @updatedAt
-  tenant                  Tenant           @relation(fields: [tenant_id], references: [id])
-  furnace                 MachineMaster    @relation("FurnaceMelts", fields: [furnace_id], references: [id])
-  alloy_spec              ItemAlloySpec?   @relation(fields: [alloy_spec_id], references: [id])
-  mwo                     MeltWorkOrder?   @relation(fields: [mwo_id], references: [id])
+  created_at              DateTime              @default(now())
+  updated_at              DateTime              @updatedAt
+  tenant                  Tenant                @relation(fields: [tenant_id], references: [id])
+  furnace                 MachineMaster         @relation("FurnaceMelts", fields: [furnace_id], references: [id])
+  alloy_spec              ItemAlloySpec?        @relation(fields: [alloy_spec_id], references: [id])
+  mwo                     MeltWorkOrder?        @relation(fields: [mwo_id], references: [id])
   charge_lines            MeltChargeLine[]
   return_scrap_lines      MeltReturnScrapLine[]
   temp_readings           MeltTemperatureLog[]
   chemistry_readings      MeltChemistryLog[]
   shot_links              MeltShotLink[]
   material_issues         MaterialIssue[]
+
   @@unique([tenant_id, melt_lot_number])
   @@map("melt_charge_record")
 }
 
 model MeltChargeLine {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  melt_id         String
-  batch_number    String?
-  grn_id          String?
-  item_id         String
-  weight_charged  Float
-  uom             String   @default("KG")
-  sequence        Int      @default(1)
-  created_at      DateTime @default(now())
-  melt            MeltChargeRecord @relation(fields: [melt_id], references: [id])
-  item            ItemMaster       @relation(fields: [item_id], references: [id])
+  id             String           @id @default(uuid())
+  tenant_id      String
+  melt_id        String
+  batch_number   String?
+  grn_id         String?
+  item_id        String
+  weight_charged Float
+  uom            String           @default("KG")
+  sequence       Int              @default(1)
+  created_at     DateTime         @default(now())
+  melt           MeltChargeRecord @relation(fields: [melt_id], references: [id])
+  item           ItemMaster       @relation(fields: [item_id], references: [id])
+
   @@map("melt_charge_line")
 }
 
 model MeltReturnScrapLine {
-  id              String   @id @default(uuid())
-  tenant_id       String
-  melt_id         String
-  scrap_type      String
-  alloy_grade     String?
-  weight_kg       Float
-  source_job_id   String?
-  notes           String?
-  created_at      DateTime @default(now())
-  melt            MeltChargeRecord @relation(fields: [melt_id], references: [id])
+  id            String           @id @default(uuid())
+  tenant_id     String
+  melt_id       String
+  scrap_type    String
+  alloy_grade   String?
+  weight_kg     Float
+  source_job_id String?
+  notes         String?
+  created_at    DateTime         @default(now())
+  melt          MeltChargeRecord @relation(fields: [melt_id], references: [id])
+
   @@map("melt_return_scrap_line")
 }
 
 model MeltTemperatureLog {
-  id               String   @id @default(uuid())
+  id               String           @id @default(uuid())
   tenant_id        String
   melt_id          String
   stage            String
   temperature      Float
-  unit             String   @default("C")
+  unit             String           @default("C")
   instrument_type  String?
   instrument_id    String?
   recorded_by      String?
-  recorded_at      DateTime @default(now())
-  is_out_of_spec   Boolean  @default(false)
+  recorded_at      DateTime         @default(now())
+  is_out_of_spec   Boolean          @default(false)
   deviation_action String?
   melt             MeltChargeRecord @relation(fields: [melt_id], references: [id])
+
   @@map("melt_temperature_log")
 }
 
 model MeltChemistryLog {
-  id                String   @id @default(uuid())
+  id                String           @id @default(uuid())
   tenant_id         String
   melt_id           String
-  sample_number     Int      @default(1)
+  sample_number     Int              @default(1)
   method            String
   instrument_id     String?
   si                Float?
@@ -1752,24 +1795,26 @@ model MeltChemistryLog {
   status            String
   corrective_action String?
   recorded_by       String?
-  recorded_at       DateTime @default(now())
+  recorded_at       DateTime         @default(now())
   melt              MeltChargeRecord @relation(fields: [melt_id], references: [id])
+
   @@map("melt_chemistry_log")
 }
 
 model MeltShotLink {
-  id             String   @id @default(uuid())
-  tenant_id      String
-  melt_id        String
-  shot_id        String?
-  metal_used_kg  Float
-  created_at     DateTime @default(now())
-  melt           MeltChargeRecord @relation(fields: [melt_id], references: [id])
+  id            String           @id @default(uuid())
+  tenant_id     String
+  melt_id       String
+  shot_id       String?
+  metal_used_kg Float
+  created_at    DateTime         @default(now())
+  melt          MeltChargeRecord @relation(fields: [melt_id], references: [id])
+
   @@map("melt_shot_link")
 }
 
 model MeltWorkOrder {
-  id                    String   @id @default(uuid())
+  id                    String                @id @default(uuid())
   tenant_id             String
   mwo_number            String
   furnace_id            String
@@ -1783,33 +1828,33 @@ model MeltWorkOrder {
   released_by           String?
   released_at           DateTime?
   notes                 String?
-  status                String   @default("planned")
+  status                String                @default("planned")
   // planned / released / in_progress / completed / cancelled
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
-  tenant                Tenant           @relation(fields: [tenant_id], references: [id])
-  furnace               MachineMaster    @relation("FurnaceMWOs", fields: [furnace_id], references: [id])
-  alloy_spec            ItemAlloySpec?   @relation(fields: [alloy_spec_id], references: [id])
-  cost_centre           CostCentre?      @relation(fields: [cost_centre_id], references: [id])
+  created_at            DateTime              @default(now())
+  updated_at            DateTime              @updatedAt
+  tenant                Tenant                @relation(fields: [tenant_id], references: [id])
+  furnace               MachineMaster         @relation("FurnaceMWOs", fields: [furnace_id], references: [id])
+  alloy_spec            ItemAlloySpec?        @relation(fields: [alloy_spec_id], references: [id])
+  cost_centre           CostCentre?           @relation(fields: [cost_centre_id], references: [id])
   material_issues       MaterialIssue[]
   issue_groups          MaterialIssueGroup[]
   melt_records          MeltChargeRecord[]
   material_requisitions MaterialRequisition[]
+
   @@unique([tenant_id, mwo_number])
   @@map("melt_work_order")
 }
 
-
 model MaterialRequisition {
-  id                  String   @id @default(uuid())
+  id                  String                    @id @default(uuid())
   tenant_id           String
   mr_number           String
   raised_by_dept      String
   raised_by           String
   required_by_date    DateTime
-  priority            String   @default("normal")
-  requisition_type    String   @default("direct")
-  status              String   @default("draft")
+  priority            String                    @default("normal")
+  requisition_type    String                    @default("direct")
+  status              String                    @default("draft")
   notes               String?
   mwo_id              String?
   acknowledged_by     String?
@@ -1818,84 +1863,110 @@ model MaterialRequisition {
   cancelled_by        String?
   cancelled_at        DateTime?
   cancellation_reason String?
-  created_at          DateTime @default(now())
-  updated_at          DateTime @updatedAt
-  tenant              Tenant              @relation(fields: [tenant_id], references: [id])
-  mwo                 MeltWorkOrder?      @relation(fields: [mwo_id], references: [id])
+  created_at          DateTime                  @default(now())
+  updated_at          DateTime                  @updatedAt
+  tenant              Tenant                    @relation(fields: [tenant_id], references: [id])
+  mwo                 MeltWorkOrder?            @relation(fields: [mwo_id], references: [id])
   lines               MaterialRequisitionLine[]
+
   @@unique([tenant_id, mr_number])
   @@map("material_requisition")
 }
 
 model MaterialRequisitionLine {
-  id                  String   @id @default(uuid())
-  tenant_id           String
-  mr_id               String
-  item_id             String
-  quantity_required   Float
-  quantity_fulfilled  Float    @default(0)
-  unit_of_measure     String
-  notes               String?
-  status              String   @default("open")
-  created_at          DateTime @default(now())
-  updated_at          DateTime @updatedAt
-  mr                  MaterialRequisition      @relation(fields: [mr_id], references: [id])
-  item                ItemMaster               @relation(fields: [item_id], references: [id])
-  pr_lines            PurchaseRequisitionLine[]
+  id                 String                    @id @default(uuid())
+  tenant_id          String
+  mr_id              String
+  item_id            String
+  quantity_required  Float
+  quantity_fulfilled Float                     @default(0)
+  unit_of_measure    String
+  notes              String?
+  status             String                    @default("open")
+  created_at         DateTime                  @default(now())
+  updated_at         DateTime                  @updatedAt
+  mr                 MaterialRequisition       @relation(fields: [mr_id], references: [id])
+  item               ItemMaster                @relation(fields: [item_id], references: [id])
+  pr_lines           PurchaseRequisitionLine[]
+
   @@map("material_requisition_line")
 }
 
 model PurchaseRequisition {
-  id               String   @id @default(uuid())
+  id               String                    @id @default(uuid())
   tenant_id        String
   pr_number        String
   raised_by        String
   required_by_date DateTime
-  priority         String   @default("normal")
-  status           String   @default("open")
+  priority         String                    @default("normal")
+  status           String                    @default("open")
   notes            String?
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
-  tenant           Tenant   @relation(fields: [tenant_id], references: [id])
+  created_at       DateTime                  @default(now())
+  updated_at       DateTime                  @updatedAt
+  tenant           Tenant                    @relation(fields: [tenant_id], references: [id])
   lines            PurchaseRequisitionLine[]
+
   @@unique([tenant_id, pr_number])
   @@map("purchase_requisition")
 }
 
 model PurchaseRequisitionLine {
-  id                    String   @id @default(uuid())
+  id                    String                   @id @default(uuid())
   tenant_id             String
   pr_id                 String
   mr_line_id            String?
   item_id               String
   quantity_required     Float
-  quantity_on_po        Float    @default(0)
+  quantity_on_po        Float                    @default(0)
   unit_of_measure       String
   preferred_supplier_id String?
   notes                 String?
-  status                String   @default("open")
-  created_at            DateTime @default(now())
-  updated_at            DateTime @updatedAt
+  status                String                   @default("open")
+  created_at            DateTime                 @default(now())
+  updated_at            DateTime                 @updatedAt
   pr                    PurchaseRequisition      @relation(fields: [pr_id], references: [id])
   mr_line               MaterialRequisitionLine? @relation(fields: [mr_line_id], references: [id])
   item                  ItemMaster               @relation(fields: [item_id], references: [id])
+
   @@map("purchase_requisition_line")
 }
 
 model CostCentre {
-  id           String   @id @default(uuid())
-  tenant_id    String
-  code         String
-  name         String
-  type         String
-  machine_id   String?
-  is_active    Boolean  @default(true)
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  tenant           Tenant         @relation(fields: [tenant_id], references: [id])
-  machine          MachineMaster? @relation(fields: [machine_id], references: [id])
+  id               String          @id @default(uuid())
+  tenant_id        String
+  code             String
+  name             String
+  type             String
+  machine_id       String?
+  department_head  String?
+  budget_monthly   Float?
+  is_active        Boolean         @default(true)
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+  tenant           Tenant          @relation(fields: [tenant_id], references: [id])
+  machine          MachineMaster?  @relation(fields: [machine_id], references: [id])
   melt_work_orders MeltWorkOrder[]
   material_issues  MaterialIssue[]
+
   @@unique([tenant_id, code])
   @@map("cost_centre")
+}
+
+model PaymentTerms {
+  id               String           @id @default(uuid())
+  tenant_id        String
+  code             String
+  description      String
+  days             Int
+  discount_percent Float?           @default(0)
+  discount_days    Int?
+  is_active        Boolean          @default(true)
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+  tenant           Tenant           @relation(fields: [tenant_id], references: [id])
+  suppliers        SupplierMaster[]
+  purchase_orders  PurchaseOrder[]
+
+  @@unique([tenant_id, code])
+  @@map("payment_terms")
 }
