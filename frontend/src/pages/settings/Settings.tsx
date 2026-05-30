@@ -1400,7 +1400,7 @@ const DeactivateModal: React.FC<{ entity_type: string; record: any; onClose: () 
   const isActive = record.is_active;
   const endpointMap: Record<string, string> = {
     supplier: 'suppliers', item: 'items', customer: 'customers', vendor: 'vendors',
-    machine: 'machines', die: 'dies', location: 'locations', cost_centre: 'cost-centres', payment_terms: 'payment-terms'
+    machine: 'machines', die: 'dies', location: 'locations', cost_centre: 'cost-centres', payment_terms: 'payment-terms', alloy_spec: 'melt/alloy-grades'
   };
   const mutation = useMutation({
     mutationFn: () => api.patch(`/api/${endpointMap[entity_type]}/${record.id}/status`, { reason }),
