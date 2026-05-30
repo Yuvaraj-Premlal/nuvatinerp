@@ -7,7 +7,7 @@ export const getDies = async (req: AuthRequest, res: Response) => {
     const tenant_id = req.user?.tenant_id as string;
     const dies = await prisma.dieMaster.findMany({
       where: { tenant_id },
-      include: { item: { select: { item_name: true, item_code: true } } },
+
       orderBy: { die_number: 'asc' }
     });
     res.json({ success: true, data: dies });
@@ -30,6 +30,22 @@ export const createDie = async (req: AuthRequest, res: Response) => {
       }
     });
     res.status(201).json({ success: true, data: die });
+  } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
+};
+
+export const getDieById = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const die = await prisma.dieMaster.findUnique({ where: { id } });
+    res.json({ success: true, data: die });
+  } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
+};
+
+export const updateDieStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const die = await prisma.dieMaster.update({ where: { id }, data: { current_status: req.body.status } });
+    res.json({ success: true, data: die });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };
 
