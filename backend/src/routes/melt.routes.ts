@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware';
 import {
   getFurnaces, createFurnace, updateFurnace,
-  getAlloySpecs, createAlloySpec, updateAlloySpec,
+  getAlloySpecs, createAlloySpec, updateAlloySpec, toggleAlloySpecStatus,
   getMeltRecords, getMeltRecord, createMeltRecord, updateMeltStatus,
   addTemperatureLog, addChemistryLog
 } from '../controllers/melt.controller';
@@ -16,6 +16,7 @@ router.put('/furnaces/:id', authenticate, updateFurnace);
 router.get('/alloy-grades', authenticate, getAlloySpecs);
 router.post('/alloy-grades', authenticate, createAlloySpec);
 router.put('/alloy-grades/:id', authenticate, updateAlloySpec);
+router.patch('/alloy-grades/:id/status', authenticate, toggleAlloySpecStatus);
 
 router.get('/records', authenticate, getMeltRecords);
 router.get('/records/:id', authenticate, getMeltRecord);
