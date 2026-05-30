@@ -801,73 +801,42 @@ const Settings: React.FC = () => {
       </div>
 
       {activeSection === 'items' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm font-medium text-text-primary">Item Master</p>
-            <button onClick={() => setShowItemModal(true)} className="text-sm bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add Item</button>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
-              <thead><tr className="bg-brand-light">
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Code</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Name</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Type</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Category</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">UOM</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">HSN</th>
-                <th className="text-right px-4 py-3 text-brand-primary font-medium">Std Cost</th>
-                <th className="text-center px-4 py-3 text-brand-primary font-medium">P.Type</th>
-              </tr></thead>
-              <tbody>
-                {items?.map((item: any, i: number) => (
-                  <tr key={item.id} className={`border-t border-border ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
-                    <td className="px-4 py-3 font-medium text-brand-primary text-xs">{item.item_code}</td>
-                    <td className="px-4 py-3 text-text-primary text-xs">{item.item_name}</td>
-                    <td className="px-4 py-3 text-xs"><span className="px-2 py-0.5 rounded-full bg-surface border border-border">{item.item_type}</span></td>
-                    <td className="px-4 py-3 text-xs text-text-secondary">{item.item_category || '—'}</td>
-                    <td className="px-4 py-3 text-xs">{item.unit_of_measure}</td>
-                    <td className="px-4 py-3 text-xs text-text-secondary">{item.hsn_code || '—'}</td>
-                    <td className="px-4 py-3 text-xs text-right">₹{item.benchmark_cost || '—'}</td>
-                    <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-0.5 rounded-full ${item.purchase_type === 'indirect' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>{item.purchase_type || 'direct'}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {(!items || items.length === 0) && <div className="text-center py-12 text-text-secondary">No items defined yet</div>}
-          </div>
-        </div>
+        <MasterTable
+          title="Item Master"
+          data={items || []}
+          columns={[
+            { key: 'item_code', label: 'Code' },
+            { key: 'item_name', label: 'Name' },
+            { key: 'item_type', label: 'Type' },
+            { key: 'item_category', label: 'Category' },
+            { key: 'unit_of_measure', label: 'UOM' },
+            { key: 'benchmark_cost', label: 'Benchmark Cost' },
+            { key: 'is_active', label: 'Status' }
+          ]}
+          onAdd={() => setShowItemModal(true)}
+          onEdit={row => setEditItem(row)}
+          onHistory={row => { setHistoryRecord(row); setHistoryType('item'); }}
+          onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('item'); }}
+          onView={row => setViewItem(row)}
+        />
       )}
 
       {activeSection === 'payment_terms' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm font-medium text-text-primary">Payment Terms</p>
-            <button onClick={() => setShowPaymentTermsModal(true)} className="text-sm bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add Terms</button>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
-              <thead><tr className="bg-brand-light">
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Code</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Description</th>
-                <th className="text-center px-4 py-3 text-brand-primary font-medium">Days</th>
-                <th className="text-center px-4 py-3 text-brand-primary font-medium">Discount %</th>
-                <th className="text-center px-4 py-3 text-brand-primary font-medium">Discount Days</th>
-              </tr></thead>
-              <tbody>
-                {paymentTermsList?.map((pt: any, i: number) => (
-                  <tr key={pt.id} className={`border-t border-border ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
-                    <td className="px-4 py-3 font-medium text-brand-primary text-xs">{pt.code}</td>
-                    <td className="px-4 py-3 text-xs">{pt.description}</td>
-                    <td className="px-4 py-3 text-xs text-center font-medium">{pt.days}</td>
-                    <td className="px-4 py-3 text-xs text-center">{pt.discount_percent ? `${pt.discount_percent}%` : '—'}</td>
-                    <td className="px-4 py-3 text-xs text-center">{pt.discount_days || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {(!paymentTermsList || paymentTermsList.length === 0) && <div className="text-center py-12 text-text-secondary">No payment terms defined yet</div>}
-          </div>
-        </div>
+        <MasterTable
+          title="Payment Terms"
+          data={paymentTermsList || []}
+          columns={[
+            { key: 'code', label: 'Code' },
+            { key: 'description', label: 'Description' },
+            { key: 'days', label: 'Days' },
+            { key: 'discount_percent', label: 'Discount %' },
+            { key: 'is_active', label: 'Status' }
+          ]}
+          onAdd={() => setShowPaymentTermsModal(true)}
+          onEdit={row => setEditPaymentTerms(row)}
+          onHistory={row => { setHistoryRecord(row); setHistoryType('payment_terms'); }}
+          onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('payment_terms'); }}
+        />
       )}
 
       {activeSection === 'suppliers' && (
@@ -995,35 +964,21 @@ const Settings: React.FC = () => {
       )}
 
       {activeSection === 'cost_centres' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm font-medium text-text-primary">Cost Centres</p>
-            <button onClick={() => setShowCostCentreModal(true)} className="text-sm bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add Cost Centre</button>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
-              <thead><tr className="bg-brand-light">
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Code</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Name</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Type</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Linked Machine</th>
-                <th className="text-left px-4 py-3 text-brand-primary font-medium">Budget/Month</th>
-              </tr></thead>
-              <tbody>
-                {costCentres?.map((cc: any, i: number) => (
-                  <tr key={cc.id} className={`border-t border-border ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
-                    <td className="px-4 py-3 font-medium text-brand-primary">{cc.code}</td>
-                    <td className="px-4 py-3 text-text-primary">{cc.name}</td>
-                    <td className="px-4 py-3"><span className="text-xs px-2 py-0.5 rounded-full bg-surface border border-border capitalize">{cc.type}</span></td>
-                    <td className="px-4 py-3 text-xs text-text-secondary">{cc.machine ? `${cc.machine.machine_code} — ${cc.machine.machine_name}` : '—'}</td>
-                    <td className="px-4 py-3 text-xs">{cc.budget_monthly ? `₹${cc.budget_monthly.toLocaleString('en-IN')}` : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {(!costCentres || costCentres.length === 0) && <div className="text-center py-12 text-text-secondary">No cost centres defined yet</div>}
-          </div>
-        </div>
+        <MasterTable
+          title="Cost Centres"
+          data={costCentres || []}
+          columns={[
+            { key: 'code', label: 'Code' },
+            { key: 'name', label: 'Name' },
+            { key: 'type', label: 'Type' },
+            { key: 'budget_monthly', label: 'Budget/Month' },
+            { key: 'is_active', label: 'Status' }
+          ]}
+          onAdd={() => setShowCostCentreModal(true)}
+          onEdit={row => setEditCostCentre(row)}
+          onHistory={row => { setHistoryRecord(row); setHistoryType('cost_centre'); }}
+          onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('cost_centre'); }}
+        />
       )}
 
       {activeSection === 'alloy_specs' && (
