@@ -157,6 +157,7 @@ model ItemAlloySpec {
   ti_max            Float?
   pb_min            Float?
   pb_max            Float?
+  is_active         Boolean            @default(true)
   melt_temp_min     Float?
   melt_temp_max     Float?
   transfer_temp_min Float?
