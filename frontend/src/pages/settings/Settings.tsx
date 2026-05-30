@@ -811,6 +811,9 @@ const Settings: React.FC = () => {
   const [showVendorModal, setShowVendorModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showAlloySpecModal, setShowAlloySpecModal] = useState(false);
+  const [showCostCentreModal, setShowCostCentreModal] = useState(false);
+  const [showItemModal, setShowItemModal] = useState(false);
+  const [showPaymentTermsModal, setShowPaymentTermsModal] = useState(false);
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/suppliers').then(r => r.data.data) });
   const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
@@ -819,6 +822,9 @@ const Settings: React.FC = () => {
   const { data: vendors } = useQuery({ queryKey: ['vendors'], queryFn: () => api.get('/api/vendors').then(r => r.data.data) });
   const { data: locations } = useQuery({ queryKey: ['locations'], queryFn: () => api.get('/api/locations').then(r => r.data.data) });
   const { data: alloySpecs } = useQuery({ queryKey: ['alloyGrades'], queryFn: () => api.get('/api/melt/alloy-grades').then(r => r.data.data) });
+  const { data: costCentres } = useQuery({ queryKey: ['costCentres'], queryFn: () => api.get('/api/cost-centres').then(r => r.data.data) });
+  const { data: paymentTermsList } = useQuery({ queryKey: ['paymentTerms'], queryFn: () => api.get('/api/payment-terms').then(r => r.data.data) });
+  const { data: items } = useQuery({ queryKey: ['items'], queryFn: () => api.get('/api/items').then(r => r.data.data) });
 
   const sections = [
     { id: 'items', label: 'Items' },
