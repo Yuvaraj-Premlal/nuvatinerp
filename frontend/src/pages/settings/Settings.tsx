@@ -4,18 +4,26 @@ import api from '../../services/api';
 
 const AddSupplierModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<any>({
     supplier_code: '',
     supplier_name: '',
+    supplier_type: 'direct',
     contact_person: '',
-    email: '',
-    phone: '',
+    contact_email: '',
+    contact_phone: '',
     address: '',
     city: '',
     state: '',
     gstin: '',
-    payment_terms: 'Net 30',
-    lead_time_days: ''
+    payment_terms: '',
+    payment_days: '30',
+    credit_limit: '',
+    lead_time_days: '',
+    moq: '',
+    bank_name: '',
+    bank_account: '',
+    bank_ifsc: '',
+    rating: ''
   });
 
   const mutation = useMutation({
@@ -30,7 +38,11 @@ const AddSupplierModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     e.preventDefault();
     mutation.mutate({
       ...form,
-      lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days) : null
+      lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days) : null,
+      payment_days: form.payment_days ? parseInt(form.payment_days) : 30,
+      credit_limit: form.credit_limit ? parseFloat(form.credit_limit) : null,
+      moq: form.moq ? parseFloat(form.moq) : null,
+      rating: form.rating ? parseFloat(form.rating) : null
     });
   };
 
@@ -94,6 +106,38 @@ const AddSupplierModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <label className="block text-sm font-medium text-text-primary mb-1">Lead Time (days)</label>
               <input type="number" value={form.lead_time_days} onChange={e => setForm({ ...form, lead_time_days: e.target.value })}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Supplier Type</label>
+              <select value={form.supplier_type} onChange={e => setForm({ ...form, supplier_type: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary">
+                <option value="direct">Direct (production material)</option>
+                <option value="indirect">Indirect (consumables/services)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Credit Limit (₹)</label>
+              <input type="number" value={form.credit_limit} onChange={e => setForm({ ...form, credit_limit: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">Rating (1-5)</label>
+              <input type="number" min="1" max="5" step="0.1" value={form.rating} onChange={e => setForm({ ...form, rating: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+            </div>
+          </div>
+          <div className="border-t border-border pt-3">
+            <p className="text-sm font-medium text-text-primary mb-2">Bank Details</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div><label className="block text-xs text-text-secondary mb-1">Bank Name</label>
+                <input value={form.bank_name} onChange={e => setForm({...form, bank_name: e.target.value})}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" /></div>
+              <div><label className="block text-xs text-text-secondary mb-1">Account No</label>
+                <input value={form.bank_account} onChange={e => setForm({...form, bank_account: e.target.value})}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" /></div>
+              <div><label className="block text-xs text-text-secondary mb-1">IFSC Code</label>
+                <input value={form.bank_ifsc} onChange={e => setForm({...form, bank_ifsc: e.target.value.toUpperCase()})}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" /></div>
             </div>
           </div>
           <div>
@@ -777,15 +821,18 @@ const Settings: React.FC = () => {
   const { data: alloySpecs } = useQuery({ queryKey: ['alloyGrades'], queryFn: () => api.get('/api/melt/alloy-grades').then(r => r.data.data) });
 
   const sections = [
+    { id: 'items', label: 'Items' },
     { id: 'suppliers', label: 'Suppliers' },
+    { id: 'payment_terms', label: 'Payment Terms' },
     { id: 'machines', label: 'Machines' },
+    { id: 'locations', label: 'Locations' },
+    { id: 'alloy_specs', label: 'Alloy Specs' },
+    { id: 'cost_centres', label: 'Cost Centres' },
     { id: 'dies', label: 'Dies' },
     { id: 'customers', label: 'Customers' },
     { id: 'vendors', label: 'Vendors' },
     { id: 'cost', label: 'Cost Config' },
-    { id: 'toc', label: 'TOC Config' },
-    { id: 'locations', label: 'Locations' },
-    { id: 'alloy_specs', label: 'Alloy Specs' }
+    { id: 'toc', label: 'TOC Config' }
   ];
 
   return (
@@ -818,6 +865,76 @@ const Settings: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {activeSection === 'items' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-sm font-medium text-text-primary">Item Master</p>
+            <button onClick={() => setShowItemModal(true)} className="text-sm bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add Item</button>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead><tr className="bg-brand-light">
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Code</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Name</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Type</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Category</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">UOM</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">HSN</th>
+                <th className="text-right px-4 py-3 text-brand-primary font-medium">Std Cost</th>
+                <th className="text-center px-4 py-3 text-brand-primary font-medium">P.Type</th>
+              </tr></thead>
+              <tbody>
+                {items?.map((item: any, i: number) => (
+                  <tr key={item.id} className={`border-t border-border ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
+                    <td className="px-4 py-3 font-medium text-brand-primary text-xs">{item.item_code}</td>
+                    <td className="px-4 py-3 text-text-primary text-xs">{item.item_name}</td>
+                    <td className="px-4 py-3 text-xs"><span className="px-2 py-0.5 rounded-full bg-surface border border-border">{item.item_type}</span></td>
+                    <td className="px-4 py-3 text-xs text-text-secondary">{item.item_category || '—'}</td>
+                    <td className="px-4 py-3 text-xs">{item.unit_of_measure}</td>
+                    <td className="px-4 py-3 text-xs text-text-secondary">{item.hsn_code || '—'}</td>
+                    <td className="px-4 py-3 text-xs text-right">₹{item.standard_cost || item.material_cost || '—'}</td>
+                    <td className="px-4 py-3 text-center"><span className={`text-xs px-2 py-0.5 rounded-full ${item.purchase_type === 'indirect' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>{item.purchase_type || 'direct'}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {(!items || items.length === 0) && <div className="text-center py-12 text-text-secondary">No items defined yet</div>}
+          </div>
+        </div>
+      )}
+
+      {activeSection === 'payment_terms' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <p className="text-sm font-medium text-text-primary">Payment Terms</p>
+            <button onClick={() => setShowPaymentTermsModal(true)} className="text-sm bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add Terms</button>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead><tr className="bg-brand-light">
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Code</th>
+                <th className="text-left px-4 py-3 text-brand-primary font-medium">Description</th>
+                <th className="text-center px-4 py-3 text-brand-primary font-medium">Days</th>
+                <th className="text-center px-4 py-3 text-brand-primary font-medium">Discount %</th>
+                <th className="text-center px-4 py-3 text-brand-primary font-medium">Discount Days</th>
+              </tr></thead>
+              <tbody>
+                {paymentTermsList?.map((pt: any, i: number) => (
+                  <tr key={pt.id} className={`border-t border-border ${i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
+                    <td className="px-4 py-3 font-medium text-brand-primary text-xs">{pt.code}</td>
+                    <td className="px-4 py-3 text-xs">{pt.description}</td>
+                    <td className="px-4 py-3 text-xs text-center font-medium">{pt.days}</td>
+                    <td className="px-4 py-3 text-xs text-center">{pt.discount_percent ? `${pt.discount_percent}%` : '—'}</td>
+                    <td className="px-4 py-3 text-xs text-center">{pt.discount_days || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {(!paymentTermsList || paymentTermsList.length === 0) && <div className="text-center py-12 text-text-secondary">No payment terms defined yet</div>}
+          </div>
+        </div>
+      )}
 
       {activeSection === 'suppliers' && (
         <MasterTable
@@ -1162,6 +1279,127 @@ const AddCostCentreModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               disabled={!form.code || !form.name || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Adding...' : 'Add Cost Centre'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AddItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<any>({
+    item_code: '', item_name: '', item_type: 'raw_material', item_category: '',
+    unit_of_measure: 'KG', hsn_code: '', purchase_type: 'direct',
+    standard_cost: '', material_cost: '', selling_price: '',
+    reorder_point: '', safety_stock: '', order_quantity: '', description: ''
+  });
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.post('/api/items', d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['items'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h2 className="font-bold text-text-primary">Add Item</h2>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-xs text-text-secondary mb-1">Item Code <span className="text-red-500">*</span></label>
+              <input value={form.item_code} onChange={e => setForm({...form, item_code: e.target.value.toUpperCase()})} className={cls} placeholder="e.g. RM-ADC12" required /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Item Name <span className="text-red-500">*</span></label>
+              <input value={form.item_name} onChange={e => setForm({...form, item_name: e.target.value})} className={cls} required /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Item Type <span className="text-red-500">*</span></label>
+              <select value={form.item_type} onChange={e => setForm({...form, item_type: e.target.value})} className={cls}>
+                {['raw_material','finished_goods','semi_finished','consumable','spare','tool','packaging'].map(t => <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
+              </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Category</label>
+              <input value={form.item_category} onChange={e => setForm({...form, item_category: e.target.value})} className={cls} placeholder="e.g. alloy, fastener" /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Unit of Measure <span className="text-red-500">*</span></label>
+              <select value={form.unit_of_measure} onChange={e => setForm({...form, unit_of_measure: e.target.value})} className={cls}>
+                {['KG','NOS','LTR','MTR','SQM','SET','BOX','PKT'].map(u => <option key={u} value={u}>{u}</option>)}
+              </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">HSN Code</label>
+              <input value={form.hsn_code} onChange={e => setForm({...form, hsn_code: e.target.value})} className={cls} placeholder="e.g. 76029000" /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Purchase Type</label>
+              <select value={form.purchase_type} onChange={e => setForm({...form, purchase_type: e.target.value})} className={cls}>
+                <option value="direct">Direct (production material)</option>
+                <option value="indirect">Indirect (consumable/overhead)</option>
+              </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Standard Cost (₹)</label>
+              <input type="number" value={form.standard_cost} onChange={e => setForm({...form, standard_cost: e.target.value})} className={cls} placeholder="per UOM" /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Material Cost (₹)</label>
+              <input type="number" value={form.material_cost} onChange={e => setForm({...form, material_cost: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Selling Price (₹)</label>
+              <input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} className={cls} /></div>
+          </div>
+          <div className="border-t border-border pt-3">
+            <p className="text-xs font-medium text-text-primary mb-2">Stock Control</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div><label className="block text-xs text-text-secondary mb-1">Reorder Point</label>
+                <input type="number" value={form.reorder_point} onChange={e => setForm({...form, reorder_point: e.target.value})} className={cls} /></div>
+              <div><label className="block text-xs text-text-secondary mb-1">Safety Stock</label>
+                <input type="number" value={form.safety_stock} onChange={e => setForm({...form, safety_stock: e.target.value})} className={cls} /></div>
+              <div><label className="block text-xs text-text-secondary mb-1">Order Quantity</label>
+                <input type="number" value={form.order_quantity} onChange={e => setForm({...form, order_quantity: e.target.value})} className={cls} /></div>
+            </div>
+          </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Description</label>
+            <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className={cls} rows={2} /></div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to add item</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({...form, standard_cost: form.standard_cost ? parseFloat(form.standard_cost) : null, material_cost: form.material_cost ? parseFloat(form.material_cost) : null, selling_price: form.selling_price ? parseFloat(form.selling_price) : null, reorder_point: form.reorder_point ? parseFloat(form.reorder_point) : null, safety_stock: form.safety_stock ? parseFloat(form.safety_stock) : null, order_quantity: form.order_quantity ? parseFloat(form.order_quantity) : null})}
+              disabled={!form.item_code || !form.item_name || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Adding...' : 'Add Item'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AddPaymentTermsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({ code: '', description: '', days: '30', discount_percent: '', discount_days: '' });
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.post('/api/payment-terms', d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['paymentTerms'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h2 className="font-bold text-text-primary">Add Payment Terms</h2>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div><label className="block text-xs text-text-secondary mb-1">Code <span className="text-red-500">*</span></label>
+            <input value={form.code} onChange={e => setForm({...form, code: e.target.value.toUpperCase()})} className={cls} placeholder="e.g. NET30" /></div>
+          <div><label className="block text-xs text-text-secondary mb-1">Description <span className="text-red-500">*</span></label>
+            <input value={form.description} onChange={e => setForm({...form, description: e.target.value})} className={cls} placeholder="e.g. Net 30 days" /></div>
+          <div><label className="block text-xs text-text-secondary mb-1">Payment Days <span className="text-red-500">*</span></label>
+            <input type="number" value={form.days} onChange={e => setForm({...form, days: e.target.value})} className={cls} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-xs text-text-secondary mb-1">Early Payment Discount %</label>
+              <input type="number" step="0.1" value={form.discount_percent} onChange={e => setForm({...form, discount_percent: e.target.value})} className={cls} placeholder="e.g. 2" /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">If paid within (days)</label>
+              <input type="number" value={form.discount_days} onChange={e => setForm({...form, discount_days: e.target.value})} className={cls} placeholder="e.g. 10" /></div>
+          </div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to add payment terms</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({...form, days: parseInt(form.days), discount_percent: form.discount_percent ? parseFloat(form.discount_percent) : null, discount_days: form.discount_days ? parseInt(form.discount_days) : null})}
+              disabled={!form.code || !form.description || !form.days || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+              {mutation.isPending ? 'Adding...' : 'Add Terms'}
             </button>
           </div>
         </div>
