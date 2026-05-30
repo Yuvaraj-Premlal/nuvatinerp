@@ -67,12 +67,12 @@ const AddSupplierModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">Phone</label>
-              <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
+              <input value={form.contact_phone} onChange={e => setForm({ ...form, contact_phone: e.target.value })}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
             </div>
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">Email</label>
-              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+              <input type="email" value={form.contact_email} onChange={e => setForm({ ...form, contact_email: e.target.value })}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
             </div>
             <div>

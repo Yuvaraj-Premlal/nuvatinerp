@@ -180,6 +180,8 @@ model SupplierMaster {
   contact_person   String?
   contact_email    String?
   contact_phone    String?
+  city             String?
+  state            String?
   bank_name        String?
   bank_account     String?
   bank_ifsc        String?
