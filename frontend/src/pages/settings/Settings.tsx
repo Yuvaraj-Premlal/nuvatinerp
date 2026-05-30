@@ -720,6 +720,11 @@ const Settings: React.FC = () => {
   const [viewCustomer, setViewCustomer] = useState<any>(null);
   const [editCustomer, setEditCustomer] = useState<any>(null);
   const [editVendor, setEditVendor] = useState<any>(null);
+  const [editMachine, setEditMachine] = useState<any>(null);
+  const [editDie, setEditDie] = useState<any>(null);
+  const [editLocation, setEditLocation] = useState<any>(null);
+  const [editCostCentre, setEditCostCentre] = useState<any>(null);
+  const [editPaymentTerms, setEditPaymentTerms] = useState<any>(null);
 
   const { data: suppliers } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/suppliers').then(r => r.data.data) });
   const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
@@ -767,6 +772,11 @@ const Settings: React.FC = () => {
       {viewCustomer && !editCustomer && <CustomerDetailModal customer={viewCustomer} onClose={() => setViewCustomer(null)} onEdit={() => { setEditCustomer(viewCustomer); setViewCustomer(null); }} />}
       {editCustomer && <EditCustomerModal customer={editCustomer} onClose={() => setEditCustomer(null)} />}
       {editVendor && <EditVendorModal vendor={editVendor} onClose={() => setEditVendor(null)} />}
+      {editMachine && <EditMachineModal machine={editMachine} onClose={() => setEditMachine(null)} />}
+      {editDie && <EditDieModal die={editDie} onClose={() => setEditDie(null)} />}
+      {editLocation && <EditLocationModal location={editLocation} onClose={() => setEditLocation(null)} />}
+      {editCostCentre && <EditCostCentreModal costCentre={editCostCentre} onClose={() => setEditCostCentre(null)} />}
+      {editPaymentTerms && <EditPaymentTermsModal paymentTerms={editPaymentTerms} onClose={() => setEditPaymentTerms(null)} />}
       {deactivateRecord && <DeactivateModal entity_type={deactivateType} record={deactivateRecord} onClose={() => setDeactivateRecord(null)} />}
 
       <div>
@@ -894,6 +904,9 @@ const Settings: React.FC = () => {
             { key: 'power_kw', label: 'kW' }
           ]}
           onAdd={() => setShowMachineModal(true)}
+          onEdit={row => setEditMachine(row)}
+          onHistory={row => { setHistoryRecord(row); setHistoryType('machine'); }}
+          onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('machine'); }}
         />
       )}
 
@@ -911,6 +924,9 @@ const Settings: React.FC = () => {
             { key: 'current_status', label: 'Status' }
           ]}
           onAdd={() => setShowDieModal(true)}
+          onEdit={row => setEditDie(row)}
+          onHistory={row => { setHistoryRecord(row); setHistoryType('die'); }}
+          onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('die'); }}
         />
       )}
 
@@ -972,6 +988,9 @@ const Settings: React.FC = () => {
             { key: 'is_active', label: 'Active' }
           ]}
           onAdd={() => setShowLocationModal(true)}
+          onEdit={row => setEditLocation(row)}
+          onHistory={row => { setHistoryRecord(row); setHistoryType('location'); }}
+          onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('location'); }}
         />
       )}
 
@@ -1844,6 +1863,249 @@ const EditVendorModal: React.FC<{ vendor: any; onClose: () => void }> = ({ vendo
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
             <button onClick={() => mutation.mutate({...form, lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days) : null})} disabled={!form.vendor_name || !form.reason || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
+              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EditMachineModal: React.FC<{ machine: any; onClose: () => void }> = ({ machine, onClose }) => {
+  const queryClient = useQueryClient();
+  const { data: locations } = useQuery({ queryKey: ['locations'], queryFn: () => api.get('/api/locations').then(r => r.data.data) });
+  const [form, setForm] = useState<any>({ machine_name: machine.machine_name || '', machine_type: machine.machine_type || '', capacity_tons: machine.capacity_tons || '', rated_cycle_time_sec: machine.rated_cycle_time_sec || '', oee_target_percent: machine.oee_target_percent || '', power_kw: machine.power_kw || '', location: machine.location || '', cost_per_hour: machine.cost_per_hour || '', reason: '' });
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.put(`/api/machines/${machine.id}`, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['machines'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Edit Machine</h2><p className="text-xs text-brand-primary">{machine.machine_code}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Machine Name <span className="text-red-500">*</span></label>
+              <input value={form.machine_name} onChange={e => setForm({...form, machine_name: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Capacity (tons)</label>
+              <input type="number" value={form.capacity_tons} onChange={e => setForm({...form, capacity_tons: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Cycle Time (sec)</label>
+              <input type="number" value={form.rated_cycle_time_sec} onChange={e => setForm({...form, rated_cycle_time_sec: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">OEE Target (%)</label>
+              <input type="number" value={form.oee_target_percent} onChange={e => setForm({...form, oee_target_percent: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Power (kW)</label>
+              <input type="number" value={form.power_kw} onChange={e => setForm({...form, power_kw: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Cost per Hour (₹)</label>
+              <input type="number" value={form.cost_per_hour} onChange={e => setForm({...form, cost_per_hour: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Location</label>
+              <select value={form.location} onChange={e => setForm({...form, location: e.target.value})} className={cls}>
+                <option value="">Select...</option>
+                {locations?.map((l: any) => <option key={l.id} value={l.code}>{l.code}</option>)}
+              </select></div>
+          </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Reason <span className="text-red-500">*</span></label>
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className={cls} /></div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to update</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({...form, capacity_tons: form.capacity_tons ? parseFloat(form.capacity_tons) : null, rated_cycle_time_sec: form.rated_cycle_time_sec ? parseInt(form.rated_cycle_time_sec) : null, oee_target_percent: form.oee_target_percent ? parseFloat(form.oee_target_percent) : null, power_kw: form.power_kw ? parseFloat(form.power_kw) : null, cost_per_hour: form.cost_per_hour ? parseFloat(form.cost_per_hour) : null})}
+              disabled={!form.machine_name || !form.reason || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
+              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EditDieModal: React.FC<{ die: any; onClose: () => void }> = ({ die, onClose }) => {
+  const queryClient = useQueryClient();
+  const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
+  const [form, setForm] = useState<any>({ die_name: die.die_name || '', cavity_count: die.cavity_count || 1, design_life_shots: die.design_life_shots || '', pm_interval_shots: die.pm_interval_shots || '', die_owner: die.die_owner || '', machine_id: die.machine_id || '', reason: '' });
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.put(`/api/dies/${die.id}`, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['dies'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Edit Die</h2><p className="text-xs text-brand-primary">{die.die_number}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Die Name <span className="text-red-500">*</span></label>
+              <input value={form.die_name} onChange={e => setForm({...form, die_name: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Cavities</label>
+              <input type="number" value={form.cavity_count} onChange={e => setForm({...form, cavity_count: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Design Life (shots)</label>
+              <input type="number" value={form.design_life_shots} onChange={e => setForm({...form, design_life_shots: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">PM Interval (shots)</label>
+              <input type="number" value={form.pm_interval_shots} onChange={e => setForm({...form, pm_interval_shots: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Die Owner</label>
+              <input value={form.die_owner} onChange={e => setForm({...form, die_owner: e.target.value})} className={cls} /></div>
+            <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Machine</label>
+              <select value={form.machine_id} onChange={e => setForm({...form, machine_id: e.target.value})} className={cls}>
+                <option value="">Select...</option>
+                {machines?.filter((m: any) => m.machine_type !== 'furnace').map((m: any) => <option key={m.id} value={m.id}>{m.machine_code} — {m.machine_name}</option>)}
+              </select></div>
+          </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Reason <span className="text-red-500">*</span></label>
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className={cls} /></div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to update</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({...form, cavity_count: parseInt(form.cavity_count), design_life_shots: form.design_life_shots ? parseInt(form.design_life_shots) : null, pm_interval_shots: form.pm_interval_shots ? parseInt(form.pm_interval_shots) : null, machine_id: form.machine_id || null})}
+              disabled={!form.die_name || !form.reason || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
+              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EditLocationModal: React.FC<{ location: any; onClose: () => void }> = ({ location, onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<any>({ description: location.description || '', zone: location.zone || '', location_type: location.location_type || '', capacity_kg: location.capacity_kg || '', rack_count: location.rack_count || '', bin_count: location.bin_count || '', reason: '' });
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.put(`/api/locations/${location.id}`, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['locations'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Edit Location</h2><p className="text-xs text-brand-primary">{location.code}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Description</label>
+              <input value={form.description} onChange={e => setForm({...form, description: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Zone</label>
+              <input value={form.zone} onChange={e => setForm({...form, zone: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Capacity (kg)</label>
+              <input type="number" value={form.capacity_kg} onChange={e => setForm({...form, capacity_kg: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Rack Count</label>
+              <input type="number" value={form.rack_count} onChange={e => setForm({...form, rack_count: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Bin Count</label>
+              <input type="number" value={form.bin_count} onChange={e => setForm({...form, bin_count: e.target.value})} className={cls} /></div>
+          </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Reason <span className="text-red-500">*</span></label>
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className={cls} /></div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to update</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({...form, capacity_kg: form.capacity_kg ? parseFloat(form.capacity_kg) : null, rack_count: form.rack_count ? parseInt(form.rack_count) : null, bin_count: form.bin_count ? parseInt(form.bin_count) : null})}
+              disabled={!form.reason || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
+              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EditCostCentreModal: React.FC<{ costCentre: any; onClose: () => void }> = ({ costCentre, onClose }) => {
+  const queryClient = useQueryClient();
+  const { data: machines } = useQuery({ queryKey: ['machines'], queryFn: () => api.get('/api/machines').then(r => r.data.data) });
+  const [form, setForm] = useState<any>({ name: costCentre.name || '', type: costCentre.type || 'department', machine_id: costCentre.machine_id || '', budget_monthly: costCentre.budget_monthly || '', department_head: costCentre.department_head || '', reason: '' });
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.put(`/api/cost-centres/${costCentre.id}`, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['costCentres'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Edit Cost Centre</h2><p className="text-xs text-brand-primary">{costCentre.code}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Name <span className="text-red-500">*</span></label>
+              <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Type</label>
+              <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className={cls}>
+                {['machine','department','project','overhead'].map(t => <option key={t} value={t}>{t}</option>)}
+              </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Monthly Budget (₹)</label>
+              <input type="number" value={form.budget_monthly} onChange={e => setForm({...form, budget_monthly: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Department Head</label>
+              <input value={form.department_head} onChange={e => setForm({...form, department_head: e.target.value})} className={cls} /></div>
+            {form.type === 'machine' && <div><label className="block text-xs text-text-secondary mb-1">Machine</label>
+              <select value={form.machine_id} onChange={e => setForm({...form, machine_id: e.target.value})} className={cls}>
+                <option value="">Select...</option>
+                {machines?.map((m: any) => <option key={m.id} value={m.id}>{m.machine_code}</option>)}
+              </select></div>}
+          </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Reason <span className="text-red-500">*</span></label>
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className={cls} /></div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to update</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({...form, machine_id: form.machine_id || null, budget_monthly: form.budget_monthly ? parseFloat(form.budget_monthly) : null})}
+              disabled={!form.name || !form.reason || mutation.isPending}
+              className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
+              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EditPaymentTermsModal: React.FC<{ paymentTerms: any; onClose: () => void }> = ({ paymentTerms, onClose }) => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<any>({ description: paymentTerms.description || '', days: paymentTerms.days || 30, discount_percent: paymentTerms.discount_percent || '', discount_days: paymentTerms.discount_days || '', reason: '' });
+  const mutation = useMutation({
+    mutationFn: (d: any) => api.put(`/api/payment-terms/${paymentTerms.id}`, d),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['paymentTerms'] }); onClose(); }
+  });
+  const cls = "w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary";
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div><h2 className="font-bold text-text-primary">Edit Payment Terms</h2><p className="text-xs text-brand-primary">{paymentTerms.code}</p></div>
+          <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div><label className="block text-xs text-text-secondary mb-1">Description <span className="text-red-500">*</span></label>
+            <input value={form.description} onChange={e => setForm({...form, description: e.target.value})} className={cls} /></div>
+          <div className="grid grid-cols-3 gap-3">
+            <div><label className="block text-xs text-text-secondary mb-1">Days</label>
+              <input type="number" value={form.days} onChange={e => setForm({...form, days: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Discount %</label>
+              <input type="number" step="0.1" value={form.discount_percent} onChange={e => setForm({...form, discount_percent: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Discount Days</label>
+              <input type="number" value={form.discount_days} onChange={e => setForm({...form, discount_days: e.target.value})} className={cls} /></div>
+          </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Reason <span className="text-red-500">*</span></label>
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className={cls} /></div>
+          {mutation.isError && <p className="text-red-500 text-sm">Failed to update</p>}
+          <div className="flex gap-3 pt-2">
+            <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
+            <button onClick={() => mutation.mutate({...form, days: parseInt(form.days), discount_percent: form.discount_percent ? parseFloat(form.discount_percent) : null, discount_days: form.discount_days ? parseInt(form.discount_days) : null})}
+              disabled={!form.description || !form.reason || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
               {mutation.isPending ? 'Saving...' : 'Save Changes'}
             </button>
