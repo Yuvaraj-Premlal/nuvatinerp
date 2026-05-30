@@ -836,6 +836,7 @@ const Settings: React.FC = () => {
           onEdit={row => setEditPaymentTerms(row)}
           onHistory={row => { setHistoryRecord(row); setHistoryType('payment_terms'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('payment_terms'); }}
+          onView={row => setEditPaymentTerms(row)}
         />
       )}
 
@@ -876,6 +877,7 @@ const Settings: React.FC = () => {
           onEdit={row => setEditMachine(row)}
           onHistory={row => { setHistoryRecord(row); setHistoryType('machine'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('machine'); }}
+          onView={row => setEditMachine(row)}
         />
       )}
 
@@ -896,6 +898,7 @@ const Settings: React.FC = () => {
           onEdit={row => setEditDie(row)}
           onHistory={row => { setHistoryRecord(row); setHistoryType('die'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('die'); }}
+          onView={row => setEditDie(row)}
         />
       )}
 
@@ -935,6 +938,7 @@ const Settings: React.FC = () => {
           onEdit={row => setEditVendor(row)}
           onHistory={row => { setHistoryRecord(row); setHistoryType('vendor'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('vendor'); }}
+          onView={row => setEditVendor(row)}
         />
       )}
 
@@ -960,6 +964,7 @@ const Settings: React.FC = () => {
           onEdit={row => setEditLocation(row)}
           onHistory={row => { setHistoryRecord(row); setHistoryType('location'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('location'); }}
+          onView={row => setEditLocation(row)}
         />
       )}
 
@@ -978,6 +983,7 @@ const Settings: React.FC = () => {
           onEdit={row => setEditCostCentre(row)}
           onHistory={row => { setHistoryRecord(row); setHistoryType('cost_centre'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('cost_centre'); }}
+          onView={row => setEditCostCentre(row)}
         />
       )}
 
