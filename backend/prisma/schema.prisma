@@ -73,6 +73,8 @@ model ItemMaster {
   description     String?
   hsn_code        String?
   purchase_type   String   @default("direct")
+  source          String   @default("domestic")
+  lead_time_days  Int?
   benchmark_cost  Float?
   selling_price   Float?
   reorder_point   Float?

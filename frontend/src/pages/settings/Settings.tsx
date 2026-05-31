@@ -2,6 +2,30 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 
+const ITEM_CATEGORIES: Record<string, string[]> = {
+  raw_material: ['Alloy','Die Spray','Lubricant','Flux','Spare Part','Cutting Tool','Packaging','Fastener','Electrical','Safety','Other'],
+  consumable: ['Die Spray','Lubricant','Flux','Cutting Tool','Packaging','Fastener','Electrical','Safety','Other'],
+  spare: ['Spare Part','Electrical','Hydraulic','Pneumatic','Other'],
+  tool: ['Cutting Tool','Die Component','Fixture','Gauge','Other'],
+  packaging: ['Packaging','Other'],
+  semi_finished: ['Casting (Semi Finished)','Machined Component (Semi Finished)','Assembly (Semi Finished)'],
+  finished_goods: ['Casting (Finished)','Machined Component (Finished)','Assembly (Finished)'],
+};
+
+const SOURCE_OPTIONS = [
+  { value: 'domestic', label: 'Domestic (India)' },
+  { value: 'import_usa', label: 'Import — USA' },
+  { value: 'import_europe', label: 'Import — Europe' },
+  { value: 'import_other', label: 'Import — Other' },
+  { value: 'internal', label: 'Internal' },
+];
+
+const SOURCE_LABEL: Record<string, string> = {
+  domestic: 'Domestic', import_usa: 'Import USA', import_europe: 'Import Europe',
+  import_other: 'Import Other', internal: 'Internal'
+};
+
+
 const AddSupplierModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
   const { data: paymentTermsList } = useQuery({ queryKey: ['paymentTerms'], queryFn: () => api.get('/api/payment-terms').then(r => r.data.data) });
@@ -1641,11 +1665,14 @@ const EditItemModal: React.FC<{ item: any; onClose: () => void }> = ({ item, onC
   const [form, setForm] = useState<any>({
     item_name: item.item_name || '', item_category: item.item_category || '',
     unit_of_measure: item.unit_of_measure || 'KG', hsn_code: item.hsn_code || '',
-    purchase_type: item.purchase_type || 'direct', benchmark_cost: item.benchmark_cost || '',
-    selling_price: item.selling_price || '', reorder_point: item.reorder_point || '',
-    safety_stock: item.safety_stock || '', order_quantity: item.order_quantity || '',
-    description: item.description || '', reason: ''
+    purchase_type: item.purchase_type || 'direct', source: item.source || 'domestic',
+    lead_time_days: item.lead_time_days || '',
+    reorder_point: item.reorder_point || '', safety_stock: item.safety_stock || '',
+    order_quantity: item.order_quantity || '', description: item.description || '',
+    benchmark_cost: item.benchmark_cost || '', selling_price: item.selling_price || '',
+    reason: ''
   });
+  const categories = ITEM_CATEGORIES[item.item_type] || [];
   const mutation = useMutation({
     mutationFn: (d: any) => api.put(`/api/items/${item.id}`, d),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['items'] }); onClose(); }
@@ -1656,7 +1683,7 @@ const EditItemModal: React.FC<{ item: any; onClose: () => void }> = ({ item, onC
       <div className="bg-white rounded-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div><h2 className="font-bold text-text-primary">Edit Item</h2>
-            <p className="text-xs text-brand-primary font-medium">{item.item_code}</p></div>
+            <p className="text-xs text-brand-primary font-medium">{item.item_code} — {item.item_type?.replace(/_/g,' ')}</p></div>
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
         </div>
         <div className="p-5 space-y-3">
@@ -1664,38 +1691,53 @@ const EditItemModal: React.FC<{ item: any; onClose: () => void }> = ({ item, onC
             <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Item Name <span className="text-red-500">*</span></label>
               <input value={form.item_name} onChange={e => setForm({...form, item_name: e.target.value})} className={cls} /></div>
             <div><label className="block text-xs text-text-secondary mb-1">Category</label>
-              <input value={form.item_category} onChange={e => setForm({...form, item_category: e.target.value})} className={cls} /></div>
-            <div><label className="block text-xs text-text-secondary mb-1">HSN Code</label>
-              <input value={form.hsn_code} onChange={e => setForm({...form, hsn_code: e.target.value})} className={cls} /></div>
+              <select value={form.item_category} onChange={e => setForm({...form, item_category: e.target.value})} className={cls}>
+                <option value="">Select...</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select></div>
             <div><label className="block text-xs text-text-secondary mb-1">UOM</label>
               <select value={form.unit_of_measure} onChange={e => setForm({...form, unit_of_measure: e.target.value})} className={cls}>
                 {['KG','NOS','LTR','MTR','SQM','SET','BOX','PKT'].map(u => <option key={u}>{u}</option>)}
               </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">HSN Code</label>
+              <input value={form.hsn_code} onChange={e => setForm({...form, hsn_code: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Source</label>
+              <select value={form.source} onChange={e => setForm({...form, source: e.target.value})} className={cls}>
+                {SOURCE_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Lead Time (days)</label>
+              <input type="number" value={form.lead_time_days} onChange={e => setForm({...form, lead_time_days: e.target.value})} className={cls} /></div>
             <div><label className="block text-xs text-text-secondary mb-1">Purchase Type</label>
               <select value={form.purchase_type} onChange={e => setForm({...form, purchase_type: e.target.value})} className={cls}>
                 <option value="direct">Direct</option><option value="indirect">Indirect</option>
               </select></div>
-            <div><label className="block text-xs text-text-secondary mb-1">Benchmark Cost (₹)</label>
-              <input type="number" value={form.benchmark_cost} onChange={e => setForm({...form, benchmark_cost: e.target.value})} className={cls} /></div>
-            <div><label className="block text-xs text-text-secondary mb-1">Selling Price (₹)</label>
-              <input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} className={cls} /></div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div><label className="block text-xs text-text-secondary mb-1">Reorder Point</label>
-              <input type="number" value={form.reorder_point} onChange={e => setForm({...form, reorder_point: e.target.value})} className={cls} /></div>
-            <div><label className="block text-xs text-text-secondary mb-1">Safety Stock</label>
-              <input type="number" value={form.safety_stock} onChange={e => setForm({...form, safety_stock: e.target.value})} className={cls} /></div>
-            <div><label className="block text-xs text-text-secondary mb-1">Order Qty</label>
-              <input type="number" value={form.order_quantity} onChange={e => setForm({...form, order_quantity: e.target.value})} className={cls} /></div>
+          <div className="border-t border-border pt-2">
+            <p className="text-xs font-medium text-text-primary mb-2">Stock Control</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div><label className="block text-xs text-text-secondary mb-1">Reorder Point</label>
+                <input type="number" value={form.reorder_point} onChange={e => setForm({...form, reorder_point: e.target.value})} className={cls} /></div>
+              <div><label className="block text-xs text-text-secondary mb-1">Safety Stock</label>
+                <input type="number" value={form.safety_stock} onChange={e => setForm({...form, safety_stock: e.target.value})} className={cls} /></div>
+              <div><label className="block text-xs text-text-secondary mb-1">Order Qty</label>
+                <input type="number" value={form.order_quantity} onChange={e => setForm({...form, order_quantity: e.target.value})} className={cls} /></div>
+            </div>
           </div>
-          <div><label className="block text-xs text-text-secondary mb-1">Description</label>
-            <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={2} className={cls} /></div>
+          <div className="border-t border-border pt-2">
+            <p className="text-xs font-medium text-text-primary mb-2">Costing</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block text-xs text-text-secondary mb-1">Benchmark Cost (₹/UOM)</label>
+                <input type="number" value={form.benchmark_cost} onChange={e => setForm({...form, benchmark_cost: e.target.value})} className={cls} placeholder="Management anchor price" /></div>
+              <div><label className="block text-xs text-text-secondary mb-1">Selling Price (₹)</label>
+                <input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} className={cls} /></div>
+            </div>
+          </div>
           <div><label className="block text-xs text-text-secondary mb-1">Reason for change <span className="text-red-500">*</span></label>
-            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className={cls} placeholder="e.g. Updated benchmark cost after quarterly review" /></div>
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className={cls} /></div>
           {mutation.isError && <p className="text-red-500 text-sm">Failed to update item</p>}
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button onClick={() => mutation.mutate({...form, benchmark_cost: form.benchmark_cost ? parseFloat(form.benchmark_cost) : null, selling_price: form.selling_price ? parseFloat(form.selling_price) : null, reorder_point: form.reorder_point ? parseFloat(form.reorder_point) : null, safety_stock: form.safety_stock ? parseFloat(form.safety_stock) : null, order_quantity: form.order_quantity ? parseFloat(form.order_quantity) : null})}
+            <button onClick={() => mutation.mutate({...form, lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days) : null, benchmark_cost: form.benchmark_cost ? parseFloat(form.benchmark_cost) : null, selling_price: form.selling_price ? parseFloat(form.selling_price) : null, reorder_point: form.reorder_point ? parseFloat(form.reorder_point) : null, safety_stock: form.safety_stock ? parseFloat(form.safety_stock) : null, order_quantity: form.order_quantity ? parseFloat(form.order_quantity) : null})}
               disabled={!form.item_name || !form.reason || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Saving...' : 'Save Changes'}
@@ -1730,8 +1772,7 @@ const CustomerDetailModal: React.FC<{ customer: any; onClose: () => void; onEdit
           {field('City', customer.city)}
           {field('State', customer.state)}
           {field('Payment Terms', customer.payment_terms)}
-          {field('Credit Limit', customer.credit_limit ? `₹${customer.credit_limit.toLocaleString('en-IN')}` : '—')}
-          {field('Status', customer.is_active ? '✅ Active' : '🔴 Inactive')}
+          {field('Status', customer.is_active !== false ? '✅ Active' : '🔴 Inactive')}
           {customer.address && <div className="col-span-2">{field('Address', customer.address)}</div>}
         </div>
       </div>
