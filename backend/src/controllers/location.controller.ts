@@ -75,8 +75,10 @@ export const toggleLocationStatus = async (req: AuthRequest, res: Response) => {
     const { id } = req.params as { id: string };
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
-    const old = await (prisma as any).locationMaster.findUnique({ where: { id } });
-    const updated = await (prisma as any).locationMaster.update({ where: { id }, data: { is_active: !old?.is_active } });
+    const existing = await (prisma as any).locationMaster.findUnique({ where: { id } });
+    const updated = await (prisma as any).locationMaster.update({ where: { id }, data: { is_active: !existing?.is_active } });
+    const { logChange } = await import('../utils/audit');
+    await logChange(existing?.tenant_id || '', 'location', id, existing?.code || '', existing?.is_active ? 'deactivate' : 'activate', existing, updated, req.user?.user_id || '', req.user?.email || '', reason);
     res.json({ success: true, data: updated });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };

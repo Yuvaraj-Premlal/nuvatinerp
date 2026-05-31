@@ -79,8 +79,9 @@ export const toggleItemStatus = async (req: AuthRequest, res: Response) => {
     const { id } = req.params as { id: string };
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
-    const old = await (prisma as any).itemMaster.findUnique({ where: { id } });
-    const updated = await (prisma as any).itemMaster.update({ where: { id }, data: { is_active: !old?.is_active } });
+    const existing = await prisma.itemMaster.findUnique({ where: { id } });
+    const updated = await prisma.itemMaster.update({ where: { id }, data: { is_active: !existing?.is_active } });
+    await logChange(existing?.tenant_id || '', 'item', id, existing?.item_code || '', existing?.is_active ? 'deactivate' : 'activate', existing, updated, req.user?.user_id || '', req.user?.email || '', reason);
     res.json({ success: true, data: updated });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };
