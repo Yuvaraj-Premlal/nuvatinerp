@@ -1768,7 +1768,6 @@ const EditItemModal: React.FC<{ item: any; onClose: () => void }> = ({ item, onC
     lead_time_days: item.lead_time_days || '',
     reorder_point: item.reorder_point || '', safety_stock: item.safety_stock || '',
     order_quantity: item.order_quantity || '', description: item.description || '',
-    benchmark_cost: item.benchmark_cost || '', selling_price: item.selling_price || '',
     reason: ''
   });
   const categories = ITEM_CATEGORIES[item.item_type] || [];
@@ -1822,21 +1821,13 @@ const EditItemModal: React.FC<{ item: any; onClose: () => void }> = ({ item, onC
                 <input type="number" value={form.order_quantity} onChange={e => setForm({...form, order_quantity: e.target.value})} className={cls} /></div>
             </div>
           </div>
-          <div className="border-t border-border pt-2">
-            <p className="text-xs font-medium text-text-primary mb-2">Costing</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-xs text-text-secondary mb-1">Benchmark Cost (₹/UOM)</label>
-                <input type="number" value={form.benchmark_cost} onChange={e => setForm({...form, benchmark_cost: e.target.value})} className={cls} placeholder="Management anchor price" /></div>
-              <div><label className="block text-xs text-text-secondary mb-1">Selling Price (₹)</label>
-                <input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} className={cls} /></div>
-            </div>
-          </div>
+
           <div><label className="block text-xs text-text-secondary mb-1">Reason for change <span className="text-red-500">*</span></label>
             <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className={cls} /></div>
           {mutation.isError && <p className="text-red-500 text-sm">Failed to update item</p>}
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button onClick={() => mutation.mutate({...form, lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days) : null, benchmark_cost: form.benchmark_cost ? parseFloat(form.benchmark_cost) : null, selling_price: form.selling_price ? parseFloat(form.selling_price) : null, reorder_point: form.reorder_point ? parseFloat(form.reorder_point) : null, safety_stock: form.safety_stock ? parseFloat(form.safety_stock) : null, order_quantity: form.order_quantity ? parseFloat(form.order_quantity) : null})}
+            <button onClick={() => mutation.mutate({...form, lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days) : null, reorder_point: form.reorder_point ? parseFloat(form.reorder_point) : null, safety_stock: form.safety_stock ? parseFloat(form.safety_stock) : null, order_quantity: form.order_quantity ? parseFloat(form.order_quantity) : null})}
               disabled={!form.item_name || !form.reason || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Saving...' : 'Save Changes'}
