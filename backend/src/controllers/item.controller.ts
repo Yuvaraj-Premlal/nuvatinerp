@@ -1,3 +1,4 @@
+import { logChange } from '../utils/audit';
 import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
@@ -64,7 +65,11 @@ export const getItemById = async (req: AuthRequest, res: Response) => {
 export const updateItem = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params as { id: string };
-    const item = await prisma.itemMaster.update({ where: { id }, data: req.body });
+    const { reason, ...updateData } = req.body;
+    if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
+    const old = await prisma.itemMaster.findUnique({ where: { id } });
+    const item = await prisma.itemMaster.update({ where: { id }, data: updateData });
+    await logChange(old?.tenant_id || '', 'item', id, old?.item_code || '', 'update', old, item, req.user?.user_id || '', req.user?.email || '', reason);
     res.json({ success: true, data: item });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };

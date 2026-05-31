@@ -719,6 +719,114 @@ const MasterTable: React.FC<{
   </div>
 );
 
+
+const ItemMasterSection: React.FC<{
+  items: any[]; onAdd: () => void; onEdit: (r: any) => void;
+  onHistory: (r: any) => void; onToggleStatus: (r: any) => void; onView: (r: any) => void;
+}> = ({ items, onAdd, onEdit, onHistory, onToggleStatus, onView }) => {
+  const [search, setSearch] = React.useState('');
+  const [filterType, setFilterType] = React.useState('');
+  const [filterCategory, setFilterCategory] = React.useState('');
+  const [filterSource, setFilterSource] = React.useState('');
+  const [filterStatus, setFilterStatus] = React.useState('');
+
+  const allCategories = Array.from(new Set(items.map((i: any) => i.item_category).filter(Boolean))).sort() as string[];
+  const allTypes = Array.from(new Set(items.map((i: any) => i.item_type).filter(Boolean))).sort() as string[];
+
+  const filtered = items.filter((item: any) => {
+    const s = search.toLowerCase();
+    const matchSearch = !s || item.item_code?.toLowerCase().includes(s) || item.item_name?.toLowerCase().includes(s) || item.item_category?.toLowerCase().includes(s);
+    const matchType = !filterType || item.item_type === filterType;
+    const matchCat = !filterCategory || item.item_category === filterCategory;
+    const matchSource = !filterSource || item.source === filterSource;
+    const matchStatus = !filterStatus || (filterStatus === 'active' ? item.is_active !== false : item.is_active === false);
+    return matchSearch && matchType && matchCat && matchSource && matchStatus;
+  });
+
+  const sel = "px-3 py-1.5 border border-border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-primary bg-white";
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-text-primary">Item Master</h3>
+        <button onClick={onAdd} className="text-xs bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add Item</button>
+      </div>
+      <div className="flex flex-wrap gap-2 items-center">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Search code, name, category..."
+          className="px-3 py-1.5 border border-border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-primary w-64" />
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} className={sel}>
+          <option value="">All Types</option>
+          {allTypes.map(t => <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
+        </select>
+        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className={sel}>
+          <option value="">All Categories</option>
+          {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={filterSource} onChange={e => setFilterSource(e.target.value)} className={sel}>
+          <option value="">All Sources</option>
+          {SOURCE_OPTIONS.map((s: any) => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={sel}>
+          <option value="">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        {(search || filterType || filterCategory || filterSource || filterStatus) &&
+          <button onClick={() => { setSearch(''); setFilterType(''); setFilterCategory(''); setFilterSource(''); setFilterStatus(''); }}
+            className="text-xs text-red-500 hover:text-red-600 px-2">✕ Clear</button>}
+        <span className="text-xs text-text-secondary ml-auto">{filtered.length} of {items.length} items</span>
+      </div>
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-brand-light">
+              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Code</th>
+              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Name</th>
+              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Type</th>
+              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Category</th>
+              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Source</th>
+              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Lead Time</th>
+              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Status</th>
+              <th className="text-right px-4 py-2 text-brand-primary font-medium text-xs">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((row: any, i: number) => (
+              <tr key={row.id} className={`border-t border-border ${row.is_active === false ? 'opacity-40 bg-gray-50' : i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
+                <td className="px-4 py-2 text-xs">
+                  <button onClick={() => onView(row)} className="font-medium text-brand-primary hover:underline">{row.item_code}</button>
+                </td>
+                <td className="px-4 py-2 text-xs text-text-primary">{row.item_name}</td>
+                <td className="px-4 py-2 text-xs"><span className="px-2 py-0.5 rounded-full bg-surface border border-border">{row.item_type?.replace(/_/g,' ')}</span></td>
+                <td className="px-4 py-2 text-xs text-text-secondary">{row.item_category || '—'}</td>
+                <td className="px-4 py-2 text-xs text-text-secondary">{SOURCE_LABEL[row.source] || row.source || '—'}</td>
+                <td className="px-4 py-2 text-xs text-text-secondary">{row.lead_time_days ? `${row.lead_time_days}d` : '—'}</td>
+                <td className="px-4 py-2 text-xs">
+                  <span className={`px-2 py-0.5 rounded-full text-xs ${row.is_active !== false ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>
+                    {row.is_active !== false ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className="px-4 py-2 text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    <button onClick={() => onEdit(row)} className="text-brand-primary text-xs px-2 py-1 rounded border border-brand-primary hover:bg-brand-light">✏️</button>
+                    <button onClick={() => onHistory(row)} className="text-text-secondary text-xs px-2 py-1 rounded border border-border hover:bg-surface">🕐</button>
+                    <button onClick={() => onToggleStatus(row)} className={`text-xs px-2 py-1 rounded border ${row.is_active !== false ? 'border-red-200 text-red-500 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}>
+                      {row.is_active !== false ? '🔴' : '🟢'}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && <div className="text-center py-12 text-text-secondary text-sm">
+          {items.length === 0 ? 'No items defined yet' : 'No items match your filters'}
+        </div>}
+      </div>
+    </div>
+  );
+};
+
 const Settings: React.FC = () => {
   const [activeSection, setActiveSection] = useState('suppliers');
   const [showSupplierModal, setShowSupplierModal] = useState(false);
@@ -828,18 +936,8 @@ const Settings: React.FC = () => {
       </div>
 
       {activeSection === 'items' && (
-        <MasterTable
-          title="Item Master"
-          data={items || []}
-          columns={[
-            { key: 'item_code', label: 'Code' },
-            { key: 'item_name', label: 'Name' },
-            { key: 'item_type', label: 'Type' },
-            { key: 'item_category', label: 'Category' },
-            { key: 'unit_of_measure', label: 'UOM' },
-            { key: 'benchmark_cost', label: 'Benchmark Cost' },
-            { key: 'is_active', label: 'Status' }
-          ]}
+        <ItemMasterSection
+          items={items || []}
           onAdd={() => setShowItemModal(true)}
           onEdit={row => setEditItem(row)}
           onHistory={row => { setHistoryRecord(row); setHistoryType('item'); }}
@@ -1257,9 +1355,10 @@ const AddItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [form, setForm] = useState<any>({
     item_name: '', item_type: 'raw_material', item_category: '',
     unit_of_measure: 'KG', hsn_code: '', purchase_type: 'direct',
-    benchmark_cost: '', selling_price: '',
+    source: 'domestic', lead_time_days: '',
     reorder_point: '', safety_stock: '', order_quantity: '', description: ''
   });
+  const categories = ITEM_CATEGORIES[form.item_type] || [];
   const mutation = useMutation({
     mutationFn: (d: any) => api.post('/api/items', d),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['items'] }); onClose(); }
@@ -1275,13 +1374,16 @@ const AddItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <div className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2"><label className="block text-xs text-text-secondary mb-1">Item Name <span className="text-red-500">*</span></label>
-              <input value={form.item_name} onChange={e => setForm({...form, item_name: e.target.value})} className={cls} placeholder="e.g. Aluminium Ingot ADC12" required /></div>
+              <input value={form.item_name} onChange={e => setForm({...form, item_name: e.target.value})} className={cls} placeholder="e.g. Aluminium Ingot ADC12" /></div>
             <div><label className="block text-xs text-text-secondary mb-1">Item Type <span className="text-red-500">*</span></label>
-              <select value={form.item_type} onChange={e => setForm({...form, item_type: e.target.value})} className={cls}>
+              <select value={form.item_type} onChange={e => setForm({...form, item_type: e.target.value, item_category: ''})} className={cls}>
                 {['raw_material','finished_goods','semi_finished','consumable','spare','tool','packaging'].map(t => <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
               </select></div>
-            <div><label className="block text-xs text-text-secondary mb-1">Category</label>
-              <input value={form.item_category} onChange={e => setForm({...form, item_category: e.target.value})} className={cls} placeholder="e.g. alloy, fastener" /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Category <span className="text-red-500">*</span></label>
+              <select value={form.item_category} onChange={e => setForm({...form, item_category: e.target.value})} className={cls}>
+                <option value="">Select category...</option>
+                {categories.map((c: string) => <option key={c} value={c}>{c}</option>)}
+              </select></div>
             <div><label className="block text-xs text-text-secondary mb-1">Unit of Measure <span className="text-red-500">*</span></label>
               <select value={form.unit_of_measure} onChange={e => setForm({...form, unit_of_measure: e.target.value})} className={cls}>
                 {['KG','NOS','LTR','MTR','SQM','SET','BOX','PKT'].map(u => <option key={u} value={u}>{u}</option>)}
@@ -1293,10 +1395,12 @@ const AddItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <option value="direct">Direct (production material)</option>
                 <option value="indirect">Indirect (consumable/overhead)</option>
               </select></div>
-            <div><label className="block text-xs text-text-secondary mb-1">Benchmark Cost (₹) <span className="text-text-secondary font-normal text-xs">— management anchor, reviewed quarterly</span></label>
-              <input type="number" value={form.benchmark_cost} onChange={e => setForm({...form, benchmark_cost: e.target.value})} className={cls} placeholder="per UOM" /></div>
-            <div><label className="block text-xs text-text-secondary mb-1">Selling Price (₹)</label>
-              <input type="number" value={form.selling_price} onChange={e => setForm({...form, selling_price: e.target.value})} className={cls} /></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Source <span className="text-red-500">*</span></label>
+              <select value={form.source} onChange={e => setForm({...form, source: e.target.value})} className={cls}>
+                {SOURCE_OPTIONS.map((s: any) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select></div>
+            <div><label className="block text-xs text-text-secondary mb-1">Lead Time (days)</label>
+              <input type="number" value={form.lead_time_days} onChange={e => setForm({...form, lead_time_days: e.target.value})} className={cls} placeholder="e.g. 7" /></div>
           </div>
           <div className="border-t border-border pt-3">
             <p className="text-xs font-medium text-text-primary mb-2">Stock Control</p>
@@ -1311,17 +1415,11 @@ const AddItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           </div>
           <div><label className="block text-xs text-text-secondary mb-1">Description</label>
             <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className={cls} rows={2} /></div>
-          {mutation.isError && <p className="text-red-500 text-sm">Failed to add item</p>}
+          {mutation.isError && <p className="text-red-500 text-sm">{(mutation.error as any)?.response?.data?.error || 'Failed to add item'}</p>}
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button onClick={() => mutation.mutate({...form,
-              benchmark_cost: form.benchmark_cost ? parseFloat(form.benchmark_cost) : null,
-              selling_price: form.selling_price ? parseFloat(form.selling_price) : null,
-              reorder_point: form.reorder_point ? parseFloat(form.reorder_point) : null,
-              safety_stock: form.safety_stock ? parseFloat(form.safety_stock) : null,
-              order_quantity: form.order_quantity ? parseFloat(form.order_quantity) : null
-            })}
-              disabled={!form.item_name || mutation.isPending}
+            <button onClick={() => mutation.mutate({...form, lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days) : null, reorder_point: form.reorder_point ? parseFloat(form.reorder_point) : null, safety_stock: form.safety_stock ? parseFloat(form.safety_stock) : null, order_quantity: form.order_quantity ? parseFloat(form.order_quantity) : null})}
+              disabled={!form.item_name || !form.item_category || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Adding...' : 'Add Item'}
             </button>
@@ -1331,6 +1429,7 @@ const AddItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     </div>
   );
 };
+
 const AddPaymentTermsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ code: '', description: '', days: '30', discount_percent: '', discount_days: '' });
