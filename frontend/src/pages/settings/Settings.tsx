@@ -675,157 +675,88 @@ const MasterTable: React.FC<{
   onHistory?: (row: any) => void;
   onToggleStatus?: (row: any) => void;
   onView?: (row: any) => void;
-}> = ({ title, data, columns, onAdd, onEdit, onHistory, onToggleStatus, onView }) => (
-  <div>
-    <div className="flex items-center justify-between mb-3">
-      <h3 className="font-semibold text-text-primary">{title}</h3>
-      <button onClick={onAdd} className="text-xs bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add</button>
-    </div>
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-brand-light">
-            {columns.map(col => (
-              <th key={col.key} className="text-left px-4 py-2 text-brand-primary font-medium text-xs">{col.label}</th>
-            ))}
-            <th className="text-right px-4 py-2 text-brand-primary font-medium text-xs">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data?.map((row: any, i: number) => (
-            <tr key={row.id} className={`border-t border-border ${!row.is_active ? 'opacity-40 bg-gray-50' : i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
-              {columns.map((col, ci) => (
-                <td key={col.key} className="px-4 py-2 text-xs text-text-primary">
-                  {col.key === 'is_active'
-                    ? <span className={`px-2 py-0.5 rounded-full text-xs ${row.is_active ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>{row.is_active ? 'Active' : 'Inactive'}</span>
-                    : ci === 0 && onView
-                      ? <button onClick={() => onView(row)} className="font-medium text-brand-primary hover:underline">{row[col.key] || '—'}</button>
-                      : row[col.key] || '—'}
-                </td>
-              ))}
-              <td className="px-4 py-2 text-right">
-                <div className="flex items-center justify-end gap-2">
-                  {onEdit && <button onClick={() => onEdit(row)} title="Edit" className="text-brand-primary hover:text-brand-dark text-xs px-2 py-1 rounded border border-brand-primary hover:bg-brand-light">✏️</button>}
-                  {onHistory && <button onClick={() => onHistory(row)} title="History" className="text-text-secondary hover:text-text-primary text-xs px-2 py-1 rounded border border-border hover:bg-surface">🕐</button>}
-                  {onToggleStatus && <button onClick={() => onToggleStatus(row)} title={row.is_active ? 'Deactivate' : 'Activate'} className={`text-xs px-2 py-1 rounded border ${row.is_active ? 'border-red-200 text-red-500 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}>{row.is_active ? '🔴' : '🟢'}</button>}
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {(!data || data?.length === 0) && <div className="text-center py-6 text-text-secondary text-sm">No records found</div>}
-    </div>
-  </div>
-);
-
-
-const ItemMasterSection: React.FC<{
-  items: any[]; onAdd: () => void; onEdit: (r: any) => void;
-  onHistory: (r: any) => void; onToggleStatus: (r: any) => void; onView: (r: any) => void;
-}> = ({ items, onAdd, onEdit, onHistory, onToggleStatus, onView }) => {
+  searchFields?: string[];
+  filterConfig?: { key: string; label: string; options: string[] }[];
+}> = ({ title, data, columns, onAdd, onEdit, onHistory, onToggleStatus, onView, searchFields, filterConfig }) => {
   const [search, setSearch] = React.useState('');
-  const [filterType, setFilterType] = React.useState('');
-  const [filterCategory, setFilterCategory] = React.useState('');
-  const [filterSource, setFilterSource] = React.useState('');
-  const [filterStatus, setFilterStatus] = React.useState('');
+  const [filters, setFilters] = React.useState<Record<string, string>>({});
 
-  const allCategories = Array.from(new Set(items.map((i: any) => i.item_category).filter(Boolean))).sort() as string[];
-  const allTypes = Array.from(new Set(items.map((i: any) => i.item_type).filter(Boolean))).sort() as string[];
-
-  const filtered = items.filter((item: any) => {
-    const s = search.toLowerCase();
-    const matchSearch = !s || item.item_code?.toLowerCase().includes(s) || item.item_name?.toLowerCase().includes(s) || item.item_category?.toLowerCase().includes(s);
-    const matchType = !filterType || item.item_type === filterType;
-    const matchCat = !filterCategory || item.item_category === filterCategory;
-    const matchSource = !filterSource || item.source === filterSource;
-    const matchStatus = !filterStatus || (filterStatus === 'active' ? item.is_active !== false : item.is_active === false);
-    return matchSearch && matchType && matchCat && matchSource && matchStatus;
-  });
+  const filtered = React.useMemo(() => {
+    return data.filter((row: any) => {
+      const s = search.toLowerCase();
+      const matchSearch = !s || !searchFields || searchFields.some(f => row[f]?.toString().toLowerCase().includes(s));
+      const matchFilters = !filterConfig || filterConfig.every(fc => {
+        const fv = filters[fc.key];
+        if (!fv) return true;
+        if (fc.key === 'status') return fv === 'active' ? row.is_active !== false : row.is_active === false;
+        return row[fc.key] === fv;
+      });
+      return matchSearch && matchFilters;
+    });
+  }, [data, search, filters, searchFields, filterConfig]);
 
   const sel = "px-3 py-1.5 border border-border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-primary bg-white";
+  const hasFilters = search || Object.values(filters).some(Boolean);
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-text-primary">Item Master</h3>
-        <button onClick={onAdd} className="text-xs bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add Item</button>
+        <h3 className="font-semibold text-text-primary">{title}</h3>
+        <button onClick={onAdd} className="text-xs bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-dark">+ Add</button>
       </div>
-      <div className="flex flex-wrap gap-2 items-center">
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Search code, name, category..."
-          className="px-3 py-1.5 border border-border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-primary w-64" />
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} className={sel}>
-          <option value="">All Types</option>
-          {allTypes.map(t => <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
-        </select>
-        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className={sel}>
-          <option value="">All Categories</option>
-          {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select value={filterSource} onChange={e => setFilterSource(e.target.value)} className={sel}>
-          <option value="">All Sources</option>
-          {SOURCE_OPTIONS.map((s: any) => <option key={s.value} value={s.value}>{s.label}</option>)}
-        </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={sel}>
-          <option value="">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-        {(search || filterType || filterCategory || filterSource || filterStatus) &&
-          <button onClick={() => { setSearch(''); setFilterType(''); setFilterCategory(''); setFilterSource(''); setFilterStatus(''); }}
-            className="text-xs text-red-500 hover:text-red-600 px-2">✕ Clear</button>}
-        <span className="text-xs text-text-secondary ml-auto">{filtered.length} of {items.length} items</span>
-      </div>
+      {(searchFields || filterConfig) && (
+        <div className="flex flex-wrap gap-2 items-center">
+          {searchFields && <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Search..."
+            className="px-3 py-1.5 border border-border rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-primary w-56" />}
+          {filterConfig?.map((fc: any) => (
+            <select key={fc.key} value={filters[fc.key] || ''} onChange={e => setFilters({...filters, [fc.key]: e.target.value})} className={sel}>
+              <option value="">{fc.label}: All</option>
+              {fc.options.map((o: string) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          ))}
+          {hasFilters && <button onClick={() => { setSearch(''); setFilters({}); }} className="text-xs text-red-500 px-2">✕ Clear</button>}
+          <span className="text-xs text-text-secondary ml-auto">{filtered.length} of {data.length}</span>
+        </div>
+      )}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-brand-light">
-              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Code</th>
-              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Name</th>
-              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Type</th>
-              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Category</th>
-              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Source</th>
-              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Lead Time</th>
-              <th className="text-left px-4 py-2 text-brand-primary font-medium text-xs">Status</th>
+              {columns.map(col => (
+                <th key={col.key} className="text-left px-4 py-2 text-brand-primary font-medium text-xs">{col.label}</th>
+              ))}
               <th className="text-right px-4 py-2 text-brand-primary font-medium text-xs">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((row: any, i: number) => (
               <tr key={row.id} className={`border-t border-border ${row.is_active === false ? 'opacity-40 bg-gray-50' : i % 2 === 0 ? 'bg-white' : 'bg-surface'}`}>
-                <td className="px-4 py-2 text-xs">
-                  <button onClick={() => onView(row)} className="font-medium text-brand-primary hover:underline">{row.item_code}</button>
-                </td>
-                <td className="px-4 py-2 text-xs text-text-primary">{row.item_name}</td>
-                <td className="px-4 py-2 text-xs"><span className="px-2 py-0.5 rounded-full bg-surface border border-border">{row.item_type?.replace(/_/g,' ')}</span></td>
-                <td className="px-4 py-2 text-xs text-text-secondary">{row.item_category || '—'}</td>
-                <td className="px-4 py-2 text-xs text-text-secondary">{SOURCE_LABEL[row.source] || row.source || '—'}</td>
-                <td className="px-4 py-2 text-xs text-text-secondary">{row.lead_time_days ? `${row.lead_time_days}d` : '—'}</td>
-                <td className="px-4 py-2 text-xs">
-                  <span className={`px-2 py-0.5 rounded-full text-xs ${row.is_active !== false ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>
-                    {row.is_active !== false ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
+                {columns.map((col, ci) => (
+                  <td key={col.key} className="px-4 py-2 text-xs text-text-primary">
+                    {col.key === 'is_active'
+                      ? <span className={`px-2 py-0.5 rounded-full text-xs ${row.is_active !== false ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>{row.is_active !== false ? 'Active' : 'Inactive'}</span>
+                      : ci === 0 && onView
+                        ? <button onClick={() => onView(row)} className="font-medium text-brand-primary hover:underline">{row[col.key] || '—'}</button>
+                        : row[col.key] || '—'}
+                  </td>
+                ))}
                 <td className="px-4 py-2 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => onEdit(row)} className="text-brand-primary text-xs px-2 py-1 rounded border border-brand-primary hover:bg-brand-light">✏️</button>
-                    <button onClick={() => onHistory(row)} className="text-text-secondary text-xs px-2 py-1 rounded border border-border hover:bg-surface">🕐</button>
-                    <button onClick={() => onToggleStatus(row)} className={`text-xs px-2 py-1 rounded border ${row.is_active !== false ? 'border-red-200 text-red-500 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}>
-                      {row.is_active !== false ? '🔴' : '🟢'}
-                    </button>
+                    {onEdit && <button onClick={() => onEdit(row)} title="Edit" className="text-brand-primary text-xs px-2 py-1 rounded border border-brand-primary hover:bg-brand-light">✏️</button>}
+                    {onHistory && <button onClick={() => onHistory(row)} title="History" className="text-text-secondary text-xs px-2 py-1 rounded border border-border hover:bg-surface">🕐</button>}
+                    {onToggleStatus && <button onClick={() => onToggleStatus(row)} title={row.is_active !== false ? 'Deactivate' : 'Activate'} className={`text-xs px-2 py-1 rounded border ${row.is_active !== false ? 'border-red-200 text-red-500 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'}`}>{row.is_active !== false ? '🔴' : '🟢'}</button>}
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && <div className="text-center py-12 text-text-secondary text-sm">
-          {items.length === 0 ? 'No items defined yet' : 'No items match your filters'}
-        </div>}
+        {filtered.length === 0 && <div className="text-center py-6 text-text-secondary text-sm">{data.length === 0 ? 'No records found' : 'No records match your filters'}</div>}
       </div>
     </div>
   );
 };
+
 
 const Settings: React.FC = () => {
   const [activeSection, setActiveSection] = useState('suppliers');
@@ -936,13 +867,29 @@ const Settings: React.FC = () => {
       </div>
 
       {activeSection === 'items' && (
-        <ItemMasterSection
-          items={items || []}
+        <MasterTable
+          title="Item Master"
+          data={(items || []).map((i: any) => ({ ...i, source_label: SOURCE_LABEL[i.source] || i.source || '—', lead_time_display: i.lead_time_days ? `${i.lead_time_days}d` : '—' }))}
+          columns={[
+            { key: 'item_code', label: 'Code' },
+            { key: 'item_name', label: 'Name' },
+            { key: 'item_type', label: 'Type' },
+            { key: 'item_category', label: 'Category' },
+            { key: 'source_label', label: 'Source' },
+            { key: 'lead_time_display', label: 'Lead Time' },
+            { key: 'is_active', label: 'Status' }
+          ]}
           onAdd={() => setShowItemModal(true)}
-          onEdit={row => setEditItem(row)}
-          onHistory={row => { setHistoryRecord(row); setHistoryType('item'); }}
-          onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('item'); }}
-          onView={row => setViewItem(row)}
+          onEdit={(row: any) => setEditItem(row)}
+          onHistory={(row: any) => { setHistoryRecord(row); setHistoryType('item'); }}
+          onToggleStatus={(row: any) => { setDeactivateRecord(row); setDeactivateType('item'); }}
+          onView={(row: any) => setViewItem(row)}
+          searchFields={['item_code','item_name','item_category']}
+          filterConfig={[
+            { key: 'item_type', label: 'Type', options: ['raw_material','finished_goods','semi_finished','consumable','spare','tool','packaging'] },
+            { key: 'source', label: 'Source', options: ['domestic','import_usa','import_europe','import_other','internal'] },
+            { key: 'status', label: 'Status', options: ['active','inactive'] }
+          ]}
         />
       )}
 
@@ -962,6 +909,8 @@ const Settings: React.FC = () => {
           onHistory={row => { setHistoryRecord(row); setHistoryType('payment_terms'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('payment_terms'); }}
           onView={row => setEditPaymentTerms(row)}
+          searchFields={['code','description']}
+          filterConfig={[{key:'status',label:'Status',options:['active','inactive']}]}
         />
       )}
 
@@ -982,6 +931,8 @@ const Settings: React.FC = () => {
           onHistory={row => { setHistoryRecord(row); setHistoryType('supplier'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('supplier'); }}
           onView={row => setViewSupplier(row)}
+          searchFields={['supplier_code','supplier_name','city']}
+          filterConfig={[{key:'supplier_type',label:'Type',options:['direct','indirect']},{key:'status',label:'Status',options:['active','inactive']}]}
         />
       )}
 
@@ -1003,6 +954,8 @@ const Settings: React.FC = () => {
           onHistory={row => { setHistoryRecord(row); setHistoryType('machine'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('machine'); }}
           onView={row => setEditMachine(row)}
+          searchFields={['machine_code','machine_name']}
+          filterConfig={[{key:'machine_type',label:'Type',options:['furnace','die_casting','cnc','lathe','other']},{key:'status',label:'Status',options:['active','inactive']}]}
         />
       )}
 
@@ -1024,6 +977,8 @@ const Settings: React.FC = () => {
           onHistory={row => { setHistoryRecord(row); setHistoryType('die'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('die'); }}
           onView={row => setEditDie(row)}
+          searchFields={['die_number','die_name','die_owner']}
+          filterConfig={[{key:'status',label:'Status',options:['active','inactive']}]}
         />
       )}
 
@@ -1044,6 +999,8 @@ const Settings: React.FC = () => {
           onHistory={row => { setHistoryRecord(row); setHistoryType('customer'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('customer'); }}
           onView={row => setViewCustomer(row)}
+          searchFields={['customer_code','customer_name','city']}
+          filterConfig={[{key:'status',label:'Status',options:['active','inactive']}]}
         />
       )}
 
@@ -1064,6 +1021,8 @@ const Settings: React.FC = () => {
           onHistory={row => { setHistoryRecord(row); setHistoryType('vendor'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('vendor'); }}
           onView={row => setEditVendor(row)}
+          searchFields={['vendor_code','vendor_name']}
+          filterConfig={[{key:'service_type',label:'Service',options:['machining','plating','heat_treatment','assembly','painting','other']},{key:'status',label:'Status',options:['active','inactive']}]}
         />
       )}
 
@@ -1090,6 +1049,8 @@ const Settings: React.FC = () => {
           onHistory={row => { setHistoryRecord(row); setHistoryType('location'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('location'); }}
           onView={row => setEditLocation(row)}
+          searchFields={['code','description','zone']}
+          filterConfig={[{key:'location_type',label:'Type',options:['store','shop_floor']},{key:'status',label:'Status',options:['active','inactive']}]}
         />
       )}
 
@@ -1109,6 +1070,8 @@ const Settings: React.FC = () => {
           onHistory={row => { setHistoryRecord(row); setHistoryType('cost_centre'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('cost_centre'); }}
           onView={row => setEditCostCentre(row)}
+          searchFields={['code','name']}
+          filterConfig={[{key:'type',label:'Type',options:['machine','department','project','overhead']},{key:'status',label:'Status',options:['active','inactive']}]}
         />
       )}
 
@@ -1137,6 +1100,8 @@ const Settings: React.FC = () => {
           onHistory={row => { setHistoryRecord(row); setHistoryType('alloy_spec'); }}
           onToggleStatus={row => { setDeactivateRecord(row); setDeactivateType('alloy_spec'); }}
           onView={row => setEditAlloySpec(row)}
+          searchFields={['item_code','item_name','standard']}
+          filterConfig={[{key:'alloy_system',label:'System',options:['Al-Si','Al-Cu','Al-Mg','Al-Zn','Zn','Other']},{key:'status',label:'Status',options:['active','inactive']}]}
         />
       )}
 

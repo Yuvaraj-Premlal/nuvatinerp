@@ -22,6 +22,9 @@ export const getVendors = async (req: AuthRequest, res: Response) => {
 export const createVendor = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
+    // Duplicate check
+    const _dup = await (prisma as any).vendorMaster.findFirst({ where: { tenant_id, vendor_name: { equals: req.body.vendor_name, mode: "insensitive" } } });
+    if (_dup) return res.status(400).json({ success: false, error: `Vendor "${req.body.vendor_name}" already exists as ${_dup.vendor_code}` });
     const { vendor_name, ...rest } = req.body;
     const count = await prisma.vendorMaster.count({ where: { tenant_id } });
     const vendor_code = generateCode('VEND', vendor_name, count + 1);

@@ -22,6 +22,9 @@ export const getCustomers = async (req: AuthRequest, res: Response) => {
 export const createCustomer = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
+    // Duplicate check
+    const _dup = await (prisma as any).customerMaster.findFirst({ where: { tenant_id, customer_name: { equals: req.body.customer_name, mode: "insensitive" } } });
+    if (_dup) return res.status(400).json({ success: false, error: `Customer "${req.body.customer_name}" already exists as ${_dup.customer_code}` });
     const { customer_name, ...rest } = req.body;
     const count = await prisma.customerMaster.count({ where: { tenant_id } });
     const customer_code = generateCode('CUST', customer_name, count + 1);

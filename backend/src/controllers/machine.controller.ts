@@ -5,7 +5,10 @@ import { AuthRequest } from '../middleware/auth.middleware';
 export const createMachine = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
-    const { machine_code, machine_name, machine_type, capacity_tons, rated_cycle_time_sec, rated_shots_per_shift, is_constraint, oee_target_percent, location } = req.body;
+    const { machine_name } = req.body;
+    const _dup = await (prisma as any).machineMaster.findFirst({ where: { tenant_id, machine_name: { equals: machine_name, mode: 'insensitive' } } });
+    if (_dup) return res.status(400).json({ success: false, error: `Machine "${req.body.machine_name}" already exists as ${_dup.machine_code}` });
+    const { machine_code, machine_name: _mn, machine_type, capacity_tons, rated_cycle_time_sec, rated_shots_per_shift, is_constraint, oee_target_percent, location } = req.body;
     const machine = await prisma.machineMaster.create({
       data: { tenant_id, machine_code, machine_name, machine_type, capacity_tons, rated_cycle_time_sec, rated_shots_per_shift, is_constraint, oee_target_percent, location }
     });

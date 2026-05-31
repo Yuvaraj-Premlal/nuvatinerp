@@ -17,6 +17,8 @@ export const getDies = async (req: AuthRequest, res: Response) => {
 export const createDie = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
+    const _dup = await (prisma as any).dieMaster.findFirst({ where: { tenant_id, die_name: { equals: req.body.die_name, mode: 'insensitive' } } });
+    if (_dup) return res.status(400).json({ success: false, error: `Die "${req.body.die_name}" already exists as ${_dup.die_number}` });
     const { die_name, item_id, ...rest } = req.body;
     const count = await prisma.dieMaster.count({ where: { tenant_id } });
     // Auto-generate die number: DIE-YYYY-NNNN
