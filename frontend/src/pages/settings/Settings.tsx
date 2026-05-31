@@ -227,18 +227,13 @@ const AddMachineModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-lg max-h-screen overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="font-bold text-text-primary">Add Machine</h2>
+          <div><h2 className="font-bold text-text-primary">Add Machine</h2><p className="text-xs text-text-secondary mt-0.5">Code auto-generated: DC-250-001, FURN-001</p></div>
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Machine Code</label>
-              <input value={form.machine_code} onChange={e => setForm({ ...form, machine_code: e.target.value.toUpperCase() })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="e.g. DCM-250T-02" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Machine Name</label>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-text-primary mb-1">Machine Name <span className="text-red-500">*</span></label>
               <input value={form.machine_name} onChange={e => setForm({ ...form, machine_name: e.target.value })}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" required />
             </div>
@@ -1397,7 +1392,7 @@ const AddItemModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 const AddPaymentTermsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ code: '', description: '', days: '30', discount_percent: '', discount_days: '' });
+  const [form, setForm] = useState({ description: '', days: '30', discount_percent: '', discount_days: '' });
   const mutation = useMutation({
     mutationFn: (d: any) => api.post('/api/payment-terms', d),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['paymentTerms'] }); onClose(); }
@@ -1411,8 +1406,7 @@ const AddPaymentTermsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
           <button onClick={onClose} className="text-text-secondary hover:text-text-primary">✕</button>
         </div>
         <div className="p-5 space-y-3">
-          <div><label className="block text-xs text-text-secondary mb-1">Code <span className="text-red-500">*</span></label>
-            <input value={form.code} onChange={e => setForm({...form, code: e.target.value.toUpperCase()})} className={cls} placeholder="e.g. NET30" /></div>
+          <div className="bg-surface rounded-lg p-2 text-xs text-text-secondary">Code auto-generated: NET30, NET30D2-10, ADV, COD</div>
           <div><label className="block text-xs text-text-secondary mb-1">Description <span className="text-red-500">*</span></label>
             <input value={form.description} onChange={e => setForm({...form, description: e.target.value})} className={cls} placeholder="e.g. Net 30 days" /></div>
           <div><label className="block text-xs text-text-secondary mb-1">Payment Days <span className="text-red-500">*</span></label>
@@ -1426,8 +1420,8 @@ const AddPaymentTermsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
           {mutation.isError && <p className="text-red-500 text-sm">Failed to add payment terms</p>}
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button onClick={() => mutation.mutate({...form, days: parseInt(form.days), discount_percent: form.discount_percent ? parseFloat(form.discount_percent) : null, discount_days: form.discount_days ? parseInt(form.discount_days) : null})}
-              disabled={!form.code || !form.description || !form.days || mutation.isPending}
+            <button onClick={() => mutation.mutate({ description: form.description, days: parseInt(form.days), discount_percent: form.discount_percent ? parseFloat(form.discount_percent) : null, discount_days: form.discount_days ? parseInt(form.discount_days) : null })}
+              disabled={!form.description || !form.days || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
               {mutation.isPending ? 'Adding...' : 'Add Terms'}
             </button>
@@ -2158,7 +2152,7 @@ const EditPaymentTermsModal: React.FC<{ paymentTerms: any; onClose: () => void }
           {mutation.isError && <p className="text-red-500 text-sm">Failed to update</p>}
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button onClick={() => mutation.mutate({...form, days: parseInt(form.days), discount_percent: form.discount_percent ? parseFloat(form.discount_percent) : null, discount_days: form.discount_days ? parseInt(form.discount_days) : null})}
+            <button onClick={() => mutation.mutate({ description: form.description, days: parseInt(form.days), discount_percent: form.discount_percent ? parseFloat(form.discount_percent) : null, discount_days: form.discount_days ? parseInt(form.discount_days) : null })}
               disabled={!form.description || !form.reason || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
               {mutation.isPending ? 'Saving...' : 'Save Changes'}

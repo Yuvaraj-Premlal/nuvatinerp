@@ -2,15 +2,37 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 
+const generateMachineCode = async (tenant_id: string, machine_type: string, capacity_tons?: number): Promise<string> => {
+  const typePrefix: Record<string, string> = {
+    furnace: 'FURN', die_casting: 'DC', cnc: 'CNC', lathe: 'LATHE', other: 'MACH'
+  };
+  const prefix = typePrefix[machine_type] || 'MACH';
+  const cap = capacity_tons ? `-${capacity_tons}` : '';
+  const pattern = `${prefix}${cap}-`;
+  const existing = await (prisma as any).machineMaster.findMany({ where: { tenant_id, machine_code: { startsWith: pattern } } });
+  const seq = String(existing.length + 1).padStart(3, '0');
+  return `${pattern}${seq}`;
+};
+
 export const createMachine = async (req: AuthRequest, res: Response) => {
   try {
     const tenant_id = req.user?.tenant_id as string;
     const { machine_name } = req.body;
     const _dup = await (prisma as any).machineMaster.findFirst({ where: { tenant_id, machine_name: { equals: machine_name, mode: 'insensitive' } } });
     if (_dup) return res.status(400).json({ success: false, error: `Machine "${req.body.machine_name}" already exists as ${_dup.machine_code}` });
-    const { machine_code, machine_name: _mn, machine_type, capacity_tons, rated_cycle_time_sec, rated_shots_per_shift, is_constraint, oee_target_percent, location } = req.body;
+    const { machine_name: _mn, machine_type, capacity_tons, rated_cycle_time_sec, rated_shots_per_shift, is_constraint, oee_target_percent, location, cost_per_hour, power_kw } = req.body;
+    const machine_code = await generateMachineCode(tenant_id, machine_type, capacity_tons ? parseFloat(capacity_tons) : undefined);
     const machine = await prisma.machineMaster.create({
-      data: { tenant_id, machine_code, machine_name, machine_type, capacity_tons, rated_cycle_time_sec, rated_shots_per_shift, is_constraint, oee_target_percent, location }
+      data: { tenant_id, machine_code, machine_name, machine_type,
+        capacity_tons: capacity_tons ? parseFloat(capacity_tons) : null,
+        rated_cycle_time_sec: rated_cycle_time_sec ? parseInt(rated_cycle_time_sec) : null,
+        rated_shots_per_shift: rated_shots_per_shift ? parseInt(rated_shots_per_shift) : null,
+        is_constraint: is_constraint || false,
+        oee_target_percent: oee_target_percent ? parseFloat(oee_target_percent) : null,
+        power_kw: power_kw ? parseFloat(power_kw) : null,
+        cost_per_hour: cost_per_hour ? parseFloat(cost_per_hour) : null,
+        location: location || null
+      }
     });
     res.status(201).json({ success: true, data: machine });
   } catch (error: any) {
