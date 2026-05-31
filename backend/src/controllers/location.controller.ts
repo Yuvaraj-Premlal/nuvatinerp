@@ -31,15 +31,21 @@ export const createLocation = async (req: AuthRequest, res: Response) => {
 export const updateLocation = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params as { id: string };
-    const { description, zone, is_active } = req.body;
-    const location = await prisma.locationMaster.update({
-      where: { id },
-      data: { description, zone, is_active }
-    });
+    const { reason, description, zone, location_type, capacity_kg, rack_count, bin_count } = req.body;
+    if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
+    const existing = await prisma.locationMaster.findUnique({ where: { id } });
+    const location = await prisma.locationMaster.update({ where: { id }, data: {
+      description: description || null,
+      zone: zone || null,
+      ...(location_type && { type: location_type }),
+      capacity_kg: capacity_kg ? parseFloat(capacity_kg) : null,
+      rack_count: rack_count ? parseInt(rack_count) : null,
+      bin_count: bin_count ? parseInt(bin_count) : null,
+    }});
+    const { logChange } = await import('../utils/audit');
+    await logChange(existing?.tenant_id || '', 'location', id, existing?.code || '', 'update', existing, location, req.user?.user_id || '', req.user?.email || '', reason);
     res.json({ success: true, data: location });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };
 
 export const transferLocation = async (req: AuthRequest, res: Response) => {

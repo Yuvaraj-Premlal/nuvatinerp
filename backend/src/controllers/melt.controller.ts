@@ -71,7 +71,12 @@ export const createAlloySpec = async (req: AuthRequest, res: Response) => {
 export const updateAlloySpec = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params as { id: string };
-    const spec = await prisma.itemAlloySpec.update({ where: { id }, data: req.body });
+    const { reason, ...updateData } = req.body;
+    if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
+    const existing = await prisma.itemAlloySpec.findUnique({ where: { id }, include: { item: { select: { item_code: true, tenant_id: true } } } });
+    const spec = await prisma.itemAlloySpec.update({ where: { id }, data: updateData });
+    const { logChange } = await import('../utils/audit');
+    await logChange(existing?.item?.tenant_id || existing?.tenant_id || '', 'alloy_spec', id, existing?.item?.item_code || '', 'update', existing, spec, req.user?.user_id || '', req.user?.email || '', reason);
     res.json({ success: true, data: spec });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };

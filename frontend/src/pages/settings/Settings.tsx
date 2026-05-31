@@ -2172,7 +2172,8 @@ const EditAlloySpecModal: React.FC<{ spec: any; onClose: () => void }> = ({ spec
     melt_temp_min: spec.melt_temp_min || '', melt_temp_max: spec.melt_temp_max || '',
     transfer_temp_min: spec.transfer_temp_min || '', transfer_temp_max: spec.transfer_temp_max || '',
     pouring_temp_min: spec.pouring_temp_min || '', pouring_temp_max: spec.pouring_temp_max || '',
-    ...Object.fromEntries(elements.flatMap(el => [[`${el}_min`, spec[`${el}_min`] || ''], [`${el}_max`, spec[`${el}_max`] || '']]))
+    ...Object.fromEntries(elements.flatMap(el => [[`${el}_min`, spec[`${el}_min`] || ''], [`${el}_max`, spec[`${el}_max`] || '']])),
+    reason: ''
   });
   const mutation = useMutation({
     mutationFn: (d: any) => api.put(`/api/melt/alloy-grades/${spec.id}`, d),
@@ -2228,10 +2229,12 @@ const EditAlloySpecModal: React.FC<{ spec: any; onClose: () => void }> = ({ spec
               ))}
             </div>
           </div>
+          <div><label className="block text-xs text-text-secondary mb-1">Reason for change <span className="text-red-500">*</span></label>
+            <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} rows={2} className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" /></div>
           {mutation.isError && <p className="text-red-500 text-sm">Failed to update alloy spec</p>}
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button onClick={handleSave} disabled={mutation.isPending}
+            <button onClick={handleSave} disabled={!form.reason || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
               {mutation.isPending ? 'Saving...' : 'Save Changes'}
             </button>

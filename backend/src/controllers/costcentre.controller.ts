@@ -31,7 +31,12 @@ export const createCostCentre = async (req: AuthRequest, res: Response) => {
 export const updateCostCentre = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params as { id: string };
-    const cc = await prisma.costCentre.update({ where: { id }, data: req.body });
+    const { reason, ...updateData } = req.body;
+    if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
+    const existing = await (prisma as any).costCentre.findUnique({ where: { id } });
+    const cc = await (prisma as any).costCentre.update({ where: { id }, data: updateData });
+    const { logChange } = await import('../utils/audit');
+    await logChange(existing?.tenant_id || '', 'cost_centre', id, existing?.code || '', 'update', existing, cc, req.user?.user_id || '', req.user?.email || '', reason);
     res.json({ success: true, data: cc });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };
