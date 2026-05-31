@@ -2152,7 +2152,7 @@ const EditPaymentTermsModal: React.FC<{ paymentTerms: any; onClose: () => void }
           {mutation.isError && <p className="text-red-500 text-sm">Failed to update</p>}
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="flex-1 px-4 py-2 border border-border rounded-lg text-sm text-text-secondary hover:bg-surface">Cancel</button>
-            <button onClick={() => mutation.mutate({ description: form.description, days: parseInt(form.days), discount_percent: form.discount_percent ? parseFloat(form.discount_percent) : null, discount_days: form.discount_days ? parseInt(form.discount_days) : null })}
+            <button onClick={() => mutation.mutate({ description: form.description, days: parseInt(form.days), discount_percent: form.discount_percent ? parseFloat(form.discount_percent) : null, discount_days: form.discount_days ? parseInt(form.discount_days) : null, reason: form.reason })}
               disabled={!form.description || !form.reason || mutation.isPending}
               className="flex-1 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium disabled:opacity-50">
               {mutation.isPending ? 'Saving...' : 'Save Changes'}

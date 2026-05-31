@@ -54,17 +54,15 @@ export const getMachines = async (req: AuthRequest, res: Response) => {
 
 export const updateMachine = async (req: AuthRequest, res: Response) => {
   try {
-    const tenant_id = req.user?.tenant_id as string;
-    const id = req.params.id as string;
-    const { is_constraint, oee_target_percent, rated_cycle_time_sec } = req.body;
-    const machine = await prisma.machineMaster.updateMany({
-      where: { id, tenant_id },
-      data: { is_constraint, oee_target_percent, rated_cycle_time_sec }
-    });
+    const { id } = req.params as { id: string };
+    const { reason, ...updateData } = req.body;
+    if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
+    const existing = await prisma.machineMaster.findUnique({ where: { id } });
+    const machine = await prisma.machineMaster.update({ where: { id }, data: updateData });
+    const { logChange } = await import('../utils/audit');
+    await logChange(existing?.tenant_id || '', 'machine', id, existing?.machine_code || '', 'update', existing, machine, req.user?.user_id || '', req.user?.email || '', reason);
     res.json({ success: true, data: machine });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };
 export const toggleMachineStatus = async (req: AuthRequest, res: Response) => {
   try {

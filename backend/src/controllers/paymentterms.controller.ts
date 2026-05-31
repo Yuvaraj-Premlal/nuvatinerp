@@ -38,7 +38,12 @@ export const createPaymentTerms = async (req: AuthRequest, res: Response) => {
 export const updatePaymentTerms = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params as { id: string };
-    const terms = await prisma.paymentTerms.update({ where: { id }, data: req.body });
+    const { reason, ...updateData } = req.body;
+    if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
+    const old = await prisma.paymentTerms.findUnique({ where: { id } });
+    const terms = await prisma.paymentTerms.update({ where: { id }, data: updateData });
+    const { logChange: _lc } = await import('../utils/audit');
+    await _lc(old?.tenant_id || '', 'payment_terms', id, old?.code || '', 'update', old, terms, req.user?.user_id || '', req.user?.email || '', reason);
     res.json({ success: true, data: terms });
   } catch (e: any) { res.status(500).json({ success: false, error: e.message }); }
 };
